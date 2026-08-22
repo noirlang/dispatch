@@ -1,0 +1,17 @@
+{
+  "name": "Dispatch Mail",
+  "short_name": "Dispatch",
+  "description": "Akıllı ve Modern E-Posta İstemcisi",
+  "start_url": "/app",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "icons": [
+    {
+      "src": "/dispatch.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

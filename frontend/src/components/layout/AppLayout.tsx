@@ -217,24 +217,24 @@ export default function AppLayout({
 
         {/* Right: Desktop Actions vs Mobile Hamburger + NoirLang */}
         <div className="flex items-center gap-2 z-10">
+          {/* Notification Permission Prompt if not granted (Mobile + Desktop) */}
+          {notifPermission === "default" && (
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={async () => {
+                const granted = await requestNotificationPermission()
+                setNotifPermission(granted ? "granted" : "denied")
+              }}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#f59e0b15] text-[#f59e0b] border border-[#f59e0b30] text-[11px] font-semibold hover:bg-[#f59e0b25] transition-colors"
+              title="Bildirimlere İzin Ver"
+            >
+              <Bell size={12} className="animate-bounce" />
+              <span className="hidden sm:inline">{lang === "tr" ? "Bildirimleri Aç" : "Enable Alerts"}</span>
+            </motion.button>
+          )}
+
           {/* DESKTOP Toolbar */}
           <div className="hidden md:flex items-center gap-2">
-            {/* Notification Permission Prompt if not granted */}
-            {notifPermission === "default" && (
-              <motion.button
-                whileTap={{ scale: 0.9 }}
-                onClick={async () => {
-                  const granted = await requestNotificationPermission()
-                  setNotifPermission(granted ? "granted" : "denied")
-                }}
-                className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#f59e0b15] text-[#f59e0b] border border-[#f59e0b30] text-xs font-semibold hover:bg-[#f59e0b25] transition-colors"
-                title="Bildirimlere İzin Ver"
-              >
-                <Bell size={13} className="animate-bounce" />
-                <span>{lang === "tr" ? "Bildirimleri Aç" : "Enable Alerts"}</span>
-              </motion.button>
-            )}
-
             {/* Circular Flags */}
             <div className="flex items-center gap-1.5 p-1 rounded-full bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-xs">
               <motion.button
