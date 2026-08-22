@@ -107,10 +107,19 @@ Rails.application.routes.draw do
 
       # Blog API
       namespace :blog do
-        get "/@:handle",       to: "/blog/posts#index"
-        get "/@:handle/:slug", to: "/blog/posts#show"
-        get "/:handle",        to: "/blog/posts#index"
-        get "/:handle/:slug",  to: "/blog/posts#show"
+        get "/feed",               to: "/blog/posts#feed"
+        get "/feed.xml",           to: "/blog/posts#feed"
+        get "/rss.xml",            to: "/blog/posts#feed"
+        get "/@:handle/feed",      to: "/blog/posts#feed"
+        get "/@:handle/feed.xml",  to: "/blog/posts#feed"
+        get "/@:handle/rss.xml",   to: "/blog/posts#feed"
+        get "/:handle/feed",       to: "/blog/posts#feed"
+        get "/:handle/feed.xml",   to: "/blog/posts#feed"
+        get "/:handle/rss.xml",    to: "/blog/posts#feed"
+        get "/@:handle",           to: "/blog/posts#index"
+        get "/@:handle/:slug",     to: "/blog/posts#show"
+        get "/:handle",            to: "/blog/posts#index"
+        get "/:handle/:slug",      to: "/blog/posts#show"
       end
     end
   end
@@ -119,23 +128,41 @@ Rails.application.routes.draw do
   # blog.domain.com or /blog namespace or direct /@handle
   constraints(subdomain: "blog") do
     namespace :blog, path: "" do
-      get "/",               to: "posts#index"
-      get "/@:handle",       to: "posts#index",  as: :author_posts
-      get "/@:handle/:slug", to: "posts#show",   as: :author_post
-      get "/:handle",        to: "posts#index"
-      get "/:handle/:slug",  to: "posts#show"
+      get "/feed",               to: "posts#feed"
+      get "/feed.xml",           to: "posts#feed"
+      get "/rss.xml",            to: "posts#feed"
+      get "/@:handle/feed",      to: "posts#feed"
+      get "/@:handle/feed.xml",  to: "posts#feed"
+      get "/@:handle/rss.xml",   to: "posts#feed"
+      get "/:handle/feed",       to: "posts#feed"
+      get "/:handle/feed.xml",   to: "posts#feed"
+      get "/:handle/rss.xml",    to: "posts#feed"
+      get "/",                   to: "posts#index"
+      get "/@:handle",           to: "posts#index",  as: :author_posts
+      get "/@:handle/:slug",     to: "posts#show",   as: :author_post
+      get "/:handle",            to: "posts#index"
+      get "/:handle/:slug",      to: "posts#show"
     end
   end
 
   # Also accessible without subdomain for local dev
   namespace :blog do
-    get "/",               to: "posts#index"
-    get "/@:handle",       to: "posts#index"
-    get "/@:handle/:slug", to: "posts#show"
-    get "/:handle",        to: "posts#index"
-    get "/:handle/:slug",  to: "posts#show"
+    get "/feed",               to: "posts#feed"
+    get "/feed.xml",           to: "posts#feed"
+    get "/rss.xml",            to: "posts#feed"
+    get "/@:handle/feed",      to: "posts#feed"
+    get "/@:handle/feed.xml",  to: "posts#feed"
+    get "/@:handle/rss.xml",   to: "posts#feed"
+    get "/:handle/feed",       to: "posts#feed"
+    get "/:handle/feed.xml",   to: "posts#feed"
+    get "/:handle/rss.xml",    to: "posts#feed"
+    get "/",                   to: "posts#index"
+    get "/@:handle",           to: "posts#index"
+    get "/@:handle/:slug",     to: "posts#show"
+    get "/:handle",            to: "posts#index"
+    get "/:handle/:slug",      to: "posts#show"
   end
 
-  get "/@:handle",       to: "blog/posts#index"
-  get "/@:handle/:slug", to: "blog/posts#show"
+  get "/@:handle",           to: "blog/posts#index"
+  get "/@:handle/:slug",     to: "blog/posts#show"
 end

@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom"
 import { formatDistanceToNow, format } from "date-fns"
 import SenderAvatar from "../../components/ui/SenderAvatar"
 import EmailMdView from "../../components/ui/EmailMdView"
-import { ArrowLeft, BookOpen, Clock } from "lucide-react"
+import { ArrowLeft, BookOpen, Clock, Rss } from "lucide-react"
 
 interface Post {
   slug: string
@@ -44,7 +44,7 @@ export function BlogIndex() {
       {/* Top Navbar */}
       <header className="border-b border-[var(--border-color)] bg-[var(--bg-secondary)] px-8 py-3.5 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link to={cleanHandle ? `/@${cleanHandle}` : "/blog"} className="text-base font-semibold tracking-tight text-[var(--text-main)] flex items-center gap-2">
+          <Link to={cleanHandle ? `/blog/${cleanHandle}` : "/blog"} className="text-base font-semibold tracking-tight text-[var(--text-main)] flex items-center gap-2">
             <BookOpen size={17} />
             <span>Dispatch Blog</span>
           </Link>
@@ -55,6 +55,19 @@ export function BlogIndex() {
             </>
           )}
         </div>
+
+        {cleanHandle && (
+          <a
+            href={`/api/v1/blog/@${cleanHandle}/feed.xml`}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="RSS Akışı"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] text-xs font-semibold text-[var(--text-muted)] hover:text-[#f59e0b] hover:border-[#f59e0b40] transition-colors shadow-xs"
+          >
+            <Rss size={13} className="text-[#f59e0b]" />
+            <span>RSS</span>
+          </a>
+        )}
       </header>
 
       {/* Main Content */}
@@ -200,9 +213,21 @@ export function BlogPost() {
           <ArrowLeft size={13} />
           <span>@{cleanHandle} bloguna dön</span>
         </Link>
-        <span className="text-xs font-mono text-[var(--text-dim)]">
-          Dispatch Blog
-        </span>
+        <div className="flex items-center gap-3">
+          <a
+            href={`/api/v1/blog/@${cleanHandle}/feed.xml`}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="RSS Akışı"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)] text-xs font-semibold text-[var(--text-muted)] hover:text-[#f59e0b] hover:border-[#f59e0b40] transition-colors shadow-xs"
+          >
+            <Rss size={12} className="text-[#f59e0b]" />
+            <span>RSS</span>
+          </a>
+          <span className="text-xs font-mono text-[var(--text-dim)]">
+            Dispatch Blog
+          </span>
+        </div>
       </header>
 
       <main className="max-w-3xl mx-auto px-6 py-16 w-full flex-1">
