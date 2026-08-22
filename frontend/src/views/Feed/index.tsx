@@ -1,10 +1,10 @@
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "../../lib/api"
 import { useT, useDateLocale } from "../../store/themeAndLocale"
 import { motion, AnimatePresence } from "framer-motion"
 import { formatDistanceToNow, format } from "date-fns"
-import { Plus, ExternalLink, Rss, BookOpen, Clock, X, RotateCw } from "lucide-react"
+import { Plus, ExternalLink, Rss, BookOpen, Clock, X, RotateCw, Image } from "lucide-react"
 import DOMPurify from "dompurify"
 
 interface RssFeed {
@@ -40,6 +40,7 @@ export default function FeedView() {
   const [showAdd, setShowAdd] = useState(false)
   const [selectedFeedId, setSelectedFeedId] = useState<number | null>(null)
   const [selectedArticle, setSelectedArticle] = useState<RssItem | null>(null)
+  const [allowImages, setAllowImages] = useState(false)
 
   const { data: feeds = [] } = useQuery({
     queryKey: ["rss-feeds"],
@@ -88,10 +89,28 @@ export default function FeedView() {
 
   function handleOpenArticle(item: RssItem) {
     setSelectedArticle(item)
+    setAllowImages(false)
     if (!item.is_read) {
       markRead.mutate(item.id)
     }
   }
+
+  const rawArticleContent = selectedArticle ? (selectedArticle.content || selectedArticle.title || "") : ""
+  const hasImages = rawArticleContent.includes("<img") || rawArticleContent.includes("&lt;img") || rawArticleContent.includes("<iframe")
+
+  const sanitizedArticleHtml = useMemo(() => {
+    if (!rawArticleContent) return ""
+    if (allowImages) {
+      return DOMPurify.sanitize(rawArticleContent, {
+        ADD_TAGS: ["iframe", "img"],
+        ADD_ATTR: ["target", "src", "alt", "width", "height", "loading", "allowfullscreen", "style"]
+      })
+    }
+    return DOMPurify.sanitize(rawArticleContent, {
+      FORBID_TAGS: ["img", "iframe"],
+      FORBID_ATTR: ["src"]
+    })
+  }, [rawArticleContent, allowImages])
 
   return (
     <div className="h-full flex flex-col max-w-6xl mx-auto p-6 animate-fadeIn">
@@ -314,6 +333,22 @@ export default function FeedView() {
                     <ExternalLink size={12} />
                     <span>Open in Browser</span>
                   </a>
+
+                  {/* Resimlere Güven Button */}
+                  <button
+                    type="button"
+                    onClick={() => setAllowImages((prev) => !prev)}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all cursor-pointer shadow-xs ${
+                      allowImages
+                        ? "bg-[#10b98115] border-[#10b98140] text-[#10b981]"
+                        : "bg-[var(--bg-primary)] border-[var(--border-color)] text-[var(--text-muted)] hover:text-[var(--text-main)]"
+                    }`}
+                    title={allowImages ? "Resimler açık (Güvenildi)" : "Harici resimleri ve görselleri yükle"}
+                  >
+                    <Image size={12} className={allowImages ? "text-[#10b981]" : "text-[var(--text-dim)]"} />
+                    <span>{allowImages ? "Resimler Açık" : "Resimlere Güven"}</span>
+                  </button>
+
                   <motion.button
                     whileTap={{ scale: 0.9 }}
                     onClick={() => setSelectedArticle(null)}
@@ -330,7 +365,7 @@ export default function FeedView() {
               </h2>
 
               {/* Metadata */}
-              <div className="flex items-center gap-3 pb-4 mb-6 border-b border-[var(--border-color)] text-xs text-[var(--text-dim)]">
+              <div className="flex items-center gap-3 pb-4 mb-4 border-b border-[var(--border-color)] text-xs text-[var(--text-dim)]">
                 {selectedArticle.author && (
                   <span className="font-semibold text-[var(--text-main)]">
                     By {selectedArticle.author}
@@ -341,13 +376,28 @@ export default function FeedView() {
                 )}
               </div>
 
+              {/* Image security warning banner if images exist and blocked */}
+              {hasImages && !allowImages && (
+                <div className="flex items-center justify-between p-3 mb-6 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)] text-xs text-[var(--text-muted)]">
+                  <div className="flex items-center gap-2">
+                    <Image size={14} className="text-[var(--text-dim)] shrink-0" />
+                    <span>Dış görseller gizliliğiniz için engellendi.</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAllowImages(true)}
+                    className="font-bold text-[var(--text-main)] hover:underline ml-2 shrink-0 cursor-pointer"
+                  >
+                    Resimlere Güven
+                  </button>
+                </div>
+              )}
+
               {/* Content with Clean HTML sanitization */}
               <div
                 className="prose prose-neutral dark:prose-invert max-w-none text-sm leading-relaxed"
                 dangerouslySetInnerHTML={{
-                  __html: DOMPurify.sanitize(
-                    selectedArticle.content || selectedArticle.title
-                  ),
+                  __html: sanitizedArticleHtml
                 }}
               />
             </motion.div>
