@@ -96,6 +96,10 @@ class RssFetchWorker
   ].freeze
 
   def safe_rss_url?(url)
+    self.class.safe_rss_url?(url)
+  end
+
+  def self.safe_rss_url?(url)
     uri = URI.parse(url.to_s.strip)
     return false unless %w[http https].include?(uri.scheme)
     return false if uri.host.blank?
@@ -106,4 +110,5 @@ class RssFetchWorker
     false
   end
 end
+
 

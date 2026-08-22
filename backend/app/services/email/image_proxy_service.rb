@@ -80,6 +80,10 @@ class Email::ImageProxyService
     false
   end
 
+  class << self
+    alias_method :safe_external_url?, :safe_url?
+  end
+
   def self.blank_pixel
     pixel = Base64.decode64("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7")
     { data: pixel, content_type: "image/gif" }
