@@ -96,7 +96,7 @@ class Email::SendService
         end
       end
 
-      recipient_user.emails.create!(
+      recipient_email = recipient_user.emails.create!(
         from_address: user.email,
         to_address: params[:to],
         cc: params[:cc],
@@ -106,6 +106,15 @@ class Email::SendService
         folder: recipient_folder,
         is_read: false
       )
+
+      # Trigger AI analysis for Pano & Calendar extraction immediately!
+      if recipient_user.ai_configured?
+        Thread.new do
+          Rails.application.executor.wrap do
+            EmailAiAnalysisWorker.new.perform(recipient_email.id)
+          end
+        end
+      end
     end
 
     Result.new(true, email, nil)

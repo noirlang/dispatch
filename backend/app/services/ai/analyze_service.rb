@@ -1,25 +1,8 @@
+require "faraday"
+require "json"
+
 class Ai::AnalyzeService
   Result = Struct.new(:success?, :data, :error)
-
-  MODELS = {
-    "gemini" => [
-      { id: "gemini-1.5-flash", name: "Gemini 1.5 Flash (Fast & Efficient)" },
-      { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro (Deep Analysis)" },
-      { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash (Latest Next-Gen)" },
-      { id: "gemini-2.0-flash-lite", name: "Gemini 2.0 Flash Lite (Ultra Fast)" }
-    ],
-    "claude" => [
-      { id: "claude-3-5-sonnet-latest", name: "Claude 3.5 Sonnet (Best Reasoning)" },
-      { id: "claude-3-5-haiku-latest", name: "Claude 3.5 Haiku (High Speed)" },
-      { id: "claude-3-opus-latest", name: "Claude 3 Opus" }
-    ],
-    "openai" => [
-      { id: "gpt-4o", name: "GPT-4o (Omni Intelligent)" },
-      { id: "gpt-4o-mini", name: "GPT-4o Mini (Fast & Cost Effective)" },
-      { id: "o3-mini", name: "o3-mini (Reasoning Model)" },
-      { id: "gpt-4-turbo", name: "GPT-4 Turbo" }
-    ]
-  }.freeze
 
   PROMPT = <<~PROMPT
     You are an email analysis assistant. Analyze the email and return structured JSON.
@@ -29,38 +12,43 @@ class Ai::AnalyzeService
     DATE: %{date}
     BODY: %{body}
 
-    Extract useful information and return ONLY valid JSON in this format:
+    Extract useful information and return ONLY valid JSON matching this schema:
     {
       "type": "invoice|tracking|ticket|bank|verification|travel|otp|order|meeting|general",
       "language": "tr|en|...",
-      "summary": "Brief summary (max 2 sentences)",
-      "sender_context": "Who sent this and why",
+      "summary": "Kısa özet (max 2 cümle)",
+      "sender_context": "Kimin gönderdiği ve bağlam",
       "actionable_items": [
-        { "label": "Order No", "value": "123", "copyable": true, "url": null }
+        { "label": "Öğe", "value": "123", "copyable": true, "url": null }
       ],
-      "calendar_suggestion": { "title": "...", "date": "YYYY-MM-DD", "time": "HH:MM", "all_day": false, "description": "..." } or null,
+      "calendar_suggestion": {
+        "title": "Etkinlik başlığı",
+        "date": "YYYY-MM-DD",
+        "time": "HH:MM",
+        "all_day": false,
+        "description": "Açıklama"
+      },
       "priority": "high|medium|low",
-      "tags": ["tag1"],
-      "expires_at": "ISO8601" or null
+      "tags": ["etiket1"]
     }
   PROMPT
-
-  def self.models_for(provider)
-    MODELS[provider.to_s] || []
-  end
 
   def self.call(user, email)
     return Result.new(false, nil, "AI not configured") unless user.ai_configured?
 
     prompt = PROMPT % {
-      from: email.from_address,
-      subject: email.subject,
+      from: email.from_address.to_s,
+      subject: email.subject.to_s,
       date: email.created_at.to_s,
-      body: email.body_text&.first(3000)
+      body: email.body_text.to_s.first(3000)
     }
 
     raw = execute_ai(user, prompt, json_mode: true)
-    data = JSON.parse(raw)
+    return Result.new(false, nil, "Empty AI response") if raw.blank?
+
+    # Clean markdown fences from response if present
+    cleaned = raw.to_s.strip.gsub(/\A```json\s*/i, "").gsub(/\A```\s*/, "").gsub(/```\s*\z/, "").strip
+    data = JSON.parse(cleaned)
     Result.new(true, data, nil)
   rescue JSON::ParserError => e
     Result.new(false, nil, "Invalid JSON: #{e.message}")
@@ -76,11 +64,11 @@ class Ai::AnalyzeService
 
       FROM: #{email.from_address}
       SUBJECT: #{email.subject}
-      BODY: #{email.body_text&.first(2500)}
+      BODY: #{email.body_text.to_s.first(2500)}
     SUM
 
     res = execute_ai(user, prompt, json_mode: false)
-    Result.new(true, res.strip, nil)
+    Result.new(true, res.to_s.strip, nil)
   rescue => e
     Result.new(false, nil, e.message)
   end
@@ -95,7 +83,7 @@ class Ai::AnalyzeService
       ORIGINAL EMAIL:
       From: #{email.from_address}
       Subject: #{email.subject}
-      Content: #{email.body_text&.first(2500)}
+      Content: #{email.body_text.to_s.first(2500)}
 
       INSTRUCTIONS / USER INTENT:
       #{custom_notes}
@@ -109,8 +97,7 @@ class Ai::AnalyzeService
     REP
 
     res = execute_ai(user, prompt, json_mode: false)
-    # Clean output
-    reply_text = res.gsub(/\A```.*?\n/, "").gsub(/```\z/, "").strip
+    reply_text = res.to_s.gsub(/\A```.*?\n/, "").gsub(/```\z/, "").strip
     Result.new(true, reply_text, nil)
   rescue => e
     Result.new(false, nil, e.message)
@@ -119,19 +106,22 @@ class Ai::AnalyzeService
   private
 
   def self.execute_ai(user, prompt, json_mode: false)
+    provider = user.ai_provider.to_s.downcase.presence || "gemini"
+    api_key = user.active_ai_key
     model = user.ai_model.presence
-    case user.ai_provider
+
+    case provider
     when "gemini"
-      model ||= "gemini-1.5-flash"
-      call_gemini(user.gemini_key, model, prompt)
+      model ||= "gemini-2.0-flash"
+      call_gemini(api_key, model, prompt)
     when "claude"
-      model ||= "claude-3-5-haiku-latest"
-      call_claude(user.claude_key, model, prompt)
+      model ||= "claude-3-5-sonnet-latest"
+      call_claude(api_key, model, prompt)
     when "openai"
       model ||= "gpt-4o-mini"
-      call_openai(user.openai_key, model, prompt, json_mode: json_mode)
+      call_openai(api_key, model, prompt, json_mode: json_mode)
     else
-      raise "No AI provider configured"
+      raise "Unsupported AI provider: #{provider}"
     end
   end
 
@@ -139,38 +129,64 @@ class Ai::AnalyzeService
     conn = Faraday.new("https://generativelanguage.googleapis.com") do |f|
       f.request :json
       f.response :json
+      f.adapter Faraday.default_adapter
     end
-    res = conn.post("/v1beta/models/#{model}:generateContent?key=#{api_key}") do |req|
+    # Ensure model doesn't have duplicate models/ prefix
+    clean_model = model.to_s.gsub("models/", "")
+    res = conn.post("/v1beta/models/#{clean_model}:generateContent?key=#{api_key}") do |req|
+      req.headers["Content-Type"] = "application/json"
       req.body = { contents: [{ parts: [{ text: prompt }] }] }
     end
-    res.body.dig("candidates", 0, "content", "parts", 0, "text")
-      &.gsub(/```json\n?/, "")&.gsub(/```\n?/, "")
+
+    if res.status != 200
+      err = res.body.is_a?(Hash) ? res.body.dig("error", "message") : res.body
+      raise "Gemini API Error (#{res.status}): #{err}"
+    end
+
+    text = res.body.dig("candidates", 0, "content", "parts", 0, "text")
+    text.to_s
   end
 
   def self.call_claude(api_key, model, prompt)
     conn = Faraday.new("https://api.anthropic.com") do |f|
       f.request :json
       f.response :json
+      f.adapter Faraday.default_adapter
     end
     res = conn.post("/v1/messages") do |req|
       req.headers["x-api-key"] = api_key
       req.headers["anthropic-version"] = "2023-06-01"
+      req.headers["Content-Type"] = "application/json"
       req.body = { model: model, max_tokens: 1500, messages: [{ role: "user", content: prompt }] }
     end
-    res.body.dig("content", 0, "text")
+
+    if res.status != 200
+      err = res.body.is_a?(Hash) ? res.body.dig("error", "message") : res.body
+      raise "Claude API Error (#{res.status}): #{err}"
+    end
+
+    res.body.dig("content", 0, "text").to_s
   end
 
   def self.call_openai(api_key, model, prompt, json_mode: false)
     conn = Faraday.new("https://api.openai.com") do |f|
       f.request :json
       f.response :json
+      f.adapter Faraday.default_adapter
     end
     body = { model: model, messages: [{ role: "user", content: prompt }] }
     body[:response_format] = { type: "json_object" } if json_mode
     res = conn.post("/v1/chat/completions") do |req|
       req.headers["Authorization"] = "Bearer #{api_key}"
+      req.headers["Content-Type"] = "application/json"
       req.body = body
     end
-    res.body.dig("choices", 0, "message", "content")
+
+    if res.status != 200
+      err = res.body.is_a?(Hash) ? res.body.dig("error", "message") : res.body
+      raise "OpenAI API Error (#{res.status}): #{err}"
+    end
+
+    res.body.dig("choices", 0, "message", "content").to_s
   end
 end
