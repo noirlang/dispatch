@@ -5,6 +5,7 @@ import { useAuth } from "../../store/auth"
 import { useAppStore, useT, type Theme } from "../../store/themeAndLocale"
 import { motion, AnimatePresence } from "framer-motion"
 import ReactMarkdown from "react-markdown"
+import { GeminiIcon, ClaudeIcon, OpenAIIcon } from "../../components/icons/BrandIcons"
 import {
   User,
   Users,
@@ -862,20 +863,7 @@ function AiTab() {
               : "bg-[var(--bg-secondary)] border-[var(--border-color)] opacity-70 hover:opacity-100"
           }`}
         >
-          {/* Gemini 4-Point Sparkle Icon */}
-          <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none">
-            <path
-              d="M12 2C12 7.52285 7.52285 12 2 12C7.52285 12 12 16.4771 12 22C12 16.4771 16.4771 12 22 12C16.4771 12 12 7.52285 12 2Z"
-              fill="url(#geminiGradient)"
-            />
-            <defs>
-              <linearGradient id="geminiGradient" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
-                <stop stopColor="#4E82EE" />
-                <stop offset="0.5" stopColor="#9B72CB" />
-                <stop offset="1" stopColor="#D96570" />
-              </linearGradient>
-            </defs>
-          </svg>
+          <GeminiIcon size={32} />
           <div className="text-center">
             <span className="text-xs font-bold block text-[var(--text-main)]">Google Gemini</span>
           </div>
@@ -901,10 +889,7 @@ function AiTab() {
               : "bg-[var(--bg-secondary)] border-[var(--border-color)] opacity-70 hover:opacity-100"
           }`}
         >
-          {/* Claude Official Emblem */}
-          <div className="w-8 h-8 rounded-full bg-[#cc785c] text-white flex items-center justify-center font-bold text-base shadow-xs">
-            ✳
-          </div>
+          <ClaudeIcon size={32} />
           <div className="text-center">
             <span className="text-xs font-bold block text-[var(--text-main)]">Anthropic Claude</span>
           </div>
@@ -930,10 +915,7 @@ function AiTab() {
               : "bg-[var(--bg-secondary)] border-[var(--border-color)] opacity-70 hover:opacity-100"
           }`}
         >
-          {/* OpenAI Official Spiral Icon */}
-          <svg className="w-8 h-8 text-[var(--text-main)]" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.259 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7466-7.0729zM12 14.5a2.5 2.5 0 1 1 2.5-2.5 2.5 2.5 0 0 1-2.5 2.5z" />
-          </svg>
+          <OpenAIIcon size={32} />
           <div className="text-center">
             <span className="text-xs font-bold block text-[var(--text-main)]">OpenAI</span>
           </div>
