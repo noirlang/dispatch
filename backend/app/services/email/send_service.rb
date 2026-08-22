@@ -3,28 +3,15 @@ class Email::SendService
 
   def self.call(user, params)
     raw_body = params[:body].to_s
-    raw_to = params[:to].to_s
     html_body = markdown_to_html(raw_body)
     server_domain = ServerConfig.current&.domain.presence || "dispatch.local"
 
     # Expand any group aliases like @ekip or comma/semicolon-separated recipients
-    recipient_addresses = []
-    raw_to.split(/[,;]/).map(&:strip).reject(&:blank?).each do |target|
-      if target.start_with?("@")
-        group_name = target.delete_prefix("@").downcase.strip
-        group = user.contact_groups.find_by("lower(name) = ?", group_name)
-        if group && group.member_list.any?
-          recipient_addresses.concat(group.member_list)
-        else
-          recipient_addresses << "#{group_name}@#{server_domain}"
-        end
-      elsif target.include?("@")
-        recipient_addresses << target.downcase.strip
-      else
-        recipient_addresses << "#{target.downcase.strip}@#{server_domain}"
-      end
-    end
-    recipient_addresses = recipient_addresses.map { |a| a.downcase.strip }.uniq
+    to_addresses = parse_addresses(params[:to], user, server_domain)
+    cc_addresses = parse_addresses(params[:cc], user, server_domain)
+    bcc_addresses = parse_addresses(params[:bcc], user, server_domain)
+
+    recipient_addresses = (to_addresses + cc_addresses + bcc_addresses).uniq
     return Result.new(false, nil, "Alıcı adresi bulunamadı") if recipient_addresses.empty?
 
     styled_html = html_body.to_s
@@ -38,12 +25,12 @@ class Email::SendService
     end
 
     # Try sending via SMTP to all recipients
-    recipient_addresses.each do |to_addr|
+    recipient_addresses.each do |dest_addr|
       begin
         mail = Mail.new do
           from    user.email
-          to      to_addr
-          cc      params[:cc] if params[:cc].present?
+          to      to_addresses.join(", ")
+          cc      cc_addresses.join(", ") if cc_addresses.any?
           subject params[:subject]
 
           text_part do
@@ -214,6 +201,27 @@ class Email::SendService
     Result.new(true, email, nil)
   rescue => e
     Result.new(false, nil, e.message)
+  end
+
+  def self.parse_addresses(raw, user, server_domain)
+    return [] if raw.blank?
+    addresses = []
+    raw.to_s.split(/[,;]/).map(&:strip).reject(&:blank?).each do |target|
+      if target.start_with?("@")
+        group_name = target.delete_prefix("@").downcase.strip
+        group = user.contact_groups.find_by("lower(name) = ?", group_name)
+        if group && group.member_list.any?
+          addresses.concat(group.member_list)
+        else
+          addresses << "#{group_name}@#{server_domain}"
+        end
+      elsif target.include?("@")
+        addresses << target.downcase.strip
+      else
+        addresses << "#{target.downcase.strip}@#{server_domain}"
+      end
+    end
+    addresses.map { |a| a.downcase.strip }.uniq
   end
 
   def self.markdown_to_html(md)

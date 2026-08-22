@@ -28,6 +28,8 @@ export default function ComposeView({
   const [to, setTo] = useState(initialTo)
   const [cc, setCc] = useState("")
   const [showCc, setShowCc] = useState(false)
+  const [bcc, setBcc] = useState("")
+  const [showBcc, setShowBcc] = useState(false)
   const [subject, setSubject] = useState(initialSubject)
   const [body, setBody] = useState(initialBody)
   const [mode, setMode] = useState<"edit" | "preview">("edit")
@@ -42,7 +44,13 @@ export default function ComposeView({
       if (isReply && replyEmailId) {
         return api.post(`/emails/${replyEmailId}/reply`, { body })
       }
-      return api.post("/emails", { to, cc: showCc ? cc : undefined, subject, body })
+      return api.post("/emails", {
+        to,
+        cc: showCc ? cc : undefined,
+        bcc: showBcc ? bcc : undefined,
+        subject,
+        body
+      })
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["emails"] })
@@ -161,13 +169,26 @@ export default function ComposeView({
               className="flex-1 bg-transparent text-[var(--text-main)] text-sm border-b border-[var(--border-color)] pb-1.5 focus:outline-none focus:border-[var(--text-main)] transition-colors font-mono"
             />
             {!isReply && (
-              <button
-                type="button"
-                onClick={() => setShowCc((s) => !s)}
-                className="text-xs text-[var(--text-dim)] hover:text-[var(--text-main)] px-2 py-0.5 rounded"
-              >
-                {showCc ? "- Cc" : "+ Cc"}
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setShowCc((s) => !s)}
+                  className={`text-xs px-2 py-0.5 rounded transition-colors ${
+                    showCc ? "bg-[var(--bg-card)] text-[var(--text-main)] font-semibold border border-[var(--border-color)]" : "text-[var(--text-dim)] hover:text-[var(--text-main)]"
+                  }`}
+                >
+                  Cc
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowBcc((s) => !s)}
+                  className={`text-xs px-2 py-0.5 rounded transition-colors ${
+                    showBcc ? "bg-[var(--bg-card)] text-[var(--text-main)] font-semibold border border-[var(--border-color)]" : "text-[var(--text-dim)] hover:text-[var(--text-main)]"
+                  }`}
+                >
+                  Bcc
+                </button>
+              </div>
             )}
           </div>
 
@@ -205,8 +226,21 @@ export default function ComposeView({
               type="text"
               value={cc}
               onChange={(e) => setCc(e.target.value)}
-              placeholder="comma, separated@emails.com"
-              className="flex-1 bg-transparent text-[var(--text-main)] text-sm border-b border-[var(--border-color)] pb-1.5 focus:outline-none focus:border-[var(--text-main)] transition-colors"
+              placeholder="kopya@alanlar.com, diger@alanlar.com"
+              className="flex-1 bg-transparent text-[var(--text-main)] text-sm border-b border-[var(--border-color)] pb-1.5 focus:outline-none focus:border-[var(--text-main)] transition-colors font-mono"
+            />
+          </div>
+        )}
+
+        {showBcc && !isReply && (
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-medium text-[var(--text-muted)] w-14 shrink-0">Bcc:</span>
+            <input
+              type="text"
+              value={bcc}
+              onChange={(e) => setBcc(e.target.value)}
+              placeholder="gizli_kopya@alanlar.com (alıcılar birbirini göremez)"
+              className="flex-1 bg-transparent text-[var(--text-main)] text-sm border-b border-[var(--border-color)] pb-1.5 focus:outline-none focus:border-[var(--text-main)] transition-colors font-mono"
             />
           </div>
         )}

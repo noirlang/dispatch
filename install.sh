@@ -62,29 +62,40 @@ if command -v ufw >/dev/null 2>&1; then
   done
 fi
 
-# 4. PostgreSQL Veritabanı ve Kullanıcısını Hazırla
-echo -e "▶ 4. Veritabanı yapılandırılıyor..."
+# 4. PostgreSQL Veritabanı ve Kullanıcısını Hazırla (Otomatik & Güvenli)
+echo -e "▶ 4. PostgreSQL veritabanı güvenli şekilde yapılandırılıyor..."
 systemctl start postgresql redis-server 2>/dev/null || true
-sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='dispatch'" 2>/dev/null | grep -q 1 || \
-  sudo -u postgres psql -c "CREATE USER dispatch WITH PASSWORD 'dispatch_secret' SUPERUSER CREATEDB;"
-sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='dispatch_prod'" 2>/dev/null | grep -q 1 || \
-  sudo -u postgres psql -c "CREATE DATABASE dispatch_prod OWNER dispatch;"
+
+# Kuruluma özel rastgele güçlü 32-karakter şifre üret
+PG_PASS=$(openssl rand -hex 16)
+DB_NAME="dispatch_prod"
+DB_USER="dispatch"
+
+sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" 2>/dev/null | grep -q 1 || \
+  sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$PG_PASS' CREATEDB;"
+
+# Şifreyi güncelle ve yetkilendir
+sudo -u postgres psql -c "ALTER USER $DB_USER WITH PASSWORD '$PG_PASS';" 2>/dev/null || true
+
+sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" 2>/dev/null | grep -q 1 || \
+  sudo -u postgres psql -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;"
 
 # 5. Backend Bağımlılıkları ve Migrasyonlar
 echo -e "\n▶ 5. Backend derleniyor ve optimize ediliyor..."
 cd "$DISPATCH_DIR/backend"
 
-# .env yapılandırması (Düşük RAM & Yüksek Hız Optimizasyonları)
+# .env yapılandırması (Otomatik Şifre & Güvenlik Güvencesi)
 cat << ENVEOF > "$DISPATCH_DIR/backend/.env"
-DATABASE_URL=postgresql://dispatch:dispatch_secret@localhost:5432/dispatch_prod
+DATABASE_URL=postgresql://$DB_USER:$PG_PASS@localhost:5432/$DB_NAME
 REDIS_URL=redis://localhost:6379
-SECRET_KEY_BASE=dispatch_prod_master_secret_key_$(openssl rand -hex 16)
+SECRET_KEY_BASE=dispatch_prod_master_secret_key_$(openssl rand -hex 32)
 SERVER_IPV4=$SERVER_IP
 RAILS_ENV=production
 RAILS_MAX_THREADS=5
 WEB_CONCURRENCY=1
 MALLOC_ARENA_MAX=2
 ENVEOF
+chmod 600 "$DISPATCH_DIR/backend/.env"
 
 bundle install --quiet || bundle install
 bin/rails db:migrate RAILS_ENV=production
