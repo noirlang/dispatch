@@ -19,7 +19,9 @@ import {
   Camera,
   Upload,
   BookmarkPlus,
-  Star
+  Star,
+  Languages,
+  Globe2
 } from "lucide-react"
 import DOMPurify from "dompurify"
 import ReactMarkdown from "react-markdown"
@@ -69,6 +71,16 @@ export default function EmailReader({ id, folder, onReply, onForward }: Props) {
   const [userInstructions, setUserInstructions] = useState("")
   const [aiTone, setAiTone] = useState<"friendly" | "formal" | "concise">("friendly")
   const [generatingReply, setGeneratingReply] = useState(false)
+
+  // AI Translation State
+  const [translateModalOpen, setTranslateModalOpen] = useState(false)
+  const [translating, setTranslating] = useState(false)
+  const [translation, setTranslation] = useState<{
+    translated_subject: string
+    translated_body: string
+    target_language: string
+  } | null>(null)
+  const [showOriginal, setShowOriginal] = useState(false)
 
   // Custom Avatar Modal State
   const [avatarModalOpen, setAvatarModalOpen] = useState(false)
@@ -196,6 +208,37 @@ export default function EmailReader({ id, folder, onReply, onForward }: Props) {
     }
   }
 
+  const languageOptions = [
+    { code: "tr", name: "Türkçe", flag: "🇹🇷" },
+    { code: "en", name: "English", flag: "🇬🇧" },
+    { code: "de", name: "Deutsch", flag: "🇩🇪" },
+    { code: "fr", name: "Français", flag: "🇫🇷" },
+    { code: "es", name: "Español", flag: "🇪🇸" },
+    { code: "it", name: "Italiano", flag: "🇮🇹" },
+    { code: "ru", name: "Русский", flag: "🇷🇺" },
+    { code: "ar", name: "العربية", flag: "🇸🇦" },
+    { code: "ja", name: "日本語", flag: "🇯🇵" },
+    { code: "zh", name: "中文", flag: "🇨🇳" }
+  ]
+
+  async function handleTranslate(targetLang: string) {
+    setTranslating(true)
+    try {
+      const res = await api.post<{
+        translated_subject: string
+        translated_body: string
+        target_language: string
+      }>(`/emails/${id}/ai_translate`, { target_language: targetLang })
+      setTranslation(res)
+      setShowOriginal(false)
+      setTranslateModalOpen(false)
+    } catch {
+      alert("Çeviri yapılamadı. Lütfen yapay zeka ayarlarınızı kontrol edin.")
+    } finally {
+      setTranslating(false)
+    }
+  }
+
   async function handleSaveContactPhoto(e?: React.ChangeEvent<HTMLInputElement>) {
     if (!email) return
     const file = e?.target.files?.[0]
@@ -250,12 +293,17 @@ export default function EmailReader({ id, folder, onReply, onForward }: Props) {
       <div className="px-8 py-5 border-b border-[var(--border-color)] flex flex-wrap items-center justify-between gap-4 shrink-0 bg-[var(--bg-secondary)] shadow-2xs">
         <div>
           <h1 className="text-xl font-bold text-[var(--text-main)] mb-1">
-            {email.subject || "(No Subject)"}
+            {translation && !showOriginal ? translation.translated_subject : (email.subject || "(No Subject)")}
           </h1>
           <div className="flex items-center gap-2">
             <span className="text-xs text-[var(--text-dim)] font-mono">
               Klasör: {email.folder}
             </span>
+            {translation && !showOriginal && (
+              <span className="px-2 py-0.5 rounded-md bg-[#10b98120] text-[#10b981] border border-[#10b98140] text-[10px] font-bold">
+                🌐 Çeviri ({languageOptions.find(l => l.code === translation.target_language)?.name || translation.target_language})
+              </span>
+            )}
           </div>
         </div>
 
@@ -264,6 +312,17 @@ export default function EmailReader({ id, folder, onReply, onForward }: Props) {
           {/* AI Action Buttons - ONLY SHOWN IF AI IS CONFIGURED */}
           {isAiConfigured && (
             <>
+              <motion.button
+                whileTap={{ scale: 0.94 }}
+                onClick={() => setTranslateModalOpen(true)}
+                disabled={translating}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] text-xs font-semibold hover:bg-[var(--bg-card)] transition-colors shadow-xs"
+                title="E-postayı yapay zeka ile çevir"
+              >
+                {translating ? <RefreshCw size={13} className="animate-spin text-[#10b981]" /> : <Languages size={13} className="text-[#10b981]" />}
+                <span>{translating ? "Çevriliyor..." : "Çevir"}</span>
+              </motion.button>
+
               <motion.button
                 whileTap={{ scale: 0.94 }}
                 onClick={handleFetchSummary}
@@ -435,9 +494,52 @@ export default function EmailReader({ id, folder, onReply, onForward }: Props) {
         </span>
       </div>
 
+      {/* Translation Active Banner */}
+      {translation && (
+        <div className="mx-8 mt-4 px-4 py-3 rounded-2xl bg-[var(--bg-secondary)] border border-[#10b98140] flex items-center justify-between shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <Globe2 size={16} className="text-[#10b981] shrink-0" />
+            <span className="text-xs font-semibold text-[var(--text-main)]">
+              {showOriginal
+                ? "Orijinal e-posta metni gösteriliyor."
+                : `Bu e-posta yapay zeka ile [${languageOptions.find(l => l.code === translation.target_language)?.name || translation.target_language}] diline çevrildi.`}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowOriginal(!showOriginal)}
+              className="px-3 py-1 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)] text-xs font-bold text-[var(--text-main)] hover:bg-[var(--bg-card)] transition-colors shadow-2xs"
+            >
+              {showOriginal ? "Çeviriyi Göster" : "Orijinali Göster"}
+            </button>
+            <button
+              onClick={() => setTranslateModalOpen(true)}
+              className="px-3 py-1 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)] text-xs font-semibold text-[var(--text-dim)] hover:text-[var(--text-main)] transition-colors shadow-2xs"
+            >
+              Farklı Dil Seç
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Email Body */}
       <div className="flex-1 p-10 overflow-y-auto max-w-4xl">
-        {isHtml ? (
+        {translation && !showOriginal ? (
+          <div className="text-sm leading-relaxed font-sans text-[var(--text-main)]">
+            <ReactMarkdown
+              components={{
+                blockquote: ({ children }) => (
+                  <blockquote className="border-l-2 border-[var(--border-color)] pl-4 my-3 text-[var(--text-muted)] not-italic space-y-1">
+                    {children}
+                  </blockquote>
+                ),
+                p: ({ children }) => <p className="mb-2.5 last:mb-0 leading-relaxed">{children}</p>
+              }}
+            >
+              {translation.translated_body}
+            </ReactMarkdown>
+          </div>
+        ) : isHtml ? (
           <div
             className="prose prose-neutral dark:prose-invert max-w-none text-sm leading-relaxed"
             dangerouslySetInnerHTML={{ __html: safeHtml }}
@@ -657,6 +759,73 @@ export default function EmailReader({ id, folder, onReply, onForward }: Props) {
                   )}
                 </button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Translation Language Selection Modal */}
+      <AnimatePresence>
+        {translateModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-3xl p-6 max-w-md w-full shadow-2xl flex flex-col gap-4"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-[var(--border-color)]">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-full bg-[#10b98115] text-[#10b981] border border-[#10b98130] flex items-center justify-center">
+                    <Globe2 size={16} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-[var(--text-main)]">E-Postayı Çevir</h3>
+                    <p className="text-[11px] text-[var(--text-dim)]">Hedef dili seçin, yapay zeka hemen çevirsin</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setTranslateModalOpen(false)}
+                  className="p-1 rounded-full text-[var(--text-dim)] hover:text-[var(--text-main)] hover:bg-[var(--bg-card)]"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Language Grid */}
+              <div className="grid grid-cols-2 gap-2.5 py-1">
+                {languageOptions.map((opt) => (
+                  <motion.button
+                    key={opt.code}
+                    whileTap={{ scale: 0.96 }}
+                    onClick={() => handleTranslate(opt.code)}
+                    disabled={translating}
+                    className="flex items-center gap-3 p-3 rounded-2xl bg-[var(--bg-primary)] border border-[var(--border-color)] hover:border-[var(--accent)] hover:bg-[var(--bg-card)] text-left transition-all group cursor-pointer"
+                  >
+                    <span className="text-xl">{opt.flag}</span>
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-[var(--text-main)] group-hover:text-[var(--accent)]">
+                        {opt.name}
+                      </span>
+                      <span className="text-[10px] text-[var(--text-dim)] uppercase font-mono">
+                        {opt.code}
+                      </span>
+                    </div>
+                  </motion.button>
+                ))}
+              </div>
+
+              {translating && (
+                <div className="flex items-center justify-center gap-2 py-2 text-xs font-semibold text-[#10b981] animate-pulse">
+                  <RefreshCw size={14} className="animate-spin" />
+                  <span>Yapay zeka e-postayı çeviriyor, lütfen bekleyin...</span>
+                </div>
+              )}
             </motion.div>
           </motion.div>
         )}

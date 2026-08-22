@@ -103,6 +103,52 @@ class Ai::AnalyzeService
     Result.new(false, nil, e.message)
   end
 
+  def self.translate(user, email, target_language)
+    return Result.new(false, nil, "AI not configured") unless user.ai_configured?
+
+    lang_name = case target_language.to_s.downcase
+                when "tr", "turkish" then "Turkish (Türkçe)"
+                when "en", "english" then "English"
+                when "de", "german" then "German (Deutsch)"
+                when "fr", "french" then "French (Français)"
+                when "es", "spanish" then "Spanish (Español)"
+                when "it", "italian" then "Italian (Italiano)"
+                when "ru", "russian" then "Russian (Русский)"
+                when "ar", "arabic" then "Arabic (العربية)"
+                when "ja", "japanese" then "Japanese (日本語)"
+                when "zh", "chinese" then "Chinese (中文)"
+                else target_language
+                end
+
+    prompt = <<~TR
+      You are an expert translator. Translate the following email into #{lang_name}.
+      Preserve all formatting, paragraph breaks, tone, and technical links.
+      
+      Respond ONLY with a valid JSON object matching this schema:
+      {
+        "translated_subject": "...",
+        "translated_body": "...",
+        "target_language": "#{target_language}"
+      }
+
+      EMAIL TO TRANSLATE:
+      SUBJECT: #{email.subject}
+      BODY:
+      #{email.body_text.presence || email.body.to_s.first(4000)}
+    TR
+
+    raw = execute_ai(user, prompt, json_mode: true)
+    return Result.new(false, nil, "Empty AI response") if raw.blank?
+
+    cleaned = raw.to_s.strip.gsub(/\A```json\s*/i, "").gsub(/\A```\s*/, "").gsub(/```\s*\z/, "").strip
+    data = JSON.parse(cleaned)
+    Result.new(true, data, nil)
+  rescue JSON::ParserError => e
+    Result.new(false, nil, "Invalid translation JSON: #{e.message}")
+  rescue => e
+    Result.new(false, nil, e.message)
+  end
+
   private
 
   def self.execute_ai(user, prompt, json_mode: false)

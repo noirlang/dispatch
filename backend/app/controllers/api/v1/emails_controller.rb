@@ -1,5 +1,5 @@
 class Api::V1::EmailsController < Api::V1::BaseController
-  before_action :set_email, only: [:show, :destroy, :reply, :forward, :approve, :reject, :block_sender, :toggle_flag, :toggle_important_sender, :ai_summary, :ai_reply]
+  before_action :set_email, only: [:show, :destroy, :reply, :forward, :approve, :reject, :block_sender, :toggle_flag, :toggle_important_sender, :ai_summary, :ai_reply, :ai_translate]
 
   def index
     folder = params[:folder] || "inbox"
@@ -148,6 +148,19 @@ class Api::V1::EmailsController < Api::V1::BaseController
         subject: @email.subject.start_with?("Re:") ? @email.subject : "Re: #{@email.subject}",
         to: @email.from_address
       }
+    else
+      render json: { error: res.error }, status: :unprocessable_entity
+    end
+  end
+
+  def ai_translate
+    return render json: { error: "AI not configured" }, status: :bad_request unless current_user.ai_configured?
+
+    target_language = params[:target_language].presence || "tr"
+    res = Ai::AnalyzeService.translate(current_user, @email, target_language)
+
+    if res.success?
+      render json: res.data
     else
       render json: { error: res.error }, status: :unprocessable_entity
     end

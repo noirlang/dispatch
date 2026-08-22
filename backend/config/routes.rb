@@ -31,6 +31,7 @@ Rails.application.routes.draw do
           post :toggle_important_sender
           post :ai_summary
           post :ai_reply
+          post :ai_translate
         end
         collection do
           post :merge_threads
