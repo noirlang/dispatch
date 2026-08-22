@@ -20,8 +20,10 @@ data class SendEmailRequest(
     val cc: String? = null,
     val bcc: String? = null,
     val subject: String,
-    val body: String
+    val body: String,
+    val attachments: List<EmailAttachment>? = null
 )
+
 
 data class BulkEmailActionRequest(
     val ids: List<Long>,

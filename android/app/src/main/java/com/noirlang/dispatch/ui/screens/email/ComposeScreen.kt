@@ -1,24 +1,39 @@
 package com.noirlang.dispatch.ui.screens.email
 
+import android.net.Uri
+import android.provider.OpenableColumns
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.noirlang.dispatch.data.api.ApiClient
 import com.noirlang.dispatch.data.local.SessionManager
+import com.noirlang.dispatch.data.model.EmailAttachment
 import com.noirlang.dispatch.data.model.SendEmailRequest
 import com.noirlang.dispatch.ui.theme.*
 import kotlinx.coroutines.launch
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import java.io.File
+import java.io.FileOutputStream
 
 @Composable
 fun ComposeScreen(
@@ -38,8 +53,62 @@ fun ComposeScreen(
         val sig = session.currentUser?.defaultSignature?.let { "\n\n--\n$it" } ?: ""
         mutableStateOf(initialBody.ifBlank { sig })
     }
+    var attachments by remember { mutableStateOf<List<EmailAttachment>>(emptyList()) }
+    var isUploading by remember { mutableStateOf(false) }
     var isSending by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // File picker launcher for Android device attachments
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetMultipleContents()
+    ) { uris: List<Uri> ->
+        if (uris.isNotEmpty()) {
+            isUploading = true
+            scope.launch {
+                try {
+                    uris.forEach { uri ->
+                        val cursor = context.contentResolver.query(uri, null, null, null, null)
+                        val nameIndex = cursor?.getColumnIndex(OpenableColumns.DISPLAY_NAME) ?: -1
+                        val sizeIndex = cursor?.getColumnIndex(OpenableColumns.SIZE) ?: -1
+                        cursor?.moveToFirst()
+                        val filename = if (nameIndex >= 0) cursor?.getString(nameIndex) ?: "dosya" else "dosya"
+                        val size = if (sizeIndex >= 0) cursor?.getLong(sizeIndex) ?: 0L else 0L
+                        cursor?.close()
+
+                        // Copy to temp file to upload
+                        val tempFile = File(context.cacheDir, "upload_$filename")
+                        context.contentResolver.openInputStream(uri)?.use { input ->
+                            FileOutputStream(tempFile).use { output ->
+                                input.copyTo(output)
+                            }
+                        }
+
+                        val reqFile = tempFile.asRequestBody(context.contentResolver.getType(uri)?.toMediaTypeOrNull())
+                        val part = MultipartBody.Part.createFormData("file", filename, reqFile)
+
+                        val res = ApiClient.getService(context).uploadAttachment(part)
+                        if (res.isSuccessful) {
+                            val body = res.body()
+                            val attMap = (body?.get("attachment") as? Map<*, *>)
+                            val att = EmailAttachment(
+                                id = attMap?.get("id") as? String,
+                                filename = (attMap?.get("filename") as? String) ?: filename,
+                                contentType = attMap?.get("content_type") as? String,
+                                size = (attMap?.get("size") as? Number)?.toLong() ?: size,
+                                url = attMap?.get("url") as? String,
+                                isImage = attMap?.get("is_image") as? Boolean ?: false
+                            )
+                            attachments = attachments + att
+                        }
+                    }
+                } catch (e: Exception) {
+                    errorMessage = "Ek yükleme hatası: ${e.message}"
+                } finally {
+                    isUploading = false
+                }
+            }
+        }
+    }
 
     Scaffold(
         containerColor = BgPrimary,
@@ -62,37 +131,59 @@ fun ComposeScreen(
                     fontWeight = FontWeight.Bold
                 )
 
-                IconButton(
-                    onClick = {
-                        if (to.isBlank()) {
-                            errorMessage = "Lütfen bir alıcı adresi girin."
-                            return@IconButton
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Attach File Icon Button
+                    IconButton(
+                        onClick = { filePickerLauncher.launch("*/*") },
+                        enabled = !isUploading && !isSending
+                    ) {
+                        if (isUploading) {
+                            CircularProgressIndicator(color = AccentBlue, modifier = Modifier.size(18.dp))
+                        } else {
+                            Icon(Icons.Filled.AttachFile, "Dosya Ekle", tint = AccentBlue)
                         }
+                    }
 
-                        isSending = true
-                        scope.launch {
-                            try {
-                                val res = ApiClient.getService(context).sendEmail(
-                                    SendEmailRequest(to, cc.takeIf { it.isNotBlank() }, null, subject, body)
-                                )
-                                if (res.isSuccessful) {
-                                    onDismiss()
-                                } else {
-                                    errorMessage = "Gönderilemedi."
-                                }
-                            } catch (e: Exception) {
-                                errorMessage = "Hata: ${e.message}"
-                            } finally {
-                                isSending = false
+                    // Send Button
+                    IconButton(
+                        onClick = {
+                            if (to.isBlank()) {
+                                errorMessage = "Lütfen bir alıcı adresi girin."
+                                return@IconButton
                             }
+
+                            isSending = true
+                            scope.launch {
+                                try {
+                                    val res = ApiClient.getService(context).sendEmail(
+                                        SendEmailRequest(
+                                            to = to,
+                                            cc = cc.takeIf { it.isNotBlank() },
+                                            bcc = null,
+                                            subject = subject,
+                                            body = body,
+                                            attachments = attachments.takeIf { it.isNotEmpty() }
+                                        )
+                                    )
+                                    if (res.isSuccessful) {
+                                        onDismiss()
+                                    } else {
+                                        errorMessage = "Gönderilemedi."
+                                    }
+                                } catch (e: Exception) {
+                                    errorMessage = "Hata: ${e.message}"
+                                } finally {
+                                    isSending = false
+                                }
+                            }
+                        },
+                        enabled = !isSending && !isUploading
+                    ) {
+                        if (isSending) {
+                            CircularProgressIndicator(color = TextPrimary, modifier = Modifier.size(18.dp))
+                        } else {
+                            Icon(Icons.Filled.Send, "Gönder", tint = TextPrimary)
                         }
-                    },
-                    enabled = !isSending
-                ) {
-                    if (isSending) {
-                        CircularProgressIndicator(color = TextPrimary, modifier = Modifier.size(18.dp))
-                    } else {
-                        Icon(Icons.Filled.Send, "Gönder", tint = AccentBlue)
                     }
                 }
             }
@@ -145,6 +236,38 @@ fun ComposeScreen(
                 shape = RoundedCornerShape(10.dp),
                 modifier = Modifier.fillMaxWidth()
             )
+
+            // Attached files horizontal scroll list
+            if (attachments.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    itemsIndexed(attachments) { index, att ->
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(BgSecondary)
+                                .border(1.dp, BorderColor, RoundedCornerShape(8.dp))
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Filled.AttachFile, "Ek", tint = AccentBlue, modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(att.filename, color = TextPrimary, fontSize = 12.sp, maxLines = 1)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                IconButton(
+                                    onClick = { attachments = attachments.filterIndexed { i, _ -> i != index } },
+                                    modifier = Modifier.size(16.dp)
+                                ) {
+                                    Icon(Icons.Filled.Close, "Kaldır", tint = TextDim, modifier = Modifier.size(12.dp))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 

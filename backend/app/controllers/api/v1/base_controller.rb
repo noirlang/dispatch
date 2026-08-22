@@ -4,13 +4,14 @@ class Api::V1::BaseController < ActionController::API
   private
 
   def authenticate!
-    token = request.headers["Authorization"]&.split(" ")&.last
+    token = request.headers["Authorization"]&.split(" ")&.last.presence || params[:token].presence
 
     # C5 Fix: Reject tokens that have been blocklisted on logout
     if token.present?
       blocked = Sidekiq.redis { |r| r.exists?("jwt_blocklist:#{token}") } rescue false
       return render json: { error: "Unauthorized" }, status: :unauthorized if blocked
     end
+
 
     payload = JwtHelper.decode(token)
     user_id = payload&.dig("user_id") || payload&.dig(:user_id)

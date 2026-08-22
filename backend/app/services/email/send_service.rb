@@ -16,6 +16,31 @@ class Email::SendService
 
     styled_html = html_body.to_s
 
+    # Parse and prepare attachments list
+    raw_attachments = params[:attachments]
+    processed_attachments = []
+    if raw_attachments.is_a?(Array)
+      raw_attachments.each do |att|
+        if att.is_a?(ActionDispatch::Http::UploadedFile)
+          processed_attachments << EmailAttachmentService.save_uploaded_file(att)
+        else
+          hash = att.respond_to?(:to_unsafe_h) ? att.to_unsafe_h.stringify_keys : (att.is_a?(Hash) ? att.stringify_keys : nil)
+          next unless hash
+          if hash["attachment"].is_a?(Hash)
+            processed_attachments << hash["attachment"].stringify_keys
+          elsif hash["attachments"].is_a?(Array)
+            hash["attachments"].each { |a| processed_attachments << a.stringify_keys if a.is_a?(Hash) }
+          elsif hash["filename"].present?
+            processed_attachments << hash
+          end
+        end
+      end
+    elsif raw_attachments.is_a?(ActionDispatch::Http::UploadedFile)
+      processed_attachments << EmailAttachmentService.save_uploaded_file(raw_attachments)
+    end
+
+
+
     # Auto-approve all destination recipients for the sender
     recipient_addresses.each do |to_addr|
       user.sender_rules.find_or_create_by(email_address: to_addr) do |r|
@@ -44,6 +69,17 @@ class Email::SendService
           end
         end
 
+        # Attach actual files to outgoing SMTP email
+        processed_attachments.each do |att|
+          file_path = att["path"] || Rails.root.join("public", att["url"].to_s.delete_prefix("/"))
+          if File.exist?(file_path)
+            mail.attachments[att["filename"] || File.basename(file_path)] = {
+              mime_type: att["content_type"],
+              content: File.binread(file_path)
+            }
+          end
+        end
+
         mail.delivery_method :smtp, {
           address: ENV.fetch("MAIL_HOST", "127.0.0.1"),
           port: ENV.fetch("MAIL_PORT", 1025).to_i,
@@ -67,8 +103,10 @@ class Email::SendService
       body_text: raw_body,
       body_html: styled_html,
       folder: "sent",
-      is_read: true
+      is_read: true,
+      attachments: processed_attachments
     )
+
 
     # Deliver to local recipients if they exist on this system
     recipient_addresses.each do |to_addr|
@@ -184,8 +222,10 @@ class Email::SendService
         body_text: raw_body,
         body_html: styled_html,
         folder: recipient_folder,
-        is_read: false
+        is_read: false,
+        attachments: processed_attachments
       )
+
 
       # Trigger AI analysis for recipient
       if recipient_user.ai_configured?

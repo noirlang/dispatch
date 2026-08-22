@@ -219,15 +219,21 @@ class Api::V1::EmailsController < Api::V1::BaseController
   end
 
   def email_params
-    params.permit(:to, :cc, :subject, :body)
+    base = params.permit(:to, :cc, :bcc, :subject, :body)
+    base[:attachments] = params[:attachments] if params[:attachments].present?
+    base
   end
 
   def reply_params(original)
-    { to: original.from_address, subject: "Re: #{original.subject}", body: params[:body] }
+    base = { to: original.from_address, subject: "Re: #{original.subject}", body: params[:body] }
+    base[:attachments] = params[:attachments] if params[:attachments].present?
+    base
   end
 
   def forward_params(original)
-    { to: params[:to], subject: "Fwd: #{original.subject}", body: "#{params[:body]}\n\n---\n#{original.body_text}" }
+    base = { to: params[:to], subject: "Fwd: #{original.subject}", body: "#{params[:body]}\n\n---\n#{original.body_text}" }
+    base[:attachments] = params[:attachments].presence || original.attachments
+    base
   end
 
   def email_json(email)
@@ -255,6 +261,8 @@ class Api::V1::EmailsController < Api::V1::BaseController
       is_flagged: email.is_flagged || false,
       is_important_sender: rule&.status == "important",
       created_at: email.created_at,
+      attachments: email.attachments || [],
+      has_attachments: (email.attachments.present? && !email.attachments.empty?),
       sender_name: profile[:name],
       avatar_url: profile[:avatar_url],
       avatar_initials: profile[:initials],
@@ -280,6 +288,8 @@ class Api::V1::EmailsController < Api::V1::BaseController
       is_important_sender: rule&.status == "important",
       folder:       email.folder,
       created_at:   email.created_at,
+      has_attachments: (email.attachments.present? && !email.attachments.empty?),
+      attachments_count: (email.attachments&.size || 0),
       sender_name:  profile[:name],
       avatar_url:   profile[:avatar_url],
       avatar_initials: profile[:initials],
@@ -288,3 +298,4 @@ class Api::V1::EmailsController < Api::V1::BaseController
     }
   end
 end
+

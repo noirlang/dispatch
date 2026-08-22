@@ -43,6 +43,11 @@ Rails.application.routes.draw do
       # Image proxy (spy pixel blocker)
       get "image_proxy", to: "image_proxy#show"
 
+      # Attachments (Email attachments upload & secure download)
+      post "attachments/upload",   to: "attachments#upload"
+      get  "attachments/download", to: "attachments#download"
+
+
       # Sender rules & Contact groups
       resources :sender_rules, only: [:index, :create, :update, :destroy]
       resources :contact_groups

@@ -28,6 +28,19 @@ class DispatchMailbox < ApplicationMailbox
 
   def deliver_to_inbox(user, folder)
     thread = find_or_create_thread(user)
+
+    # Extract incoming email attachments
+    saved_attachments = []
+    mail.attachments.each do |att|
+      begin
+        meta = EmailAttachmentService.save_raw_attachment(att.filename, att.body.decoded, att.content_type)
+        saved_attachments << meta
+      rescue => e
+        Rails.logger.warn "Failed to save incoming email attachment #{att.filename}: #{e.message}"
+      end
+    end
+
+
     user.emails.create!(
       thread: thread,
       from_address: mail.from.first,
@@ -38,9 +51,11 @@ class DispatchMailbox < ApplicationMailbox
       body_html: mail.html_part&.body&.decoded,
       message_id: mail.message_id,
       folder: folder,
-      is_read: false
+      is_read: false,
+      attachments: saved_attachments
     )
   end
+
 
   def find_or_create_thread(user)
     in_reply_to = mail.in_reply_to

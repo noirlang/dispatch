@@ -1,9 +1,9 @@
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "../../lib/api"
 import { useT } from "../../store/themeAndLocale"
 import EmailMdView from "../../components/ui/EmailMdView"
-import { Send, X, Eye, Edit3, ExternalLink } from "lucide-react"
+import { Send, X, Eye, Edit3, ExternalLink, Paperclip, Loader2 } from "lucide-react"
 
 interface Props {
   initialTo?: string
@@ -24,6 +24,7 @@ export default function ComposeView({
 }: Props) {
   const t = useT()
   const qc = useQueryClient()
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [to, setTo] = useState(initialTo)
   const [cc, setCc] = useState("")
@@ -33,23 +34,54 @@ export default function ComposeView({
   const [subject, setSubject] = useState(initialSubject)
   const [body, setBody] = useState(initialBody)
   const [mode, setMode] = useState<"edit" | "preview">("edit")
+  const [attachments, setAttachments] = useState<any[]>([])
+  const [isUploadingFile, setIsUploadingFile] = useState(false)
 
   const { data: groups = [] } = useQuery({
     queryKey: ["contact-groups"],
     queryFn: () => api.get<any[]>("/contact_groups"),
   })
 
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+
+    setIsUploadingFile(true)
+    try {
+      const formData = new FormData()
+      for (let i = 0; i < files.length; i++) {
+        formData.append("files[]", files[i])
+      }
+
+      const res = await api.upload<{ attachments: any[] }>("/attachments/upload", formData)
+      if (res.attachments && res.attachments.length > 0) {
+        setAttachments(prev => [...prev, ...res.attachments])
+      }
+    } catch (err: any) {
+      alert("Dosya yüklenirken hata oluştu: " + (err?.message || "Bilinmeyen hata"))
+    } finally {
+      setIsUploadingFile(false)
+      if (fileInputRef.current) fileInputRef.current.value = ""
+    }
+  }
+
+
+  function removeAttachment(index: number) {
+    setAttachments(prev => prev.filter((_, i) => i !== index))
+  }
+
   const sendEmail = useMutation({
     mutationFn: async () => {
       if (isReply && replyEmailId) {
-        return api.post(`/emails/${replyEmailId}/reply`, { body })
+        return api.post(`/emails/${replyEmailId}/reply`, { body, attachments })
       }
       return api.post("/emails", {
         to,
         cc: showCc ? cc : undefined,
         bcc: showBcc ? bcc : undefined,
         subject,
-        body
+        body,
+        attachments
       })
     },
     onSuccess: () => {
@@ -57,6 +89,7 @@ export default function ComposeView({
       onClose()
     }
   })
+
 
   const [toFocus, setToFocus] = useState(false)
 
@@ -279,11 +312,62 @@ export default function ComposeView({
         )}
       </div>
 
+      {/* Attached Files List */}
+      {attachments.length > 0 && (
+        <div className="flex flex-wrap gap-2 pt-2">
+          {attachments.map((att, idx) => (
+            <div
+              key={att.id || idx}
+              className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs text-[var(--text-main)] shadow-xs"
+            >
+              <Paperclip size={12} className="text-[#3b82f6]" />
+              <span className="max-w-[160px] truncate font-medium">{att.filename}</span>
+              <span className="text-[10px] text-[var(--text-dim)] font-mono">
+                ({Math.round((att.size || 0) / 1024)} KB)
+              </span>
+              <button
+                type="button"
+                onClick={() => removeAttachment(idx)}
+                className="text-[var(--text-dim)] hover:text-[#ef4444] transition-colors p-0.5 rounded cursor-pointer"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Bottom Action bar */}
       <div className="flex items-center justify-between pt-4 mt-2">
-        <span className="text-[11px] text-[var(--text-dim)]">
-          Press <kbd className="px-1.5 py-0.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded">Ctrl+Enter</kbd> to send
-        </span>
+        <div className="flex items-center gap-3">
+          {/* Hidden File Input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+
+          {/* Attach Button */}
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploadingFile}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--bg-secondary)] hover:bg-[var(--bg-card)] border border-[var(--border-color)] text-xs font-medium text-[var(--text-main)] transition-colors cursor-pointer disabled:opacity-50"
+          >
+            {isUploadingFile ? (
+              <Loader2 size={13} className="animate-spin text-[var(--text-muted)]" />
+            ) : (
+              <Paperclip size={13} className="text-[#3b82f6]" />
+            )}
+            <span>{isUploadingFile ? "Yükleniyor..." : "Dosya Ekle"}</span>
+          </button>
+
+          <span className="text-[11px] text-[var(--text-dim)] hidden sm:inline">
+            <kbd className="px-1.5 py-0.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded">Ctrl+Enter</kbd> gönder
+          </span>
+        </div>
 
         <div className="flex items-center gap-3">
           <button
@@ -295,15 +379,16 @@ export default function ComposeView({
           </button>
           <button
             type="button"
-            disabled={sendEmail.isPending || !to || !body}
+            disabled={sendEmail.isPending || isUploadingFile || !to || !body}
             onClick={() => sendEmail.mutate()}
-            className="flex items-center gap-2 px-6 py-2 rounded-lg bg-[var(--accent)] text-[var(--accent-invert)] text-xs font-semibold hover:opacity-90 transition-all disabled:opacity-40"
+            className="flex items-center gap-2 px-6 py-2 rounded-lg bg-[var(--accent)] text-[var(--accent-invert)] text-xs font-semibold hover:opacity-90 transition-all disabled:opacity-40 cursor-pointer"
           >
             <Send size={13} />
-            <span>{sendEmail.isPending ? "Sending..." : t("send")}</span>
+            <span>{sendEmail.isPending ? "Gönderiliyor..." : t("send")}</span>
           </button>
         </div>
       </div>
     </div>
   )
 }
+

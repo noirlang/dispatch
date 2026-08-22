@@ -376,7 +376,16 @@ fun EmailListItem(
                     modifier = Modifier.weight(1f, fill = false)
                 )
 
-                Spacer(modifier = Modifier.width(8.dp))
+                // Paperclip icon if has attachments
+                if (email.hasAttachments) {
+                    Icon(
+                        Icons.Filled.AttachFile,
+                        "Ekli E-Posta",
+                        tint = AccentBlue,
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                }
 
                 // Time ago
                 Text(
@@ -385,6 +394,7 @@ fun EmailListItem(
                     fontSize = 11.sp,
                     maxLines = 1
                 )
+
             }
 
             Spacer(modifier = Modifier.height(2.dp))

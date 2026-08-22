@@ -23,6 +23,15 @@ data class AuthResponse(
     val message: String? = null
 )
 
+data class EmailAttachment(
+    val id: String? = null,
+    val filename: String,
+    @SerializedName("content_type") val contentType: String? = null,
+    val size: Long? = 0L,
+    val url: String? = null,
+    @SerializedName("is_image") val isImage: Boolean? = false
+)
+
 data class Email(
     val id: Long,
     val from: String,
@@ -36,6 +45,8 @@ data class Email(
     @SerializedName("is_read") val isRead: Boolean = false,
     @SerializedName("is_flagged") val isFlagged: Boolean = false,
     @SerializedName("is_important_sender") val isImportantSender: Boolean = false,
+    val attachments: List<EmailAttachment>? = null,
+    @SerializedName("has_attachments") val hasAttachments: Boolean = false,
     @SerializedName("created_at") val createdAt: String,
     @SerializedName("sender_name") val senderName: String? = null,
     @SerializedName("avatar_url") val avatarUrl: String? = null,
@@ -43,6 +54,7 @@ data class Email(
     @SerializedName("is_known_company") val isKnownCompany: Boolean = false,
     @SerializedName("is_dispatch_user") val isDispatchUser: Boolean = false
 )
+
 
 data class CalendarEvent(
     val id: Long,

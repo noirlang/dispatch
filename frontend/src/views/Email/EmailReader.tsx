@@ -22,7 +22,11 @@ import {
   Star,
   Languages,
   Globe2,
-  ArrowLeft
+  ArrowLeft,
+  Paperclip,
+  Download,
+  FileText,
+  Image as ImageIcon
 } from "lucide-react"
 import DOMPurify from "dompurify"
 import EmailMdView from "../../components/ui/EmailMdView"
@@ -43,6 +47,15 @@ interface EmailDetail {
   is_flagged?: boolean
   is_important_sender?: boolean
   created_at: string
+  attachments?: Array<{
+    id?: string
+    filename: string
+    content_type: string
+    size: number
+    url: string
+    is_image?: boolean
+  }>
+  has_attachments?: boolean
   sender_name?: string
   avatar_url?: string | null
   avatar_initials?: string
@@ -53,6 +66,7 @@ interface EmailDetail {
   recipient_initials?: string
   is_recipient_dispatch_user?: boolean
 }
+
 
 interface Props {
   id: number
@@ -618,7 +632,7 @@ export default function EmailReader({ id, folder, onReply, onForward, onClose }:
         </div>
       )}
 
-      {/* Email Body */}
+        {/* Email Body */}
       <div className="flex-1 p-10 overflow-y-auto max-w-4xl">
         {translation && !showOriginal ? (
           <div className="text-sm leading-relaxed font-sans text-[var(--text-main)]">
@@ -631,7 +645,65 @@ export default function EmailReader({ id, folder, onReply, onForward, onClose }:
             <EmailMdView content={email.body_text || email.body || ""} />
           </div>
         )}
+
+        {/* Attachments Section */}
+        {email.attachments && email.attachments.length > 0 && (
+          <div className="mt-8 pt-6 border-t border-[var(--border-color)]">
+            <div className="flex items-center gap-2 mb-3">
+              <Paperclip size={14} className="text-[#3b82f6]" />
+              <span className="text-xs font-bold text-[var(--text-main)]">
+                Ekler ({email.attachments.length})
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {email.attachments.map((att, idx) => {
+                const token = localStorage.getItem("dispatch_token") || ""
+                const downloadUrl = `/api/v1/attachments/download?file=${encodeURIComponent(att.url || "")}&filename=${encodeURIComponent(att.filename || "ek_dosya")}&token=${encodeURIComponent(token)}`
+                const sizeKb = Math.round((att.size || 0) / 1024)
+                const sizeMb = (sizeKb / 1024).toFixed(1)
+                const sizeLabel = sizeKb > 1024 ? `${sizeMb} MB` : `${sizeKb} KB`
+
+
+                return (
+                  <div
+                    key={att.id || idx}
+                    className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:border-[var(--border-light)] transition-all shadow-xs"
+                  >
+                    <div className="flex items-center gap-2.5 overflow-hidden">
+                      {att.is_image ? (
+                        <ImageIcon size={18} className="text-[#22c55e] shrink-0" />
+                      ) : (
+                        <FileText size={18} className="text-[#3b82f6] shrink-0" />
+                      )}
+                      <div className="overflow-hidden">
+                        <p className="text-xs font-semibold text-[var(--text-main)] truncate max-w-[180px]">
+                          {att.filename}
+                        </p>
+                        <p className="text-[10px] text-[var(--text-dim)] font-mono">
+                          {sizeLabel}
+                        </p>
+                      </div>
+                    </div>
+
+                    <a
+                      href={downloadUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      download={att.filename}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--bg-card)] text-[var(--text-main)] text-xs font-medium border border-[var(--border-color)] transition-colors cursor-pointer shrink-0"
+                    >
+                      <Download size={12} />
+                      <span>İndir</span>
+                    </a>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </div>
+
 
       {/* Floating Action Pill for Selected Text -> Send to Pano */}
       <AnimatePresence>

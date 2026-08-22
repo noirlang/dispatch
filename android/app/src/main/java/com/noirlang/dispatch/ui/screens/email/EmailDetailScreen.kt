@@ -1,10 +1,13 @@
 package com.noirlang.dispatch.ui.screens.email
 
+import android.content.Intent
+import android.net.Uri
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.noirlang.dispatch.data.api.ApiClient
+import com.noirlang.dispatch.data.local.SessionManager
 import com.noirlang.dispatch.data.model.AiReplyRequest
 import com.noirlang.dispatch.data.model.Email
 import com.noirlang.dispatch.ui.components.SenderAvatar
@@ -216,6 +220,76 @@ fun EmailDetailScreen(
                         fontSize = 14.sp,
                         lineHeight = 22.sp
                     )
+                }
+
+                // Attachments Section
+                if (!mail.attachments.isNullOrEmpty()) {
+                    Spacer(modifier = Modifier.height(20.dp))
+                    HorizontalDivider(color = BorderColor)
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Filled.AttachFile, "Ekler", tint = AccentBlue, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Ekler (${mail.attachments.size})",
+                            color = TextPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    mail.attachments.forEach { att ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(BgSecondary)
+                                .border(1.dp, BorderColor, RoundedCornerShape(12.dp))
+                                .clickable {
+                                    val server = SessionManager.getInstance(context).serverUrl
+                                    val fullUrl = if (att.url?.startsWith("http") == true) att.url else "${server}${att.url}"
+                                    val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(fullUrl))
+                                    context.startActivity(browserIntent)
+                                }
+                                .padding(12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                    Icon(
+                                        if (att.isImage == true) Icons.Filled.Image else Icons.Filled.Description,
+                                        "Dosya",
+                                        tint = if (att.isImage == true) AccentGreen else AccentBlue,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column {
+                                        Text(
+                                            text = att.filename,
+                                            color = TextPrimary,
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            maxLines = 1
+                                        )
+                                        val sizeKb = (att.size ?: 0L) / 1024
+                                        Text(
+                                            text = "$sizeKb KB",
+                                            color = TextDim,
+                                            fontSize = 11.sp
+                                        )
+                                    }
+                                }
+                                Icon(Icons.Filled.Download, "İndir", tint = TextSecondary, modifier = Modifier.size(18.dp))
+                            }
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(30.dp))
