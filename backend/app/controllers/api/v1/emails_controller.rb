@@ -2,7 +2,9 @@ class Api::V1::EmailsController < Api::V1::BaseController
   before_action :set_email, only: [:show, :destroy, :reply, :forward, :approve, :reject, :block_sender, :toggle_flag, :toggle_important_sender, :ai_summary, :ai_reply, :ai_translate]
 
   def index
-    folder = params[:folder] || "inbox"
+    # M4 Fix: Whitelist folder parameter — never pass raw user input to WHERE clause
+    allowed_folders = Email::FOLDERS
+    folder = allowed_folders.include?(params[:folder]) ? params[:folder] : "inbox"
     emails = current_user.emails.where(folder: folder).order(created_at: :desc)
     render json: emails.map { |e| email_list_json(e) }
   end
@@ -138,9 +140,12 @@ class Api::V1::EmailsController < Api::V1::BaseController
   def ai_reply
     return render json: { error: "AI not configured" }, status: :bad_request unless current_user.ai_configured?
 
-    instructions = params[:instructions].to_s
-    tone = params[:tone].presence || "friendly"
+    # M7 Fix: Limit instructions length to prevent API token DoS
+    instructions = params[:instructions].to_s.first(500)
+    allowed_tones = %w[friendly formal casual professional empathetic concise]
+    tone = allowed_tones.include?(params[:tone]) ? params[:tone] : "friendly"
     res = Ai::AnalyzeService.generate_reply(current_user, @email, instructions, tone)
+
 
     if res.success?
       render json: {

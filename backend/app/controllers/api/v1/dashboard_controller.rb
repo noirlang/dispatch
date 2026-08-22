@@ -9,12 +9,25 @@ class Api::V1::DashboardController < Api::V1::BaseController
   end
 
   def create
+    # H3 Fix: Whitelist card_type and priority — never accept arbitrary user values
+    allowed_types = Ai::AnalyzeService::ALLOWED_TYPES
+    allowed_priorities = Ai::AnalyzeService::ALLOWED_PRIORITIES
+
+    raw_type     = params[:card_type].to_s.downcase.strip
+    raw_priority = params[:priority].to_s.downcase.strip
+
+    card_type = allowed_types.include?(raw_type) ? raw_type : "general"
+    priority  = allowed_priorities.include?(raw_priority) ? raw_priority : "medium"
+
+    # Sanitize free-text summary
+    safe_summary = ActionController::Base.helpers.strip_tags(params[:summary].to_s).first(500)
+
     card = current_user.dashboard_cards.create!(
-      card_type: params[:card_type].presence || "general",
-      summary: params[:summary].to_s,
-      priority: params[:priority].presence || "medium",
-      actionable_items: params[:actionable_items] || [],
-      tags: params[:tags] || ["pano_notu"]
+      card_type:        card_type,
+      summary:          safe_summary,
+      priority:         priority,
+      actionable_items: [],   # Never accept raw actionable_items from user
+      tags:             ["pano_notu"]
     )
     render json: card, status: :created
   end

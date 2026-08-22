@@ -13,13 +13,15 @@ module Backend
 
     # OWASP Recommended Security Headers
     config.action_dispatch.default_headers = {
-      "X-Frame-Options" => "SAMEORIGIN",
-      "X-XSS-Protection" => "0",
-      "X-Content-Type-Options" => "nosniff",
-      "X-Download-Options" => "noopen",
-      "X-Permitted-Cross-Domain-Policies" => "none",
-      "Referrer-Policy" => "strict-origin-when-cross-origin",
-      "Permissions-Policy" => "camera=(), microphone=(), geolocation=()"
+      "X-Frame-Options"                     => "SAMEORIGIN",
+      "X-XSS-Protection"                    => "0",
+      "X-Content-Type-Options"              => "nosniff",
+      "X-Download-Options"                  => "noopen",
+      "X-Permitted-Cross-Domain-Policies"   => "none",
+      "Referrer-Policy"                     => "strict-origin-when-cross-origin",
+      "Permissions-Policy"                  => "camera=(), microphone=(), geolocation=()",
+      # H4 Fix: Content Security Policy — API-only mode, no embedded content
+      "Content-Security-Policy"             => "default-src 'none'; frame-ancestors 'none'"
     }
   end
 end

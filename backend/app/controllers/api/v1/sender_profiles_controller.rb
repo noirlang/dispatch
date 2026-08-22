@@ -19,7 +19,7 @@ class Api::V1::SenderProfilesController < Api::V1::BaseController
       }, status: :forbidden
     end
 
-    file = params[:file] || params[:avatar] || params[:image]
+    file      = params[:file] || params[:avatar] || params[:image]
     avatar_url = params[:avatar_url].to_s.strip
 
     if file.blank? && avatar_url.blank?
@@ -29,23 +29,29 @@ class Api::V1::SenderProfilesController < Api::V1::BaseController
     profile = SenderProfile.find_or_initialize_by(email: email)
 
     if file.present?
-      ext = File.extname(file.original_filename).presence || ".png"
-      filename = "sender_#{Digest::MD5.hexdigest(email)}_#{Time.now.to_i}#{ext}"
-      dir = Rails.root.join("public/avatars")
-      FileUtils.mkdir_p(dir)
-      path = dir.join(filename)
-      if file.respond_to?(:tempfile) && File.exist?(file.tempfile.path)
-        FileUtils.cp(file.tempfile.path, path)
-      elsif file.respond_to?(:read)
-        file.rewind if file.respond_to?(:rewind)
-        File.open(path, "wb") { |f| f.write(file.read) }
+      # C4 Fix: Use AvatarUploadService which enforces magic-byte MIME validation
+      # Create a temporary user-like struct to satisfy the service interface
+      tmp_holder = Struct.new(:id, :email, :name, :avatar_path).new(
+        Digest::MD5.hexdigest(email)[0..7],
+        email,
+        profile.display_name || email,
+        nil
+      )
+      result = Email::AvatarUploadService.call_for_profile(email, file)
+      if result.success?
+        profile.avatar_url = result.path
+      else
+        return render json: { error: result.error }, status: :unprocessable_entity
       end
-      profile.avatar_url = "/avatars/#{filename}"
     elsif avatar_url.present?
+      # M3 Fix: Validate URL scheme and block dangerous/internal URLs
+      unless safe_avatar_url?(avatar_url)
+        return render json: { error: "Geçersiz veya güvensiz görsel bağlantısı." }, status: :unprocessable_entity
+      end
       profile.avatar_url = avatar_url
     end
 
-    profile.display_name = params[:display_name] if params[:display_name].present?
+    profile.display_name = params[:display_name].to_s.strip.first(100) if params[:display_name].present?
     profile.save!
 
     # If any registered user has this email, sync their user account avatar too
@@ -60,5 +66,28 @@ class Api::V1::SenderProfilesController < Api::V1::BaseController
     }
   rescue => e
     render json: { error: "Fotoğraf kaydedilirken hata oluştu: #{e.message}" }, status: :unprocessable_entity
+  end
+
+  private
+
+  # M3 Fix: Only allow http/https URLs pointing to external public hosts
+  BLOCKED_SCHEMES = %w[javascript data vbscript file].freeze
+  BLOCKED_IP_RANGES = [
+    IPAddr.new("127.0.0.0/8"),
+    IPAddr.new("10.0.0.0/8"),
+    IPAddr.new("172.16.0.0/12"),
+    IPAddr.new("192.168.0.0/16"),
+    IPAddr.new("169.254.0.0/16"),
+  ].freeze
+
+  def safe_avatar_url?(url)
+    uri = URI.parse(url.to_s.strip)
+    return false unless %w[http https].include?(uri.scheme)
+    return false if uri.host.blank?
+    ip = IPSocket.getaddress(uri.host) rescue nil
+    return false if ip && BLOCKED_IP_RANGES.any? { |r| r.include?(IPAddr.new(ip)) }
+    true
+  rescue
+    false
   end
 end

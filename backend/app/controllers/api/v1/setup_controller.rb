@@ -1,4 +1,6 @@
 class Api::V1::SetupController < ActionController::API
+  before_action :block_if_reconfigured, only: [:create, :cloudflare_sync]
+
   # GET /api/v1/setup/status
   def status
     config = ServerConfig.current
@@ -120,5 +122,22 @@ class Api::V1::SetupController < ActionController::API
     else
       render json: res, status: :unprocessable_entity
     end
+  end
+
+  private
+
+  # C3 Fix: Prevent re-running setup once configured unless a valid admin token is supplied
+  def block_if_reconfigured
+    config = ServerConfig.current
+    return unless config.is_configured && User.exists?
+
+    # Allow with valid admin JWT token
+    token   = request.headers["Authorization"]&.split(" ")&.last
+    payload = JwtHelper.decode(token) rescue nil
+    return if payload && payload["role"] == "admin"
+
+    render json: {
+      error: "Sistem zaten yapılandırılmış. Ayarları değiştirmek için yönetici panelini kullanın."
+    }, status: :forbidden
   end
 end

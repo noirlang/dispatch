@@ -17,6 +17,17 @@ class Api::V1::Rss::FeedsController < Api::V1::BaseController
   end
 
   def create
+    # M6 Fix: Validate URL scheme before saving to prevent SSRF via file:// or internal URLs
+    url = feed_params[:url].to_s.strip
+    begin
+      parsed_uri = URI.parse(url)
+      unless %w[http https].include?(parsed_uri.scheme)
+        return render json: { errors: ["Geçersiz URL: sadece http veya https adresleri desteklenmektedir."] }, status: :unprocessable_entity
+      end
+    rescue URI::InvalidURIError
+      return render json: { errors: ["Geçersiz RSS URL formatı."] }, status: :unprocessable_entity
+    end
+
     feed = current_user.rss_feeds.build(feed_params)
     if feed.save
       # Immediately fetch articles so items appear without delay

@@ -1,4 +1,4 @@
-class Api::V1::UpdatesController < Api::V1::BaseController
+class Api::V1::UpdatesController < Api::V1::Admin::BaseController
   def check
     info = System::UpdateService.check
     render json: info
@@ -13,3 +13,4 @@ class Api::V1::UpdatesController < Api::V1::BaseController
     end
   end
 end
+

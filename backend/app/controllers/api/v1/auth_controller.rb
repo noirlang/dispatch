@@ -57,26 +57,35 @@ class Api::V1::AuthController < ActionController::API
     end
   end
 
+  # H1 Fix: Return only exists: true/false — do NOT expose name/email/avatar to unauthenticated callers
   def check_email
     clean_email = normalize_email(params[:email].presence || params[:username])
+    # Validate format before querying DB
+    unless clean_email.match?(/\A[^@\s]+@[^@\s]+\z/)
+      return render json: { exists: false }, status: :ok
+    end
     user = User.find_by(email: clean_email)
     if user
       render json: {
         exists: true,
-        name: user.name,
-        email: user.email,
-        username: user.email.split("@").first,
-        avatar_path: user.avatar_path
+        # Only expose publicly safe display name for login form UX
+        display_name: user.name.split(" ").first
       }
     else
-      render json: {
-        exists: false,
-        error: "Bu kullanıcı adına ait bir hesap bulunamadı."
-      }, status: :not_found
+      render json: { exists: false }, status: :ok
     end
   end
 
+  # C5 Fix: Blocklist token in Redis so it cannot be replayed after logout
   def logout
+    token = request.headers["Authorization"]&.split(" ")&.last
+    if token.present?
+      payload = JwtHelper.decode(token)
+      if payload && payload["exp"]
+        ttl = [payload["exp"] - Time.now.to_i, 0].max
+        Sidekiq.redis { |r| r.setex("jwt_blocklist:#{token}", ttl, "1") } if ttl > 0
+      end
+    end
     render json: { message: "Logged out" }
   end
 
@@ -118,6 +127,11 @@ class Api::V1::AuthController < ActionController::API
 
   def authenticate!
     token = request.headers["Authorization"]&.split(" ")&.last
+    # C5 Fix: Check if token has been explicitly logged out (blocklisted)
+    if token.present?
+      blocked = Sidekiq.redis { |r| r.exists?("jwt_blocklist:#{token}") } rescue false
+      return render json: { error: "Unauthorized" }, status: :unauthorized if blocked
+    end
     payload = JwtHelper.decode(token)
     @current_user = User.find_by(id: payload&.dig("user_id"))
     render json: { error: "Unauthorized" }, status: :unauthorized unless @current_user

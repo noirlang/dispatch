@@ -20,8 +20,14 @@ class SystemConfig < ApplicationRecord
     if stored_digest.present?
       BCrypt::Password.new(stored_digest) == input_password.to_s
     else
-      env_pw = ENV["ADMIN_PASSWORD"].presence || "admin1234"
-      input_password.to_s == env_pw
+      # H7 Fix: Log warning if fallback default is still in use
+      env_pw = ENV["ADMIN_PASSWORD"].presence
+      if env_pw.blank?
+        Rails.logger.warn "[SECURITY] ADMIN_PASSWORD ortam değişkeni tanımlı değil. Varsayılan şifre kullanılıyor — lütfen yönetici panelinden değiştirin!"
+        env_pw = "admin1234"
+      end
+      # H6 Fix: Use constant-time comparison to prevent timing attacks
+      ActiveSupport::SecurityUtils.secure_compare(input_password.to_s, env_pw)
     end
   rescue
     false

@@ -134,11 +134,10 @@ class Email::SendService
             Lütfen e-posta adresini kontrol ederek iletinizi yeniden gönderin.
 
             ---
-            **Orijinal İleti Detayları:**
-            - **Konu:** #{params[:subject]}
-            - **İçerik Özeti:**
-            > #{raw_body.to_s.lines.first(5).map { |l| l.strip }.join("\n> ")}
+            **Orijinal İleti:** Konu: `#{ERB::Util.html_escape(params[:subject].to_s)}`
           MD
+          # H8 Fix: Never include original email body in bounce — may contain OTP, passwords or PII
+
 
           bounce_html = markdown_to_html(bounce_body)
 

@@ -46,7 +46,10 @@ class Blog::PostsController < ActionController::API
                  end
 
     feed_desc = user&.bio.presence || "Blog posts published by @#{handle.presence || 'dispatch'}"
-    site_url = handle.present? ? "http://#{server_domain}/blog/#{handle}" : "http://#{server_domain}/blog"
+    # L5 Fix: Use https in production, http in development
+    base_scheme = Rails.env.production? ? "https" : "http"
+    site_url = handle.present? ? "#{base_scheme}://#{server_domain}/blog/#{handle}" : "#{base_scheme}://#{server_domain}/blog"
+
 
     xml = Builder::XmlMarkup.new(indent: 2)
     xml.instruct! :xml, version: "1.0", encoding: "UTF-8"
@@ -66,9 +69,11 @@ class Blog::PostsController < ActionController::API
             xml.link post_url
             xml.guid post_url, isPermaLink: "true"
             xml.pubDate post.published_at.rfc822
-            xml.author "#{post.author_email} (#{post.author_name})"
+            # C6 Fix: Never expose raw author email in public RSS feed
+            xml.author post.author_name.to_s
             xml.description do
-              xml.cdata! post.content.to_s
+              # C6 Fix: Strip script/iframe/event-handler payloads from blog content
+              xml.cdata! sanitize_blog_content(post.content.to_s)
             end
           end
         end
@@ -85,7 +90,7 @@ class Blog::PostsController < ActionController::API
     {
       slug:          post.slug,
       title:         post.title,
-      excerpt:       post.content.first(200).strip,
+      excerpt:       post.content.to_s.first(200).strip,
       author_handle: post.author_handle,
       author_name:   post.author_name,
       author_avatar: user&.avatar_path || post.author_avatar,
@@ -96,10 +101,19 @@ class Blog::PostsController < ActionController::API
   end
 
   def post_full(post)
+    # M8 Fix: Never expose author_email in the public API response
     {
       **post_summary(post),
-      content:       post.content,
-      author_email:  post.author_email
+      content: post.content
     }
   end
+
+  # C6 Fix: Strip dangerous tags while preserving readable HTML
+  def sanitize_blog_content(html)
+    require "loofah"
+    Loofah.fragment(html).scrub!(:strip).to_s
+  rescue
+    ActionController::Base.helpers.strip_tags(html)
+  end
 end
+
