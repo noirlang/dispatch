@@ -1,7 +1,9 @@
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "../../lib/api"
-import { useT } from "../../store/themeAndLocale"
+import { useAuth } from "../../store/auth"
+import { useT, useAppStore } from "../../store/themeAndLocale"
+import { motion, AnimatePresence } from "framer-motion"
 import {
   Reply,
   Forward,
@@ -13,7 +15,10 @@ import {
   RefreshCw,
   X,
   Send,
-  MessageSquareQuote
+  MessageSquareQuote,
+  Camera,
+  Upload,
+  BookmarkPlus
 } from "lucide-react"
 import DOMPurify from "dompurify"
 import ReactMarkdown from "react-markdown"
@@ -29,6 +34,10 @@ interface EmailDetail {
   folder: string
   is_read: boolean
   created_at: string
+  sender_name?: string
+  avatar_url?: string | null
+  avatar_initials?: string
+  is_known_company?: boolean
 }
 
 interface Props {
@@ -41,6 +50,8 @@ interface Props {
 
 export default function EmailReader({ id, folder, onReply, onForward }: Props) {
   const t = useT()
+  const { user } = useAuth()
+  const { addToast } = useAppStore()
   const qc = useQueryClient()
 
   // AI Summary State
@@ -53,10 +64,26 @@ export default function EmailReader({ id, folder, onReply, onForward }: Props) {
   const [aiTone, setAiTone] = useState<"friendly" | "formal" | "concise">("friendly")
   const [generatingReply, setGeneratingReply] = useState(false)
 
+  // Custom Avatar Modal State
+  const [avatarModalOpen, setAvatarModalOpen] = useState(false)
+  const [avatarUrlInput, setAvatarUrlInput] = useState("")
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
+
+  // Text selection for Pano
+  const [selectedText, setSelectedText] = useState("")
+  const [selectionPos, setSelectionPos] = useState<{ x: number; y: number } | null>(null)
+
   const { data: email, isLoading } = useQuery({
     queryKey: ["email", id],
     queryFn: () => api.get<EmailDetail>(`/emails/${id}`),
   })
+
+  const { data: settings } = useQuery({
+    queryKey: ["settings"],
+    queryFn: () => api.get<any>("/settings"),
+  })
+
+  const isAiConfigured = Boolean(settings?.ai_configured || user?.ai_configured)
 
   const approve = useMutation({
     mutationFn: () => api.post(`/emails/${id}/approve`),
@@ -81,13 +108,48 @@ export default function EmailReader({ id, folder, onReply, onForward }: Props) {
     }
   })
 
+  const addToPano = useMutation({
+    mutationFn: (text: string) =>
+      api.post("/dashboard", {
+        summary: text,
+        card_type: "general",
+        priority: "medium",
+        tags: ["email_notu"]
+      }),
+    onSuccess: () => {
+      setSelectedText("")
+      setSelectionPos(null)
+      qc.invalidateQueries({ queryKey: ["dashboard-cards"] })
+      addToast({
+        from: "Pano",
+        subject: "Seçilen metin başarıyla Panoya eklendi! ✓"
+      })
+    }
+  })
+
+  function handleMouseUp() {
+    const sel = window.getSelection()
+    const text = sel?.toString().trim()
+    if (text && text.length > 3) {
+      const oRange = sel?.getRangeAt(0)
+      const oRect = oRange?.getBoundingClientRect()
+      if (oRect) {
+        setSelectedText(text)
+        setSelectionPos({ x: oRect.left + oRect.width / 2, y: oRect.top - 45 })
+        return
+      }
+    }
+    setSelectedText("")
+    setSelectionPos(null)
+  }
+
   async function handleFetchSummary() {
     setLoadingSummary(true)
     try {
       const res = await api.post<{ summary: string }>(`/emails/${id}/ai_summary`)
       setSummary(res.summary)
     } catch {
-      setSummary("Failed to generate AI summary. Make sure an AI API key is configured.")
+      setSummary("Yapay zeka özeti oluşturulamadı. Ayarlardan API anahtarınızı kontrol edin.")
     } finally {
       setLoadingSummary(false)
     }
@@ -105,9 +167,42 @@ export default function EmailReader({ id, folder, onReply, onForward }: Props) {
         onReply(email, res.reply_body)
       }
     } catch {
-      alert("Failed to generate AI reply. Make sure an AI API key is configured.")
+      alert("Yapay zeka yanıtı oluşturulamadı.")
     } finally {
       setGeneratingReply(false)
+    }
+  }
+
+  async function handleSaveContactPhoto(e?: React.ChangeEvent<HTMLInputElement>) {
+    if (!email) return
+    const file = e?.target.files?.[0]
+    setUploadingAvatar(true)
+
+    try {
+      if (file) {
+        const formData = new FormData()
+        formData.append("email", email.from)
+        formData.append("file", file)
+        const token = localStorage.getItem("dispatch_token")
+        await fetch("http://localhost:3000/api/v1/sender_profiles/update_avatar", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData
+        })
+      } else if (avatarUrlInput) {
+        await api.post("/sender_profiles/update_avatar", {
+          email: email.from,
+          avatar_url: avatarUrlInput
+        })
+      }
+      setAvatarModalOpen(false)
+      setAvatarUrlInput("")
+      qc.invalidateQueries({ queryKey: ["emails"] })
+      qc.invalidateQueries({ queryKey: ["email", id] })
+    } catch {
+      alert("Fotoğraf kaydedilemedi.")
+    } finally {
+      setUploadingAvatar(false)
     }
   }
 
@@ -123,7 +218,10 @@ export default function EmailReader({ id, folder, onReply, onForward }: Props) {
   const safeHtml = isHtml ? DOMPurify.sanitize(email.body || "") : ""
 
   return (
-    <div className="h-full flex flex-col bg-[var(--bg-primary)] overflow-hidden animate-fadeIn">
+    <div
+      onMouseUp={handleMouseUp}
+      className="h-full flex flex-col bg-[var(--bg-primary)] overflow-hidden animate-fadeIn relative"
+    >
       {/* Subject & Actions Toolbar */}
       <div className="px-8 py-5 border-b border-[var(--border-color)] flex flex-wrap items-center justify-between gap-4 shrink-0 bg-[var(--bg-secondary)] shadow-2xs">
         <div>
@@ -132,125 +230,165 @@ export default function EmailReader({ id, folder, onReply, onForward }: Props) {
           </h1>
           <div className="flex items-center gap-2">
             <span className="text-xs text-[var(--text-dim)] font-mono">
-              Folder: {email.folder}
+              Klasör: {email.folder}
             </span>
           </div>
         </div>
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2">
-          {/* AI Action Buttons */}
-          <button
-            onClick={handleFetchSummary}
-            disabled={loadingSummary}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] text-xs font-semibold hover:bg-[var(--bg-card)] transition-colors shadow-xs"
-            title="Summarize email using AI"
-          >
-            {loadingSummary ? <RefreshCw size={13} className="animate-spin" /> : <Sparkles size={13} className="text-[#f59e0b]" />}
-            <span>AI Özetle</span>
-          </button>
+          {/* AI Action Buttons - ONLY SHOWN IF AI IS CONFIGURED */}
+          {isAiConfigured && (
+            <>
+              <motion.button
+                whileTap={{ scale: 0.94 }}
+                onClick={handleFetchSummary}
+                disabled={loadingSummary}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] text-xs font-semibold hover:bg-[var(--bg-card)] transition-colors shadow-xs"
+                title="Yapay zeka ile özetle"
+              >
+                {loadingSummary ? <RefreshCw size={13} className="animate-spin" /> : <Sparkles size={13} className="text-[#f59e0b]" />}
+                <span>AI Özetle</span>
+              </motion.button>
 
-          <button
-            onClick={() => setAiReplyModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] text-xs font-semibold hover:bg-[var(--bg-card)] transition-colors shadow-xs"
-            title="Generate custom reply draft with AI"
-          >
-            <MessageSquareQuote size={13} className="text-[#3b82f6]" />
-            <span>AI ile Yanıtla</span>
-          </button>
+              <motion.button
+                whileTap={{ scale: 0.94 }}
+                onClick={() => setAiReplyModalOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] text-xs font-semibold hover:bg-[var(--bg-card)] transition-colors shadow-xs"
+                title="AI ile yanıt taslağı oluştur"
+              >
+                <MessageSquareQuote size={13} className="text-[#3b82f6]" />
+                <span>AI ile Yanıtla</span>
+              </motion.button>
+            </>
+          )}
 
           {folder === "approvals" && (
             <>
-              <button
+              <motion.button
+                whileTap={{ scale: 0.94 }}
                 onClick={() => approve.mutate()}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#22c55e15] text-[#22c55e] border border-[#22c55e30] hover:bg-[#22c55e25] text-xs font-bold transition-colors"
               >
                 <CheckCircle size={14} />
                 <span>{t("approve")}</span>
-              </button>
-              <button
+              </motion.button>
+              <motion.button
+                whileTap={{ scale: 0.94 }}
                 onClick={() => reject.mutate()}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#ef444415] text-[#ef4444] border border-[#ef444430] hover:bg-[#ef444425] text-xs font-bold transition-colors"
               >
                 <XCircle size={14} />
                 <span>{t("reject")}</span>
-              </button>
+              </motion.button>
             </>
           )}
 
-          <button
+          <motion.button
+            whileTap={{ scale: 0.94 }}
             onClick={() => onReply(email)}
             className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[var(--bg-primary)] hover:bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-main)] text-xs font-bold transition-colors shadow-xs"
           >
             <Reply size={14} />
             <span>{t("reply")}</span>
-          </button>
+          </motion.button>
 
-          <button
+          <motion.button
+            whileTap={{ scale: 0.94 }}
             onClick={() => onForward(email)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--bg-primary)] hover:bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-main)] text-xs font-medium transition-colors shadow-xs"
           >
             <Forward size={14} />
             <span>{t("forward")}</span>
-          </button>
+          </motion.button>
 
           {/* Block Sender Button */}
-          <button
+          <motion.button
+            whileTap={{ scale: 0.92 }}
             onClick={() => {
-              if (confirm(`Block ${email.from} and move messages to trash?`)) {
+              if (confirm(`${email.from} adresini engellemek ve gelen maillerini çöpe taşımak istiyor musunuz?`)) {
                 blockSender.mutate()
               }
             }}
             className="p-2 rounded-xl text-[var(--text-dim)] hover:text-[#ef4444] hover:bg-[#ef444415] transition-colors"
-            title="Kullanıcıyı Engelle (Block Sender)"
+            title="Kullanıcıyı Engelle"
           >
             <Ban size={15} />
-          </button>
+          </motion.button>
 
-          <button
+          <motion.button
+            whileTap={{ scale: 0.92 }}
             onClick={() => deleteEmail.mutate()}
             className="p-2 rounded-xl text-[var(--text-dim)] hover:text-[#ef4444] hover:bg-[#ef444415] transition-colors"
-            title="Delete message"
+            title="Mesajı Sil"
           >
             <Trash2 size={15} />
-          </button>
+          </motion.button>
         </div>
       </div>
 
-      {/* AI Summary Banner (if active) */}
-      {summary && (
-        <div className="mx-8 mt-4 p-4 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-start justify-between gap-4 shadow-sm animate-fadeIn">
-          <div className="flex items-start gap-3">
-            <div className="p-1.5 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-color)] mt-0.5">
-              <Sparkles size={14} className="text-[#f59e0b]" />
+      {/* AI Summary Banner */}
+      <AnimatePresence>
+        {summary && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="mx-8 mt-4 p-4 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-start justify-between gap-4 shadow-sm"
+          >
+            <div className="flex items-start gap-3">
+              <div className="p-1.5 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-color)] mt-0.5">
+                <Sparkles size={14} className="text-[#f59e0b]" />
+              </div>
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-main)] block mb-1">
+                  Yapay Zeka Özeti
+                </span>
+                <p className="text-xs text-[var(--text-muted)] leading-relaxed whitespace-pre-line">
+                  {summary}
+                </p>
+              </div>
             </div>
-            <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-main)] block mb-1">
-                AI Executive Summary
-              </span>
-              <p className="text-xs text-[var(--text-muted)] leading-relaxed whitespace-pre-line">
-                {summary}
-              </p>
-            </div>
-          </div>
-          <button onClick={() => setSummary(null)} className="text-[var(--text-dim)] hover:text-[var(--text-main)] p-1">
-            <X size={14} />
-          </button>
-        </div>
-      )}
+            <button onClick={() => setSummary(null)} className="text-[var(--text-dim)] hover:text-[var(--text-main)] p-1">
+              <X size={14} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* Sender info bar */}
+      {/* Sender info bar with Clickable Avatar to assign Custom Photo */}
       <div className="px-8 py-4 border-b border-[var(--border-color)] flex items-center justify-between bg-[var(--bg-secondary)] shrink-0">
         <div className="flex items-center gap-3.5">
-          <SenderAvatar
-            avatarUrl={null}
-            initials={email.from[0]?.toUpperCase()}
-            name={email.from}
-            size={38}
-          />
+          <div
+            onClick={() => setAvatarModalOpen(true)}
+            className="relative group cursor-pointer"
+            title="Kişi fotoğrafını ayarla / değiştir"
+          >
+            <SenderAvatar
+              avatarUrl={email.avatar_url}
+              initials={email.avatar_initials || email.from[0]?.toUpperCase()}
+              name={email.sender_name || email.from}
+              size={40}
+              isKnownCompany={email.is_known_company}
+            />
+            <div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
+              <Camera size={14} />
+            </div>
+          </div>
+
           <div>
-            <div className="text-xs font-bold text-[var(--text-main)]">{email.from}</div>
-            <div className="text-[11px] text-[var(--text-dim)]">To: {email.to}</div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-[var(--text-main)]">
+                {email.sender_name || email.from}
+              </span>
+              <button
+                onClick={() => setAvatarModalOpen(true)}
+                className="text-[10px] text-[var(--text-dim)] hover:text-[var(--text-main)] underline"
+              >
+                Fotoğraf Değiştir
+              </button>
+            </div>
+            <div className="text-[11px] text-[var(--text-dim)] font-mono">{email.from} · Kime: {email.to}</div>
           </div>
         </div>
 
@@ -273,96 +411,207 @@ export default function EmailReader({ id, folder, onReply, onForward }: Props) {
         )}
       </div>
 
-      {/* AI Smart Reply Prompt Modal */}
-      {aiReplyModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fadeIn">
-          <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl w-full max-w-lg p-6 shadow-2xl flex flex-col gap-4">
-            <div className="flex items-center justify-between pb-3 border-b border-[var(--border-color)]">
-              <div className="flex items-center gap-2">
-                <Sparkles size={16} className="text-[#3b82f6]" />
+      {/* Floating Action Pill for Selected Text -> Send to Pano */}
+      <AnimatePresence>
+        {selectedText && selectionPos && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 10 }}
+            style={{ left: selectionPos.x, top: selectionPos.y }}
+            className="fixed -translate-x-1/2 z-50 flex items-center gap-2 p-1.5 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] shadow-2xl backdrop-blur-md"
+          >
+            <button
+              onClick={() => addToPano.mutate(selectedText)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--accent)] text-[var(--accent-invert)] text-xs font-bold hover:opacity-90 transition-all shadow-xs"
+            >
+              <BookmarkPlus size={13} />
+              <span>{t("send_to_pano")}</span>
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Contact Custom Avatar Modal */}
+      <AnimatePresence>
+        {avatarModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.88, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.88, y: 20 }}
+              className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl w-full max-w-md p-6 shadow-2xl flex flex-col gap-4"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-[var(--border-color)]">
                 <span className="text-sm font-bold text-[var(--text-main)]">
-                  AI ile Akıllı Yanıt Taslağı Oluştur
+                  Kişi Fotoğrafı Ayarla ({email.from})
                 </span>
-              </div>
-              <button
-                onClick={() => setAiReplyModalOpen(false)}
-                className="text-[var(--text-dim)] hover:text-[var(--text-main)]"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <div className="flex flex-col gap-3">
-              <div>
-                <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">
-                  Özel Talimatlar / Ne demek istiyorsun? (Prompt)
-                </label>
-                <textarea
-                  autoFocus
-                  placeholder="örn: Daha samimi bir dille teklifi kabul et ve Perşembe günü saat 14:00 için online toplantı öner..."
-                  value={userInstructions}
-                  onChange={(e) => setUserInstructions(e.target.value)}
-                  className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs p-3.5 rounded-xl h-24 resize-none focus:outline-none focus:border-[var(--text-main)]"
-                />
+                <button onClick={() => setAvatarModalOpen(false)} className="text-[var(--text-dim)] hover:text-[var(--text-main)]">
+                  <X size={16} />
+                </button>
               </div>
 
-              <div>
-                <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">
-                  Yanıt Tonu (Tone)
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { id: "friendly" as const, label: "Samimi (Friendly)" },
-                    { id: "formal" as const, label: "Resmi (Formal)" },
-                    { id: "concise" as const, label: "Kısa ve Net (Concise)" }
-                  ].map((t) => (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => setAiTone(t.id)}
-                      className={`py-2 px-2 text-xs rounded-xl border font-medium transition-all ${
-                        aiTone === t.id
-                          ? "bg-[var(--bg-card)] border-[var(--text-main)] text-[var(--text-main)] font-bold shadow-xs"
-                          : "bg-[var(--bg-primary)] border-[var(--border-color)] text-[var(--text-muted)]"
-                      }`}
-                    >
-                      {t.label}
-                    </button>
-                  ))}
+              <div className="flex flex-col gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">
+                    Bilgisayardan Fotoğraf Yükle
+                  </label>
+                  <label className="flex items-center justify-center gap-2 p-4 rounded-xl border border-dashed border-[var(--border-color)] hover:border-[var(--text-main)] cursor-pointer text-xs font-semibold text-[var(--text-main)] transition-colors">
+                    <Upload size={15} />
+                    <span>{uploadingAvatar ? "Yükleniyor..." : "Dosya Seç (.png, .jpg)"}</span>
+                    <input type="file" accept="image/*" onChange={handleSaveContactPhoto} className="hidden" />
+                  </label>
+                </div>
+
+                <div className="flex items-center gap-2 text-xs text-[var(--text-dim)]">
+                  <div className="flex-1 h-px bg-[var(--border-color)]" />
+                  <span>veya</span>
+                  <div className="flex-1 h-px bg-[var(--border-color)]" />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">
+                    Görsel / Logo URL Adresi
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://example.com/logo.png"
+                    value={avatarUrlInput}
+                    onChange={e => setAvatarUrlInput(e.target.value)}
+                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-xl focus:outline-none"
+                  />
                 </div>
               </div>
-            </div>
 
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-[var(--border-color)]">
-              <button
-                type="button"
-                onClick={() => setAiReplyModalOpen(false)}
-                className="px-4 py-2 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-main)]"
-              >
-                Vazgeç
-              </button>
-              <button
-                type="button"
-                disabled={generatingReply}
-                onClick={handleGenerateAiReply}
-                className="flex items-center gap-2 bg-[var(--accent)] text-[var(--accent-invert)] px-5 py-2.5 rounded-xl text-xs font-bold hover:opacity-90 transition-all disabled:opacity-40 shadow-sm"
-              >
-                {generatingReply ? (
-                  <>
-                    <RefreshCw size={13} className="animate-spin" />
-                    <span>Yazılıyor...</span>
-                  </>
-                ) : (
-                  <>
-                    <Send size={13} />
-                    <span>Taslağı Oluştur ve Düzenle</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[var(--border-color)]">
+                <button
+                  type="button"
+                  onClick={() => setAvatarModalOpen(false)}
+                  className="px-4 py-2 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-main)]"
+                >
+                  Vazgeç
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSaveContactPhoto()}
+                  disabled={uploadingAvatar || !avatarUrlInput}
+                  className="bg-[var(--accent)] text-[var(--accent-invert)] px-5 py-2 rounded-xl text-xs font-bold hover:opacity-90 disabled:opacity-40 shadow-sm"
+                >
+                  {uploadingAvatar ? "Kaydediliyor..." : "Kaydet"}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* AI Smart Reply Prompt Modal */}
+      <AnimatePresence>
+        {aiReplyModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.88, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.88, y: 20 }}
+              className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl w-full max-w-lg p-6 shadow-2xl flex flex-col gap-4"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-[var(--border-color)]">
+                <div className="flex items-center gap-2">
+                  <Sparkles size={16} className="text-[#3b82f6]" />
+                  <span className="text-sm font-bold text-[var(--text-main)]">
+                    AI ile Akıllı Yanıt Taslağı Oluştur
+                  </span>
+                </div>
+                <button
+                  onClick={() => setAiReplyModalOpen(false)}
+                  className="text-[var(--text-dim)] hover:text-[var(--text-main)]"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">
+                    Özel Talimatlar / Ne demek istiyorsun? (Prompt)
+                  </label>
+                  <textarea
+                    autoFocus
+                    placeholder="örn: Daha samimi bir dille teklifi kabul et ve Perşembe günü saat 14:00 için online toplantı öner..."
+                    value={userInstructions}
+                    onChange={(e) => setUserInstructions(e.target.value)}
+                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs p-3.5 rounded-xl h-24 resize-none focus:outline-none focus:border-[var(--text-main)]"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">
+                    Yanıt Tonu (Tone)
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { id: "friendly" as const, label: "Samimi (Friendly)" },
+                      { id: "formal" as const, label: "Resmi (Formal)" },
+                      { id: "concise" as const, label: "Kısa ve Net (Concise)" }
+                    ].map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setAiTone(t.id)}
+                        className={`py-2 px-2 text-xs rounded-xl border font-medium transition-all ${
+                          aiTone === t.id
+                            ? "bg-[var(--bg-card)] border-[var(--text-main)] text-[var(--text-main)] font-bold shadow-xs"
+                            : "bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-muted)]"
+                        }`}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-[var(--border-color)]">
+                <button
+                  type="button"
+                  onClick={() => setAiReplyModalOpen(false)}
+                  className="px-4 py-2 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-main)]"
+                >
+                  Vazgeç
+                </button>
+                <button
+                  type="button"
+                  disabled={generatingReply}
+                  onClick={handleGenerateAiReply}
+                  className="flex items-center gap-2 bg-[var(--accent)] text-[var(--accent-invert)] px-5 py-2.5 rounded-xl text-xs font-bold hover:opacity-90 transition-all disabled:opacity-40 shadow-sm"
+                >
+                  {generatingReply ? (
+                    <>
+                      <RefreshCw size={13} className="animate-spin" />
+                      <span>Yazılıyor...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send size={13} />
+                      <span>Taslağı Oluştur ve Düzenle</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

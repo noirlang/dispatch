@@ -27,6 +27,11 @@ export default function EmailView() {
     replyEmailId?: number
   }>({})
 
+  const { data: settings } = useQuery({
+    queryKey: ["settings"],
+    queryFn: () => api.get<any>("/settings"),
+  })
+
   // Badge count for approvals
   const { data: approvals = [] } = useQuery({
     queryKey: ["emails", "approvals"],
@@ -35,7 +40,8 @@ export default function EmailView() {
   })
 
   function startCompose() {
-    const signature = user?.default_signature ? `\n\n--\n${user.default_signature}` : ""
+    const rawSig = settings?.default_signature || user?.default_signature
+    const signature = rawSig ? `\n\n--\n${rawSig}` : ""
     setComposeConfig({
       to: "",
       subject: "",

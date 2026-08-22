@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "../../lib/api"
-import { useT } from "../../store/themeAndLocale"
+import { useT, useAppStore } from "../../store/themeAndLocale"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Plane,
@@ -16,7 +16,8 @@ import {
   ExternalLink,
   X,
   Sparkles,
-  Clock
+  Clock,
+  BookmarkPlus
 } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 
@@ -50,6 +51,7 @@ interface DashboardCard {
 
 export default function DashboardView() {
   const t = useT()
+  const lang = useAppStore((s) => s.lang)
   const qc = useQueryClient()
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
 
@@ -88,7 +90,7 @@ export default function DashboardView() {
       case "ticket":       return <Ticket size={16} className="text-[#d97706]" />
       case "bank":         return <Building2 size={16} className="text-[#10b981]" />
       case "meeting":      return <Calendar size={16} className="text-[#8b5cf6]" />
-      default:             return <Sparkles size={16} className="text-[var(--text-muted)]" />
+      default:             return <BookmarkPlus size={16} className="text-[var(--text-muted)]" />
     }
   }
 
@@ -103,7 +105,9 @@ export default function DashboardView() {
           <div>
             <h1 className="text-xl font-bold text-[var(--text-main)]">{t("dashboard")}</h1>
             <p className="text-xs text-[var(--text-muted)] mt-0.5">
-              Extracted flight codes, OTPs, tracking numbers, and actionable summaries
+              {lang === "tr"
+                ? "Panoya eklenen notlar, seyahat kartları, kargo takipleri ve önemli bildirimler"
+                : "Extracted flight codes, OTPs, tracking numbers, and saved notes"}
             </p>
           </div>
         </div>
@@ -117,9 +121,13 @@ export default function DashboardView() {
       {!isLoading && cards.length === 0 && (
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <Sparkles size={32} className="text-[var(--text-dim)] mb-3 opacity-50" />
-          <h3 className="text-sm font-semibold text-[var(--text-muted)]">No active notices</h3>
+          <h3 className="text-sm font-semibold text-[var(--text-muted)]">
+            {lang === "tr" ? "Henüz aktif not veya kart yok" : "No active notices"}
+          </h3>
           <p className="text-xs text-[var(--text-dim)] max-w-sm mt-1">
-            When emails containing verification codes, package tracking, or flight tickets arrive, AI extracts them here.
+            {lang === "tr"
+              ? "E-postalardan seçtiğin metinleri 'Panoya Gönder' ile buraya kaydedebilir veya gelen kodları burada görebilirsin."
+              : "Save snippets from emails with 'Send to Dashboard' or view extracted travel codes and OTPs here."}
           </p>
         </div>
       )}
@@ -127,16 +135,18 @@ export default function DashboardView() {
       {/* Grid of Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
         <AnimatePresence>
-          {cards.map(card => (
+          {cards.map((card, idx) => (
             <motion.div
               key={card.id}
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ delay: idx * 0.03 }}
+              whileHover={{ y: -2, scale: 1.01 }}
               className={`p-6 rounded-2xl border flex flex-col justify-between transition-all shadow-xs ${
                 card.priority === "high"
                   ? "bg-[var(--bg-card)] border-[var(--text-main)] shadow-sm"
-                  : "bg-[var(--bg-secondary)] border-[var(--border-color)] hover:border-[var(--text-dim)]"
+                  : "bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:border-[var(--text-dim)]"
               }`}
             >
               {/* Card Header */}
@@ -165,16 +175,16 @@ export default function DashboardView() {
                 </div>
 
                 {/* Summary */}
-                <p className="text-sm text-[var(--text-main)] leading-relaxed mb-4 font-medium">
+                <p className="text-sm text-[var(--text-main)] leading-relaxed mb-4 font-medium whitespace-pre-line">
                   {card.summary}
                 </p>
 
                 {/* Actionable Items */}
                 {card.actionable_items && card.actionable_items.length > 0 && (
                   <div className="flex flex-col gap-2 mb-4">
-                    {card.actionable_items.map((item, idx) => (
+                    {card.actionable_items.map((item, iIdx) => (
                       <div
-                        key={idx}
+                        key={iIdx}
                         className="flex items-center justify-between p-2.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)] text-xs"
                       >
                         <span className="text-[var(--text-muted)] font-medium">{item.label}</span>
@@ -195,11 +205,11 @@ export default function DashboardView() {
                           )}
                           {item.copyable !== false && (
                             <button
-                              onClick={() => copyText(item.value, `card_${card.id}_item_${idx}`)}
+                              onClick={() => copyText(item.value, `card_${card.id}_item_${iIdx}`)}
                               className="text-[var(--text-dim)] hover:text-[var(--text-main)] transition-colors p-0.5"
                               title={t("copy")}
                             >
-                              {copiedKey === `card_${card.id}_item_${idx}` ? (
+                              {copiedKey === `card_${card.id}_item_${iIdx}` ? (
                                 <Check size={12} className="text-[#22c55e]" />
                               ) : (
                                 <Copy size={12} />

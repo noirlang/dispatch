@@ -1,8 +1,10 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "../../lib/api"
 import { useAuth } from "../../store/auth"
 import { useAppStore, useT, type Theme } from "../../store/themeAndLocale"
+import { motion, AnimatePresence } from "framer-motion"
+import ReactMarkdown from "react-markdown"
 import {
   User,
   Users,
@@ -23,7 +25,10 @@ import {
   Search,
   CheckCircle2,
   Camera,
-  Upload
+  Upload,
+  LogOut,
+  Eye,
+  Lock
 } from "lucide-react"
 
 type Tab = "profile" | "appearance" | "contacts" | "speakeasy" | "ai" | "rss" | "security"
@@ -57,23 +62,29 @@ export default function SettingsView() {
           <TabBtn id="security"   icon={<Shield size={15} />}  label={t("privacy_security")} active={tab} setTab={setTab} />
         </div>
 
-        <button
+        {/* Dock-styled Red Danger Sign Out Button */}
+        <motion.button
+          whileTap={{ scale: 0.96 }}
+          whileHover={{ y: -1 }}
           onClick={logout}
-          className="px-3.5 py-2.5 text-xs text-[#ef4444] hover:bg-[#ef444415] rounded-xl transition-colors text-left font-semibold"
+          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all bg-[#ef444415] text-[#ef4444] border border-[#ef444430] hover:bg-[#ef444425] shadow-xs"
         >
-          Sign Out
-        </button>
+          <LogOut size={15} />
+          <span>{t("sign_out")}</span>
+        </motion.button>
       </aside>
 
       {/* Main Content Area */}
       <main className="flex-1 overflow-y-auto p-10 max-w-4xl bg-[var(--bg-primary)]">
-        {tab === "profile"    && <ProfileTab user={user} onUpdate={fetchMe} />}
-        {tab === "appearance" && <AppearanceTab />}
-        {tab === "contacts"   && <ContactsTab />}
-        {tab === "speakeasy"  && <SpeakeasyTab copyText={copyText} copiedKey={copiedKey} />}
-        {tab === "ai"         && <AiTab />}
-        {tab === "rss"        && <RssTab />}
-        {tab === "security"   && <SecurityTab />}
+        <AnimatePresence mode="wait">
+          {tab === "profile"    && <ProfileTab key="profile" user={user} onUpdate={fetchMe} />}
+          {tab === "appearance" && <AppearanceTab key="appearance" />}
+          {tab === "contacts"   && <ContactsTab key="contacts" />}
+          {tab === "speakeasy"  && <SpeakeasyTab key="speakeasy" copyText={copyText} copiedKey={copiedKey} />}
+          {tab === "ai"         && <AiTab key="ai" />}
+          {tab === "rss"        && <RssTab key="rss" />}
+          {tab === "security"   && <SecurityTab key="security" />}
+        </AnimatePresence>
       </main>
     </div>
   )
@@ -84,7 +95,8 @@ function TabBtn({ id, icon, label, active, setTab }: {
 }) {
   const isActive = active === id
   return (
-    <button
+    <motion.button
+      whileTap={{ scale: 0.97 }}
       onClick={() => setTab(id)}
       className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all text-left ${
         isActive
@@ -94,26 +106,63 @@ function TabBtn({ id, icon, label, active, setTab }: {
     >
       {icon}
       <span>{label}</span>
-    </button>
+    </motion.button>
   )
 }
 
 /* =========================================================================
-   1. PROFILE TAB (WITH AVATAR UPLOAD)
+   1. PROFILE TAB (SYNCED USER DATA + AVATAR + PASSWORD CHANGE + SIGNATURE PREVIEW)
    ========================================================================= */
 function ProfileTab({ user, onUpdate }: { user: any; onUpdate: () => void }) {
   const t = useT()
   const [name, setName] = useState(user?.name || "")
   const [signature, setSignature] = useState(user?.default_signature || "")
+  const [previewSig, setPreviewSig] = useState(false)
   const [saved, setSaved] = useState(false)
   const [uploading, setUploading] = useState(false)
 
-  const update = useMutation({
-    mutationFn: () => api.patch("/settings", { name, default_signature: signature }),
+  // Password fields
+  const [currentPassword, setCurrentPassword] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [pwError, setPwError] = useState("")
+  const [pwSuccess, setPwSuccess] = useState("")
+
+  useEffect(() => {
+    if (user) {
+      setName(user.name || "")
+      setSignature(user.default_signature || "")
+    }
+  }, [user])
+
+  const updateProfile = useMutation({
+    mutationFn: async () => {
+      setPwError("")
+      setPwSuccess("")
+      const payload: any = { name, default_signature: signature }
+      if (newPassword) {
+        if (newPassword !== confirmPassword) {
+          throw new Error("New passwords do not match")
+        }
+        payload.current_password = currentPassword
+        payload.password = newPassword
+        payload.password_confirmation = confirmPassword
+      }
+      return api.patch("/settings", payload)
+    },
     onSuccess: () => {
       onUpdate()
       setSaved(true)
-      setTimeout(() => setSaved(false), 2000)
+      if (newPassword) {
+        setPwSuccess("Password updated successfully ✓")
+        setCurrentPassword("")
+        setNewPassword("")
+        setConfirmPassword("")
+      }
+      setTimeout(() => setSaved(false), 2500)
+    },
+    onError: (err: any) => {
+      setPwError(err.message || "Failed to update profile")
     }
   })
 
@@ -129,9 +178,7 @@ function ProfileTab({ user, onUpdate }: { user: any; onUpdate: () => void }) {
       const token = localStorage.getItem("dispatch_token")
       const res = await fetch("http://localhost:3000/api/v1/settings/upload_avatar", {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`
-        },
+        headers: { Authorization: `Bearer ${token}` },
         body: formData
       })
       if (res.ok) {
@@ -145,20 +192,25 @@ function ProfileTab({ user, onUpdate }: { user: any; onUpdate: () => void }) {
   }
 
   return (
-    <div className="flex flex-col gap-8 animate-fadeIn max-w-lg">
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      className="flex flex-col gap-8 max-w-xl"
+    >
       <div>
         <h2 className="text-xl font-bold text-[var(--text-main)]">{t("profile")}</h2>
-        <p className="text-xs text-[var(--text-muted)] mt-1">Manage your identity, profile picture, and signature</p>
+        <p className="text-xs text-[var(--text-muted)] mt-1">Manage your identity, profile picture, signature, and security</p>
       </div>
 
       {/* Avatar Section */}
-      <div className="flex items-center gap-5 p-5 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)]">
+      <div className="flex items-center gap-5 p-5 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] shadow-xs">
         <div className="relative group">
           <div className="w-16 h-16 rounded-full bg-[var(--accent)] text-[var(--accent-invert)] flex items-center justify-center font-bold text-xl overflow-hidden shadow-md">
             {user?.avatar_path ? (
               <img src={user.avatar_path} alt={user.name} className="w-full h-full object-cover" />
             ) : (
-              <span>{user?.name?.[0]?.toUpperCase() || "U"}</span>
+              <span>{name?.[0]?.toUpperCase() || user?.name?.[0]?.toUpperCase() || "U"}</span>
             )}
           </div>
           <label className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
@@ -168,8 +220,8 @@ function ProfileTab({ user, onUpdate }: { user: any; onUpdate: () => void }) {
         </div>
 
         <div className="flex flex-col gap-1">
-          <span className="text-sm font-bold text-[var(--text-main)]">{user?.name || "User"}</span>
-          <span className="text-xs font-mono text-[var(--text-muted)]">{user?.email}</span>
+          <span className="text-sm font-bold text-[var(--text-main)]">{name || user?.name || "User"}</span>
+          <span className="text-xs font-mono text-[var(--text-muted)]">{user?.email || "user@dispatch.local"}</span>
           <label className="mt-1 inline-flex items-center gap-1.5 text-xs text-[var(--text-main)] underline font-medium cursor-pointer hover:opacity-80">
             <Upload size={12} />
             <span>{uploading ? "Uploading..." : "Change Profile Photo"}</span>
@@ -178,6 +230,7 @@ function ProfileTab({ user, onUpdate }: { user: any; onUpdate: () => void }) {
         </div>
       </div>
 
+      {/* Basic Info */}
       <div className="flex flex-col gap-4">
         <div>
           <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">{t("full_name")}</label>
@@ -185,7 +238,7 @@ function ProfileTab({ user, onUpdate }: { user: any; onUpdate: () => void }) {
             type="text"
             value={name}
             onChange={e => setName(e.target.value)}
-            className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-main)] text-sm px-4 py-2.5 rounded-xl focus:outline-none focus:border-[var(--text-main)]"
+            className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-main)] text-sm px-4 py-2.5 rounded-xl focus:outline-none focus:border-[var(--text-main)] font-medium"
           />
         </div>
 
@@ -194,34 +247,102 @@ function ProfileTab({ user, onUpdate }: { user: any; onUpdate: () => void }) {
           <input
             type="text"
             disabled
-            value={user?.email || ""}
+            value={user?.email || "user@dispatch.local"}
             className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-dim)] text-sm px-4 py-2.5 rounded-xl cursor-not-allowed font-mono opacity-70"
           />
         </div>
 
+        {/* Signature with Markdown Toggle */}
         <div>
-          <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">{t("signature")}</label>
-          <textarea
-            value={signature}
-            onChange={e => setSignature(e.target.value)}
-            placeholder="e.g. Best regards,&#10;Melih Emik"
-            className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-main)] text-sm p-4 rounded-xl h-28 resize-none focus:outline-none focus:border-[var(--text-main)] font-sans"
-          />
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-xs font-semibold text-[var(--text-muted)]">{t("signature")}</label>
+            <button
+              type="button"
+              onClick={() => setPreviewSig(p => !p)}
+              className="text-[11px] text-[var(--text-dim)] hover:text-[var(--text-main)] flex items-center gap-1 font-semibold"
+            >
+              <Eye size={12} />
+              <span>{previewSig ? "Edit Raw" : t("signature_preview")}</span>
+            </button>
+          </div>
+
+          {previewSig ? (
+            <div className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] p-4 rounded-xl min-h-[100px] text-xs text-[var(--text-main)] prose prose-neutral dark:prose-invert">
+              <ReactMarkdown>{signature || "*(Boş imza)*"}</ReactMarkdown>
+            </div>
+          ) : (
+            <textarea
+              value={signature}
+              onChange={e => setSignature(e.target.value)}
+              placeholder="e.g. Best regards,&#10;**Melih Emik**&#10;Founder & CEO"
+              className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs p-4 rounded-xl h-24 resize-none focus:outline-none focus:border-[var(--text-main)] font-mono"
+            />
+          )}
           <span className="text-[11px] text-[var(--text-dim)] mt-1 block">
-            This signature is automatically appended when writing a new email.
+            This signature is automatically appended to the bottom when writing a new email.
           </span>
         </div>
 
+        {/* Password Change Box */}
+        <div className="p-5 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex flex-col gap-3 mt-2">
+          <div className="flex items-center gap-2 pb-2 border-b border-[var(--border-color)]">
+            <Lock size={14} className="text-[var(--text-dim)]" />
+            <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-main)]">
+              {t("change_password")}
+            </span>
+          </div>
+
+          <div>
+            <label className="text-[11px] font-semibold text-[var(--text-muted)] block mb-1">{t("current_password")}</label>
+            <input
+              type="password"
+              placeholder="••••••••"
+              value={currentPassword}
+              onChange={e => setCurrentPassword(e.target.value)}
+              className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2 rounded-xl focus:outline-none"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[11px] font-semibold text-[var(--text-muted)] block mb-1">{t("new_password")}</label>
+              <input
+                type="password"
+                placeholder="••••••••"
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+                className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2 rounded-xl focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold text-[var(--text-muted)] block mb-1">{t("confirm_password")}</label>
+              <input
+                type="password"
+                placeholder="••••••••"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2 rounded-xl focus:outline-none"
+              />
+            </div>
+          </div>
+
+          {pwError && <span className="text-xs text-[#ef4444] font-medium">{pwError}</span>}
+          {pwSuccess && <span className="text-xs text-[#22c55e] font-medium">{pwSuccess}</span>}
+        </div>
+
         <div className="pt-2">
-          <button
-            onClick={() => update.mutate()}
-            className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs px-6 py-2.5 rounded-xl font-bold hover:opacity-90 transition-all shadow-sm"
+          <motion.button
+            whileTap={{ scale: 0.96 }}
+            whileHover={{ scale: 1.02 }}
+            onClick={() => updateProfile.mutate()}
+            disabled={updateProfile.isPending}
+            className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs px-6 py-2.5 rounded-xl font-bold hover:opacity-90 transition-all shadow-sm disabled:opacity-50"
           >
-            {saved ? t("saved") : t("save_changes")}
-          </button>
+            {saved ? t("saved") : updateProfile.isPending ? "Kaydediliyor..." : t("save_changes")}
+          </motion.button>
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 }
 
@@ -233,10 +354,15 @@ function AppearanceTab() {
   const { theme, setTheme, lang, setLang } = useAppStore()
 
   return (
-    <div className="flex flex-col gap-8 animate-fadeIn max-w-xl">
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      className="flex flex-col gap-8 max-w-xl"
+    >
       <div>
         <h2 className="text-xl font-bold text-[var(--text-main)]">{t("appearance")}</h2>
-        <p className="text-xs text-[var(--text-muted)] mt-1">Configure theme and language</p>
+        <p className="text-xs text-[var(--text-muted)] mt-1">Configure theme and interface language</p>
       </div>
 
       {/* Theme Picker */}
@@ -250,8 +376,9 @@ function AppearanceTab() {
             { id: "light" as Theme, label: t("theme_light"), icon: <Sun size={16} /> },
             { id: "system" as Theme, label: t("theme_system"), icon: <Laptop size={16} /> },
           ].map(opt => (
-            <button
+            <motion.button
               key={opt.id}
+              whileTap={{ scale: 0.95 }}
               onClick={() => setTheme(opt.id)}
               className={`p-4 rounded-2xl border flex flex-col items-center gap-2.5 transition-all ${
                 theme === opt.id
@@ -261,7 +388,7 @@ function AppearanceTab() {
             >
               {opt.icon}
               <span className="text-xs">{opt.label}</span>
-            </button>
+            </motion.button>
           ))}
         </div>
       </div>
@@ -272,7 +399,8 @@ function AppearanceTab() {
           {t("language")}
         </label>
         <div className="grid grid-cols-2 gap-3">
-          <button
+          <motion.button
+            whileTap={{ scale: 0.96 }}
             onClick={() => setLang("tr")}
             className={`p-4 rounded-2xl border flex items-center justify-between transition-all ${
               lang === "tr"
@@ -288,9 +416,10 @@ function AppearanceTab() {
               </div>
             </div>
             {lang === "tr" && <Check size={16} className="text-[#22c55e]" />}
-          </button>
+          </motion.button>
 
-          <button
+          <motion.button
+            whileTap={{ scale: 0.96 }}
             onClick={() => setLang("en")}
             className={`p-4 rounded-2xl border flex items-center justify-between transition-all ${
               lang === "en"
@@ -306,22 +435,23 @@ function AppearanceTab() {
               </div>
             </div>
             {lang === "en" && <Check size={16} className="text-[#22c55e]" />}
-          </button>
+          </motion.button>
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 }
 
 /* =========================================================================
-   3. CONTACT RULES TAB (WITH SEARCH FILTER & AVATAR EDIT)
+   3. CONTACT RULES TAB (BLOCKED & IMPORTANT FILTER TABS)
    ========================================================================= */
 function ContactsTab() {
   const t = useT()
   const qc = useQueryClient()
+  const [filterType, setFilterType] = useState<"all" | "blocked" | "important">("all")
   const [search, setSearch] = useState("")
   const [newEmail, setNewEmail] = useState("")
-  const [newStatus, setNewStatus] = useState<"approved" | "blocked" | "important">("approved")
+  const [newStatus, setNewStatus] = useState<"approved" | "blocked" | "important">("blocked")
 
   const { data: rules = [] } = useQuery({
     queryKey: ["sender-rules"],
@@ -347,23 +477,58 @@ function ContactsTab() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["sender-rules"] })
   })
 
-  const filteredRules = rules.filter(r =>
-    r.email_address?.toLowerCase().includes(search.toLowerCase()) ||
-    r.status?.toLowerCase().includes(search.toLowerCase())
-  )
+  const filteredRules = rules
+    .filter(r => filterType === "all" ? true : r.status === filterType)
+    .filter(r =>
+      r.email_address?.toLowerCase().includes(search.toLowerCase()) ||
+      r.status?.toLowerCase().includes(search.toLowerCase())
+    )
 
   return (
-    <div className="flex flex-col gap-6 animate-fadeIn">
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      className="flex flex-col gap-6"
+    >
       <div>
         <h2 className="text-xl font-bold text-[var(--text-main)]">{t("contact_rules")}</h2>
-        <p className="text-xs text-[var(--text-muted)] mt-1">Control sender permissions, statuses, and blocks</p>
+        <p className="text-xs text-[var(--text-muted)] mt-1">Manage blocked senders and VIP starred contacts</p>
+      </div>
+
+      {/* Filter Tabs: All, Blocked, Important */}
+      <div className="flex items-center gap-2 p-1 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] w-fit">
+        <button
+          onClick={() => setFilterType("all")}
+          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            filterType === "all" ? "bg-[var(--bg-card)] text-[var(--text-main)] shadow-xs" : "text-[var(--text-muted)] hover:text-[var(--text-main)]"
+          }`}
+        >
+          Tümü ({rules.length})
+        </button>
+        <button
+          onClick={() => setFilterType("blocked")}
+          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            filterType === "blocked" ? "bg-[#ef444420] text-[#ef4444] shadow-xs" : "text-[var(--text-muted)] hover:text-[var(--text-main)]"
+          }`}
+        >
+          🚫 {t("blocked_senders")} ({rules.filter(r => r.status === "blocked").length})
+        </button>
+        <button
+          onClick={() => setFilterType("important")}
+          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            filterType === "important" ? "bg-[#f59e0b20] text-[#f59e0b] shadow-xs" : "text-[var(--text-muted)] hover:text-[var(--text-main)]"
+          }`}
+        >
+          ⭐ {t("important_senders")} ({rules.filter(r => r.status === "important").length})
+        </button>
       </div>
 
       {/* Add New Rule */}
       <div className="p-4 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex flex-wrap items-center gap-3">
         <input
           type="text"
-          placeholder="email@example.com or @domain.com"
+          placeholder="email@example.com veya @domain.com"
           value={newEmail}
           onChange={e => setNewEmail(e.target.value)}
           className="flex-1 min-w-[200px] bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-xl focus:outline-none"
@@ -373,16 +538,16 @@ function ContactsTab() {
           onChange={e => setNewStatus(e.target.value as any)}
           className="bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-xl focus:outline-none font-medium"
         >
-          <option value="approved">Approved (Inbox)</option>
-          <option value="important">⭐ Important</option>
-          <option value="blocked">Blocked (Trash)</option>
+          <option value="blocked">🚫 Engelle (Spam/Çöp)</option>
+          <option value="important">⭐ Önemli Kişi (VIP)</option>
+          <option value="approved">Onaylı (Gelen Kutusu)</option>
         </select>
         <button
           onClick={() => addRule.mutate()}
           className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs px-5 py-2.5 rounded-xl font-bold flex items-center gap-1 hover:opacity-90 shadow-sm"
         >
           <Plus size={14} />
-          <span>Add Rule</span>
+          <span>Kural Ekle</span>
         </button>
       </div>
 
@@ -391,7 +556,7 @@ function ContactsTab() {
         <Search size={14} className="text-[var(--text-dim)]" />
         <input
           type="text"
-          placeholder="Search sender rules..."
+          placeholder="Kişi kurallarında ara..."
           value={search}
           onChange={e => setSearch(e.target.value)}
           className="w-full bg-transparent text-[var(--text-main)] placeholder-[var(--text-dim)] focus:outline-none text-xs"
@@ -401,7 +566,7 @@ function ContactsTab() {
       {/* Rules list */}
       <div className="flex flex-col gap-2">
         {filteredRules.length === 0 && (
-          <div className="text-xs text-[var(--text-dim)] py-6 text-center">No sender rules found.</div>
+          <div className="text-xs text-[var(--text-dim)] py-6 text-center">Bu filtreye uygun kişi kuralı bulunamadı.</div>
         )}
         {filteredRules.map(r => (
           <div
@@ -421,14 +586,14 @@ function ContactsTab() {
                 onChange={e => updateStatus.mutate({ id: r.id, status: e.target.value })}
                 className="bg-[var(--bg-primary)] border border-[var(--border-color)] text-xs px-3 py-1.5 rounded-lg text-[var(--text-main)] font-medium"
               >
-                <option value="approved">Approved</option>
-                <option value="important">⭐ Important</option>
-                <option value="blocked">Blocked</option>
+                <option value="blocked">🚫 Engellendi</option>
+                <option value="important">⭐ Önemli</option>
+                <option value="approved">Onaylı</option>
               </select>
               <button
                 onClick={() => deleteRule.mutate(r.id)}
                 className="text-[var(--text-dim)] hover:text-[#ef4444] p-1.5 transition-colors"
-                title="Delete rule"
+                title="Kuralı Sil"
               >
                 <Trash2 size={14} />
               </button>
@@ -436,12 +601,12 @@ function ContactsTab() {
           </div>
         ))}
       </div>
-    </div>
+    </motion.div>
   )
 }
 
 /* =========================================================================
-   4. SPEAKEASY CODES TAB
+   4. ÖZEL KODLAR TAB (SPEAKEASY PASSCODES)
    ========================================================================= */
 function SpeakeasyTab({ copyText, copiedKey }: { copyText: (val: string, k: string) => void; copiedKey: string | null }) {
   const t = useT()
@@ -460,7 +625,7 @@ function SpeakeasyTab({ copyText, copiedKey }: { copyText: (val: string, k: stri
       const exp = new Date()
       exp.setDate(exp.getDate() + Number(expiryDays))
       return api.post("/speakeasy_codes", {
-        label: label || "VIP Access",
+        label: label || "VIP Özel Kod",
         single_use: singleUse,
         expires_at: exp.toISOString()
       })
@@ -477,11 +642,16 @@ function SpeakeasyTab({ copyText, copiedKey }: { copyText: (val: string, k: stri
   })
 
   return (
-    <div className="flex flex-col gap-6 animate-fadeIn">
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      className="flex flex-col gap-6"
+    >
       <div>
         <h2 className="text-xl font-bold text-[var(--text-main)]">{t("speakeasy_codes")}</h2>
         <p className="text-xs text-[var(--text-muted)] mt-1">
-          Temporary trusted passcodes. Incoming emails containing this code land directly in your Inbox without approval.
+          Geçici güvenli erişim kodları. Gelen e-posta bu kodu içeriyorsa, onay kuyruğuna takılmadan doğrudan Gelen Kutusu'na düşer.
         </p>
       </div>
 
@@ -489,7 +659,7 @@ function SpeakeasyTab({ copyText, copiedKey }: { copyText: (val: string, k: stri
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <input
             type="text"
-            placeholder="Label (e.g. VIP Client)"
+            placeholder="Etiket (örn: Müşteri Projesi, VIP)"
             value={label}
             onChange={e => setLabel(e.target.value)}
             className="bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-xl"
@@ -499,10 +669,10 @@ function SpeakeasyTab({ copyText, copiedKey }: { copyText: (val: string, k: stri
             onChange={e => setExpiryDays(Number(e.target.value))}
             className="bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-xl font-medium"
           >
-            <option value={1}>Expires in 1 Day</option>
-            <option value={7}>Expires in 7 Days</option>
-            <option value={30}>Expires in 30 Days</option>
-            <option value={365}>Expires in 1 Year</option>
+            <option value={1}>1 Gün Geçerli</option>
+            <option value={7}>7 Gün Geçerli</option>
+            <option value={30}>30 Gün Geçerli</option>
+            <option value={365}>1 Yıl Geçerli</option>
           </select>
           <label className="flex items-center gap-2 text-xs text-[var(--text-muted)] cursor-pointer">
             <input
@@ -511,7 +681,7 @@ function SpeakeasyTab({ copyText, copiedKey }: { copyText: (val: string, k: stri
               onChange={e => setSingleUse(e.target.checked)}
               className="accent-[var(--text-main)] w-4 h-4 rounded"
             />
-            <span>Single-use only</span>
+            <span>Tek kullanımlık kod</span>
           </label>
         </div>
         <div className="flex justify-end">
@@ -520,7 +690,7 @@ function SpeakeasyTab({ copyText, copiedKey }: { copyText: (val: string, k: stri
             className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs px-5 py-2.5 rounded-xl font-bold flex items-center gap-1 hover:opacity-90 shadow-sm"
           >
             <Plus size={14} />
-            <span>Generate Code</span>
+            <span>Yeni Kod Oluştur</span>
           </button>
         </div>
       </div>
@@ -542,24 +712,24 @@ function SpeakeasyTab({ copyText, copiedKey }: { copyText: (val: string, k: stri
                 </button>
               </div>
               <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                {c.label} · {c.single_use ? "Single Use" : "Multi-use"} · Expires: {new Date(c.expires_at).toLocaleDateString()}
+                {c.label} · {c.single_use ? "Tek Kullanımlık" : "Çoklu Kullanım"} · Son Geçerlilik: {new Date(c.expires_at).toLocaleDateString()}
               </div>
             </div>
             <button
               onClick={() => revokeCode.mutate(c.id)}
               className="text-[#ef4444] hover:bg-[#ef444415] px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
             >
-              Revoke
+              İptal Et
             </button>
           </div>
         ))}
       </div>
-    </div>
+    </motion.div>
   )
 }
 
 /* =========================================================================
-   5. ARTIFICIAL INTELLIGENCE TAB (WITH BRAND ICONS & ACTIVE COMBOBOX)
+   5. ARTIFICIAL INTELLIGENCE TAB (OFFICIAL SVGS & LIVE MODEL FETCH)
    ========================================================================= */
 function AiTab() {
   const t = useT()
@@ -572,13 +742,14 @@ function AiTab() {
   const [selectedProvider, setSelectedProvider] = useState<"gemini" | "claude" | "openai">("gemini")
   const [apiKeyInput, setApiKeyInput] = useState("")
   const [selectedModel, setSelectedModel] = useState("")
+  const [fetchedModels, setFetchedModels] = useState<any[]>([])
   const [testResult, setTestResult] = useState<{ success: boolean; msg: string } | null>(null)
   const [testing, setTesting] = useState(false)
 
   const activeProvider = selectedProvider || (settings?.ai_provider as any) || "gemini"
   const currentKey = activeProvider === "gemini" ? settings?.has_gemini_key : activeProvider === "claude" ? settings?.has_claude_key : settings?.has_openai_key
 
-  const modelsList = settings?.all_models?.[activeProvider] || []
+  const modelsList = fetchedModels.length > 0 ? fetchedModels : settings?.all_models?.[activeProvider] || []
 
   const saveAi = useMutation({
     mutationFn: () => {
@@ -596,40 +767,52 @@ function AiTab() {
     onSuccess: () => {
       setApiKeyInput("")
       qc.invalidateQueries({ queryKey: ["settings"] })
-      setTestResult({ success: true, msg: "AI settings & model saved successfully! ✓" })
+      setTestResult({ success: true, msg: "Yapay zeka ayarları ve varsayılan model kaydedildi! ✓" })
     }
   })
 
-  async function testConnection() {
+  async function testConnectionAndFetchModels() {
     setTesting(true)
     setTestResult(null)
     try {
+      if (apiKeyInput) {
+        await saveAi.mutateAsync()
+      }
       const res = await api.post<any>("/settings/ai/test", { provider: activeProvider, ai_model: selectedModel })
-      setTestResult({ success: true, msg: `${res.provider.toUpperCase()} (${res.model || "Default Model"}) connection verified! ✓` })
+      if (res.models) {
+        setFetchedModels(res.models)
+      }
+      setTestResult({ success: true, msg: `${res.provider.toUpperCase()} (${res.model || "Varsayılan Model"}) bağlantısı doğrulandı! Modeller hazır ✓` })
     } catch (err: any) {
-      setTestResult({ success: false, msg: err.message || "Connection failed" })
+      setTestResult({ success: false, msg: err.message || "Bağlantı testi başarısız oldu. API Key'i kontrol edin." })
     } finally {
       setTesting(false)
     }
   }
 
   return (
-    <div className="flex flex-col gap-6 animate-fadeIn max-w-xl">
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      className="flex flex-col gap-6 max-w-xl"
+    >
       <div>
         <h2 className="text-xl font-bold text-[var(--text-main)] flex items-center gap-2">
           <Bot size={22} />
           <span>{t("ai_settings")}</span>
         </h2>
         <p className="text-xs text-[var(--text-muted)] mt-1">
-          Select an AI provider, enter your key, and pick your preferred default model.
+          Kullanmak istediğin yapay zeka modelini seç, API Key'ini gir ve bağlantıyı test et.
         </p>
       </div>
 
-      {/* Provider Selector Cards with Brand Logos */}
+      {/* Official Provider SVG Cards */}
       <div className="grid grid-cols-3 gap-3">
-        {/* Gemini */}
-        <button
+        {/* Google Gemini */}
+        <motion.button
           type="button"
+          whileTap={{ scale: 0.96 }}
           onClick={() => {
             setSelectedProvider("gemini")
             setSelectedModel(settings?.ai_model || "gemini-1.5-flash")
@@ -640,25 +823,35 @@ function AiTab() {
               : "bg-[var(--bg-secondary)] border-[var(--border-color)] opacity-70 hover:opacity-100"
           }`}
         >
-          <img
-            src="https://img.icons8.com/color/48/google-logo.png"
-            alt="Google Gemini"
-            className="w-7 h-7 object-contain"
-          />
+          {/* Gemini 4-Point Sparkle Icon */}
+          <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M12 2C12 7.52285 7.52285 12 2 12C7.52285 12 12 16.4771 12 22C12 16.4771 16.4771 12 22 12C16.4771 12 12 7.52285 12 2Z"
+              fill="url(#geminiGradient)"
+            />
+            <defs>
+              <linearGradient id="geminiGradient" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+                <stop stopColor="#4E82EE" />
+                <stop offset="0.5" stopColor="#9B72CB" />
+                <stop offset="1" stopColor="#D96570" />
+              </linearGradient>
+            </defs>
+          </svg>
           <div className="text-center">
             <span className="text-xs font-bold block text-[var(--text-main)]">Google Gemini</span>
-            <span className="text-[10px] text-[var(--text-dim)]">Flash / Pro</span>
+            <span className="text-[10px] text-[var(--text-dim)]">Flash / Pro 2.0</span>
           </div>
           {settings?.has_gemini_key && (
             <span className="px-1.5 py-0.5 rounded text-[10px] bg-[#22c55e15] text-[#22c55e] border border-[#22c55e30]">
-              Active ✓
+              Bağlı ✓
             </span>
           )}
-        </button>
+        </motion.button>
 
-        {/* Claude */}
-        <button
+        {/* Anthropic Claude */}
+        <motion.button
           type="button"
+          whileTap={{ scale: 0.96 }}
           onClick={() => {
             setSelectedProvider("claude")
             setSelectedModel(settings?.ai_model || "claude-3-5-sonnet-latest")
@@ -669,8 +862,9 @@ function AiTab() {
               : "bg-[var(--bg-secondary)] border-[var(--border-color)] opacity-70 hover:opacity-100"
           }`}
         >
-          <div className="w-7 h-7 rounded-full bg-[#d97706] text-white flex items-center justify-center font-bold text-xs">
-            C
+          {/* Claude Official Emblem */}
+          <div className="w-8 h-8 rounded-full bg-[#cc785c] text-white flex items-center justify-center font-bold text-sm shadow-xs">
+            ✳
           </div>
           <div className="text-center">
             <span className="text-xs font-bold block text-[var(--text-main)]">Anthropic Claude</span>
@@ -678,14 +872,15 @@ function AiTab() {
           </div>
           {settings?.has_claude_key && (
             <span className="px-1.5 py-0.5 rounded text-[10px] bg-[#22c55e15] text-[#22c55e] border border-[#22c55e30]">
-              Active ✓
+              Bağlı ✓
             </span>
           )}
-        </button>
+        </motion.button>
 
         {/* OpenAI */}
-        <button
+        <motion.button
           type="button"
+          whileTap={{ scale: 0.96 }}
           onClick={() => {
             setSelectedProvider("openai")
             setSelectedModel(settings?.ai_model || "gpt-4o-mini")
@@ -696,71 +891,74 @@ function AiTab() {
               : "bg-[var(--bg-secondary)] border-[var(--border-color)] opacity-70 hover:opacity-100"
           }`}
         >
-          <div className="w-7 h-7 rounded-full bg-[var(--text-main)] text-[var(--bg-primary)] flex items-center justify-center font-bold text-xs">
-            ⚡
-          </div>
+          {/* OpenAI Official Spiral Icon */}
+          <svg className="w-8 h-8 text-[var(--text-main)]" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.259 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7466-7.0729zM12 14.5a2.5 2.5 0 1 1 2.5-2.5 2.5 2.5 0 0 1-2.5 2.5z" />
+          </svg>
           <div className="text-center">
             <span className="text-xs font-bold block text-[var(--text-main)]">OpenAI</span>
-            <span className="text-[10px] text-[var(--text-dim)]">GPT-4o / Mini</span>
+            <span className="text-[10px] text-[var(--text-dim)]">GPT-4o / o3-mini</span>
           </div>
           {settings?.has_openai_key && (
             <span className="px-1.5 py-0.5 rounded text-[10px] bg-[#22c55e15] text-[#22c55e] border border-[#22c55e30]">
-              Active ✓
+              Bağlı ✓
             </span>
           )}
-        </button>
+        </motion.button>
       </div>
 
-      {/* Selected Provider Form */}
+      {/* Active Provider Configuration Form */}
       <div className="p-6 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex flex-col gap-4 shadow-sm">
         <div className="flex items-center justify-between pb-3 border-b border-[var(--border-color)]">
           <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-main)]">
-            Configure {activeProvider.toUpperCase()}
+            {activeProvider.toUpperCase()} Yapılandırması
           </span>
           {currentKey ? (
             <span className="text-[11px] text-[#22c55e] font-semibold flex items-center gap-1">
               <CheckCircle2 size={13} />
-              <span>Key Configured</span>
+              <span>Anahtar Kayıtlı</span>
             </span>
           ) : (
-            <span className="text-[11px] text-[var(--text-dim)]">No Key Saved</span>
+            <span className="text-[11px] text-[var(--text-dim)]">Anahtar Yok</span>
           )}
         </div>
 
         {/* API Key Input */}
         <div>
           <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">
-            {activeProvider.toUpperCase()} API Key
+            {activeProvider.toUpperCase()} API Anahtarı
           </label>
           <input
             type="password"
-            placeholder={currentKey ? "••••••••••••••••••••••••••••" : `Enter ${activeProvider} API key...`}
+            placeholder={currentKey ? "••••••••••••••••••••••••••••" : `${activeProvider} API Key girin...`}
             value={apiKeyInput}
             onChange={e => setApiKeyInput(e.target.value)}
-            className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-4 py-3 rounded-xl focus:outline-none focus:border-[var(--text-main)]"
+            className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-4 py-3 rounded-xl focus:outline-none focus:border-[var(--text-main)] font-mono"
           />
         </div>
 
-        {/* Model ComboBox Selector */}
-        <div>
-          <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">
-            Default AI Model (ComboBox)
-          </label>
-          <select
-            value={selectedModel || settings?.ai_model || modelsList[0]?.id || ""}
-            onChange={e => setSelectedModel(e.target.value)}
-            className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-4 py-3 rounded-xl focus:outline-none focus:border-[var(--text-main)] font-semibold"
-          >
-            {modelsList.map((m: any) => (
-              <option key={m.id} value={m.id}>
-                {m.name}
-              </option>
-            ))}
-          </select>
-          <span className="text-[11px] text-[var(--text-dim)] mt-1 block">
-            This model will be used by Sidekiq workers to parse inbound emails for travel, tickets, and OTP codes.
-          </span>
-        </div>
+        {/* Dynamic Model ComboBox Selector */}
+        {(currentKey || fetchedModels.length > 0) && (
+          <div>
+            <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">
+              Varsayılan AI Modeli (ComboBox)
+            </label>
+            <select
+              value={selectedModel || settings?.ai_model || modelsList[0]?.id || ""}
+              onChange={e => setSelectedModel(e.target.value)}
+              className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-4 py-3 rounded-xl focus:outline-none focus:border-[var(--text-main)] font-semibold"
+            >
+              {modelsList.map((m: any) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+            <span className="text-[11px] text-[var(--text-dim)] mt-1 block">
+              Gelen e-postalardan seyahat, kargo, OTP ve faturaları otomatik ayıklamak ve yanıt taslağı oluşturmak için bu model kullanılır.
+            </span>
+          </div>
+        )}
 
         {testResult && (
           <div
@@ -775,34 +973,36 @@ function AiTab() {
         )}
 
         <div className="flex items-center gap-3 pt-2">
-          <button
+          <motion.button
+            whileTap={{ scale: 0.96 }}
             onClick={() => saveAi.mutate()}
             className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs px-6 py-2.5 rounded-xl font-bold hover:opacity-90 shadow-sm"
           >
-            Save AI Configuration
-          </button>
-          <button
-            onClick={testConnection}
+            Ayarları Kaydet
+          </motion.button>
+          <motion.button
+            whileTap={{ scale: 0.96 }}
+            onClick={testConnectionAndFetchModels}
             disabled={testing}
             className="border border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-main)] text-xs px-4 py-2.5 rounded-xl font-semibold hover:bg-[var(--bg-card)] flex items-center gap-1.5 transition-colors shadow-xs"
           >
             {testing ? <RefreshCw size={13} className="animate-spin" /> : <Sparkles size={13} />}
-            <span>Test Connection</span>
-          </button>
+            <span>Bağlantıyı Test Et & Modelleri Getir</span>
+          </motion.button>
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 }
 
 /* =========================================================================
-   6. RSS FEEDS TAB
+   6. RSS FEEDS TAB (FULL TURKISH SUPPORT)
    ========================================================================= */
 function RssTab() {
   const t = useT()
   const qc = useQueryClient()
   const [newUrl, setNewUrl] = useState("")
-  const [category, setCategory] = useState("Tech")
+  const [category, setCategory] = useState("Teknoloji")
 
   const { data: feeds = [] } = useQuery({
     queryKey: ["rss-feeds"],
@@ -828,33 +1028,38 @@ function RssTab() {
   })
 
   return (
-    <div className="flex flex-col gap-6 animate-fadeIn">
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      className="flex flex-col gap-6"
+    >
       <div>
         <h2 className="text-xl font-bold text-[var(--text-main)]">{t("rss_settings")}</h2>
-        <p className="text-xs text-[var(--text-muted)] mt-1">Subscribe to blogs and RSS feeds</p>
+        <p className="text-xs text-[var(--text-muted)] mt-1">Takip etmek istediğin RSS haber kaynaklarını ve blogları yönet</p>
       </div>
 
       <div className="p-4 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex flex-wrap items-center gap-3">
         <input
           type="text"
-          placeholder="https://example.com/feed.xml"
+          placeholder="https://ornek.com/feed.xml"
           value={newUrl}
           onChange={e => setNewUrl(e.target.value)}
           className="flex-1 min-w-[200px] bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-xl"
         />
         <input
           type="text"
-          placeholder="Category"
+          placeholder="Kategori (örn: Teknoloji)"
           value={category}
           onChange={e => setCategory(e.target.value)}
-          className="w-32 bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-xl"
+          className="w-36 bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-xl"
         />
         <button
           onClick={() => addFeed.mutate()}
           className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs px-5 py-2.5 rounded-xl font-bold flex items-center gap-1 hover:opacity-90 shadow-sm"
         >
           <Plus size={14} />
-          <span>Add</span>
+          <span>Ekle</span>
         </button>
       </div>
 
@@ -869,14 +1074,14 @@ function RssTab() {
               <button
                 onClick={() => refreshFeed.mutate(f.id)}
                 className="text-[var(--text-dim)] hover:text-[var(--text-main)] p-1.5"
-                title="Refresh"
+                title="Yenile"
               >
                 <RefreshCw size={14} />
               </button>
               <button
                 onClick={() => deleteFeed.mutate(f.id)}
                 className="text-[#ef4444] hover:bg-[#ef444415] p-1.5 rounded-lg"
-                title="Delete"
+                title="Sil"
               >
                 <Trash2 size={14} />
               </button>
@@ -884,12 +1089,12 @@ function RssTab() {
           </div>
         ))}
       </div>
-    </div>
+    </motion.div>
   )
 }
 
 /* =========================================================================
-   7. PRIVACY & SECURITY TAB
+   7. PRIVACY & SECURITY TAB (CLEAN TOGGLE ONLY)
    ========================================================================= */
 function SecurityTab() {
   const t = useT()
@@ -905,22 +1110,27 @@ function SecurityTab() {
   })
 
   return (
-    <div className="flex flex-col gap-6 animate-fadeIn">
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      className="flex flex-col gap-6 max-w-xl"
+    >
       <div>
         <h2 className="text-xl font-bold text-[var(--text-main)] flex items-center gap-2">
           <Shield size={22} />
           <span>{t("privacy_security")}</span>
         </h2>
         <p className="text-xs text-[var(--text-muted)] mt-1">
-          Real-time tracker shield synchronized with uBlock Origin / EasyPrivacy blocklists.
+          E-postalardaki casus takip piksellerini engeller ve IP adresinizin dış sunuculara sızmasını önler.
         </p>
       </div>
 
       <div className="p-6 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-between shadow-xs">
         <div>
-          <span className="text-sm font-bold text-[var(--text-main)] block">Spy Pixel & Tracker Proxy</span>
-          <span className="text-xs text-[var(--text-muted)] max-w-lg block mt-1 leading-relaxed">
-            Routes all embedded images through the Dispatch backend server proxy with SSRF protections. Senders will never track your IP address or physical location.
+          <span className="text-sm font-bold text-[var(--text-main)] block">Casus Piksel & İzleyici Proxy Koruması</span>
+          <span className="text-xs text-[var(--text-muted)] max-w-md block mt-1 leading-relaxed">
+            Gelen e-postalardaki tüm harici görseller Dispatch sunucusu üzerinden proxy ile çekilir. Gönderenler IP adresinizi, tarayıcınızı veya konumunuzu asla tespit edemez.
           </span>
         </div>
         <input
@@ -930,23 +1140,6 @@ function SecurityTab() {
           className="w-5 h-5 accent-[var(--text-main)] cursor-pointer"
         />
       </div>
-
-      <div className="p-6 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)]">
-        <span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-2">
-          Live Tracker Shield Domains (uBlock Origin & EasyPrivacy Sync)
-        </span>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 font-mono text-[11px] text-[var(--text-dim)]">
-          <span>• tracking.mailchimp.com</span>
-          <span>• click.sendgrid.net</span>
-          <span>• trk.klaviyo.com</span>
-          <span>• open.convertkit.com</span>
-          <span>• t.dripemail.com</span>
-          <span>• pixel.hubspot.com</span>
-          <span>• mailtrack.io</span>
-          <span>• t.sidekickopen.com</span>
-          <span>• track.customer.io</span>
-        </div>
-      </div>
-    </div>
+    </motion.div>
   )
 }
