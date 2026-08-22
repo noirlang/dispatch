@@ -5,45 +5,29 @@ class Email::SendService
     raw_body = params[:body].to_s
     raw_to = params[:to].to_s
     html_body = markdown_to_html(raw_body)
+    server_domain = ServerConfig.current&.domain.presence || "dispatch.local"
 
-    # Expand any group aliases like @ekip or comma-separated recipients
+    # Expand any group aliases like @ekip or comma/semicolon-separated recipients
     recipient_addresses = []
-    raw_to.split(",").map(&:strip).reject(&:blank?).each do |target|
+    raw_to.split(/[,;]/).map(&:strip).reject(&:blank?).each do |target|
       if target.start_with?("@")
-        group_name = target.delete_prefix("@").downcase
+        group_name = target.delete_prefix("@").downcase.strip
         group = user.contact_groups.find_by("lower(name) = ?", group_name)
         if group && group.member_list.any?
           recipient_addresses.concat(group.member_list)
         else
-          recipient_addresses << target
+          recipient_addresses << "#{group_name}@#{server_domain}"
         end
+      elsif target.include?("@")
+        recipient_addresses << target.downcase.strip
       else
-        recipient_addresses << target
+        recipient_addresses << "#{target.downcase.strip}@#{server_domain}"
       end
     end
     recipient_addresses = recipient_addresses.map { |a| a.downcase.strip }.uniq
     return Result.new(false, nil, "Alıcı adresi bulunamadı") if recipient_addresses.empty?
 
-    styled_html = <<~HTML
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1a1a1a; margin: 0; padding: 0; }
-          a { color: #2563eb; text-decoration: underline; }
-          blockquote { border-left: 3px solid #cbd5e1; margin: 12px 0; padding-left: 12px; color: #475569; }
-          code { font-family: monospace; background-color: #f1f5f9; padding: 2px 4px; border-radius: 4px; font-size: 12px; }
-          pre { background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 6px; overflow-x: auto; }
-          ul, ol { padding-left: 20px; }
-          strong { font-weight: 700; color: #0f172a; }
-        </style>
-      </head>
-      <body>
-        #{html_body}
-      </body>
-      </html>
-    HTML
+    styled_html = html_body.to_s
 
     # Auto-approve all destination recipients for the sender
     recipient_addresses.each do |to_addr|
@@ -101,7 +85,15 @@ class Email::SendService
 
     # Deliver to local recipients if they exist on this system
     recipient_addresses.each do |to_addr|
+      # 1. Exact email match (e.g. melih@dispatch.local)
       recipient_user = User.find_by(email: to_addr)
+
+      # 2. If not found directly, match by username prefix or sanitized name
+      if recipient_user.nil?
+        uname = to_addr.split("@").first.downcase.strip
+        recipient_user = User.where("lower(email) = ? OR lower(email) LIKE ? OR lower(replace(name, ' ', '')) = ? OR lower(replace(name, ' ', '')) LIKE ?", "#{uname}@#{server_domain}", "#{uname}@%", uname, "%#{uname}%").first
+      end
+
       next unless recipient_user
 
       full_content = "#{params[:subject]} #{raw_body}"
@@ -128,7 +120,7 @@ class Email::SendService
 
       recipient_email = recipient_user.emails.create!(
         from_address: user.email,
-        to_address: to_addr,
+        to_address: recipient_user.email,
         cc: params[:cc],
         subject: params[:subject],
         body_text: raw_body,

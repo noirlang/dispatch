@@ -25,6 +25,7 @@ import {
 } from "lucide-react"
 import DOMPurify from "dompurify"
 import EmailMdView from "../../components/ui/EmailMdView"
+import EmailIframe from "../../components/ui/EmailIframe"
 import SenderAvatar from "../../components/ui/SenderAvatar"
 import { format } from "date-fns"
 
@@ -561,10 +562,7 @@ export default function EmailReader({ id, folder, onReply, onForward }: Props) {
             <EmailMdView content={translation.translated_body} />
           </div>
         ) : isHtml ? (
-          <div
-            className="prose prose-neutral dark:prose-invert max-w-none text-sm leading-relaxed"
-            dangerouslySetInnerHTML={{ __html: safeHtml }}
-          />
+          <EmailIframe html={safeHtml} />
         ) : (
           <div className="text-sm leading-relaxed font-sans text-[var(--text-main)]">
             <EmailMdView content={email.body_text || email.body || ""} />

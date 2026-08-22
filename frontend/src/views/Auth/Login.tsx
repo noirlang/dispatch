@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useAuth } from "../../store/auth"
 import { useAppStore } from "../../store/themeAndLocale"
@@ -23,10 +23,22 @@ export default function Login() {
   const [checkedUser, setCheckedUser] = useState<CheckedUser | null>(null)
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+  const [serverDomain, setServerDomain] = useState("dispatch.local")
 
-  const { login } = useAuth()
+  const { token, login } = useAuth()
   const { lang, setLang } = useAppStore()
   const navigate = useNavigate()
+
+  useEffect(() => {
+    if (token) {
+      navigate("/app", { replace: true })
+    }
+    api.get<{ domain?: string }>("/auth/registration_status")
+      .then(res => {
+        if (res?.domain) setServerDomain(res.domain)
+      })
+      .catch(() => {})
+  }, [token, navigate])
 
   const stepIdx = steps.indexOf(step)
 
@@ -218,7 +230,7 @@ export default function Login() {
                     required
                   />
                   <span className="pr-4 text-xs font-mono font-semibold text-[var(--text-dim)] select-none shrink-0 bg-[var(--bg-card)] py-1.5 px-2.5 rounded-xl mr-3 border border-[var(--border-color)]">
-                    @dispatch.local
+                    @{serverDomain}
                   </span>
                 </div>
               ) : (

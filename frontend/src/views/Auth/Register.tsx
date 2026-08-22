@@ -4,6 +4,7 @@ import { useAuth } from "../../store/auth"
 import { useAppStore } from "../../store/themeAndLocale"
 import { useNavigate, Link } from "react-router-dom"
 import { ArrowLeft, KeyRound, ShieldAlert } from "lucide-react"
+import { api } from "../../lib/api"
 
 export default function Register() {
   const [regMode, setRegMode] = useState<"public" | "admin_only" | "invite_only" | "loading">("loading")
@@ -11,16 +12,20 @@ export default function Register() {
   const [form, setForm] = useState({ invite: "", name: "", email: "", password: "" })
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
-  const { register } = useAuth()
+  const [serverDomain, setServerDomain] = useState("dispatch.local")
+  const { token, register } = useAuth()
   const { lang, setLang } = useAppStore()
   const navigate = useNavigate()
 
   useEffect(() => {
-    fetch("http://localhost:3000/api/v1/auth/registration_status")
-      .then(res => res.json())
+    if (token) {
+      navigate("/app", { replace: true })
+    }
+    api.get<{ mode?: string; domain?: string }>("/auth/registration_status")
       .then(data => {
-        const mode = data.mode || "public"
+        const mode = (data?.mode || "public") as any
         setRegMode(mode)
+        if (data?.domain) setServerDomain(data.domain)
         if (mode === "invite_only") {
           setStep("invite")
         } else {
@@ -31,7 +36,7 @@ export default function Register() {
         setRegMode("public")
         setStep("name")
       })
-  }, [])
+  }, [token, navigate])
 
   const steps = regMode === "invite_only"
     ? (["invite", "name", "email", "password"] as const)
@@ -81,19 +86,14 @@ export default function Register() {
       }
       setLoading(true)
       try {
-        const res = await fetch("http://localhost:3000/api/v1/auth/verify_invite", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ invite_code: form.invite })
-        })
-        const data = await res.json()
-        if (res.ok && data.valid) {
+        const res = await api.post<{ valid: boolean }>("/auth/verify_invite", { invite_code: form.invite })
+        if (res.valid) {
           setStep("name")
         } else {
-          setError(data.error || (lang === "tr" ? "Geçersiz veya süresi dolmuş davet kodu!" : "Invalid invite code!"))
+          setError(lang === "tr" ? "Geçersiz veya süresi dolmuş davet kodu!" : "Invalid invite code!")
         }
-      } catch {
-        setError(lang === "tr" ? "Doğrulama sunucusuna ulaşılamadı." : "Server unreachable.")
+      } catch (err: any) {
+        setError(err.message || (lang === "tr" ? "Geçersiz veya süresi dolmuş davet kodu!" : "Invalid invite code!"))
       } finally {
         setLoading(false)
       }
@@ -247,7 +247,7 @@ export default function Register() {
                 className="flex-1 bg-transparent text-[var(--text-main)] pl-5 pr-2 py-3.5 text-sm focus:outline-none font-mono"
               />
               <span className="pr-4 text-xs font-mono font-semibold text-[var(--text-dim)] select-none shrink-0 bg-[var(--bg-card)] py-1.5 px-2.5 rounded-xl mr-3 border border-[var(--border-color)]">
-                @dispatch.local
+                @{serverDomain}
               </span>
             </div>
           ) : (
