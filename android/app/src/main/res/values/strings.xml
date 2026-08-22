@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Dispatch</string>
+    <string name="widget_list_name">Dispatch Gelen Kutusu</string>
+    <string name="widget_quick_name">Dispatch Hızlı Bakış</string>
+    <string name="inbox">Gelen</string>
+    <string name="no_emails">E-posta yok</string>
+    <string name="refresh">Yenile</string>
+</resources>
