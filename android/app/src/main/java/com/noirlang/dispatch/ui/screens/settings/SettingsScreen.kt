@@ -2,6 +2,7 @@ package com.noirlang.dispatch.ui.screens.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -32,9 +33,36 @@ fun SettingsScreen(
     val scope = rememberCoroutineScope()
 
     var signature by remember { mutableStateOf(session.currentUser?.defaultSignature ?: "") }
-    var geminiKey by remember { mutableStateOf("") }
+    var selectedProvider by remember { mutableStateOf(session.currentUser?.aiProvider ?: "gemini") }
+    var selectedModel by remember { mutableStateOf(session.currentUser?.aiModel ?: "gemini-2.0-flash") }
+    var apiKeyInput by remember { mutableStateOf("") }
+    var approvalEnabled by remember { mutableStateOf(session.currentUser?.approvalSystemEnabled ?: true) }
+    var spyPixelEnabled by remember { mutableStateOf(session.currentUser?.spyPixelBlocking ?: true) }
+    
     var isSaving by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
+    var isError by remember { mutableStateOf(false) }
+
+    val geminiModels = listOf(
+        "gemini-2.0-flash" to "Gemini 2.0 Flash (Önerilen)",
+        "gemini-1.5-flash" to "Gemini 1.5 Flash",
+        "gemini-1.5-pro" to "Gemini 1.5 Pro"
+    )
+    val openAiModels = listOf(
+        "gpt-4o-mini" to "GPT-4o Mini (Hızlı)",
+        "gpt-4o" to "GPT-4o (Gelişmiş)",
+        "o3-mini" to "o3-mini (Akıl Yürütme)"
+    )
+    val claudeModels = listOf(
+        "claude-3-5-sonnet-latest" to "Claude 3.5 Sonnet (Yetenekli)",
+        "claude-3-5-haiku-latest" to "Claude 3.5 Haiku (Hızlı)"
+    )
+
+    val currentModelList = when (selectedProvider) {
+        "openai" -> openAiModels
+        "claude" -> claudeModels
+        else -> geminiModels
+    }
 
     Column(
         modifier = Modifier
@@ -51,7 +79,7 @@ fun SettingsScreen(
             modifier = Modifier.padding(bottom = 20.dp)
         )
 
-        // Profile Section
+        // 1. Profile Section
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -70,11 +98,168 @@ fun SettingsScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(18.dp))
 
-        // Default Signature Section
+        // 2. Privacy & Security Section
+        Text(text = "Gizlilik ve Güvenlik", color = TextSecondary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(BgSecondary)
+                .border(1.dp, BorderColor, RoundedCornerShape(14.dp))
+                .padding(16.dp)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                // Spy Pixel
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Casus Piksel Engelleme", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Dış takip piksellerini izole eder ve IP'nizi korur", color = TextDim, fontSize = 11.sp)
+                    }
+                    Switch(
+                        checked = spyPixelEnabled,
+                        onCheckedChange = { spyPixelEnabled = it },
+                        colors = SwitchDefaults.colors(checkedThumbColor = TextPrimary, checkedTrackColor = AccentGreen)
+                    )
+                }
+
+                HorizontalDivider(color = BorderColor)
+
+                // Sender Approval Queue
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Onay Kuyruğu (Approvals)", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Text("İlk kez yazan göndericiler önce onayınıza sunulur", color = TextDim, fontSize = 11.sp)
+                    }
+                    Switch(
+                        checked = approvalEnabled,
+                        onCheckedChange = { approvalEnabled = it },
+                        colors = SwitchDefaults.colors(checkedThumbColor = TextPrimary, checkedTrackColor = AccentGreen)
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(18.dp))
+
+        // 3. AI Assistant Settings Section
+        Text(text = "Yapay Zeka (AI) Asistanı", color = TextSecondary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(BgSecondary)
+                .border(1.dp, BorderColor, RoundedCornerShape(14.dp))
+                .padding(16.dp)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("AI Sağlayıcı Seçimi", color = TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                
+                // Provider selection chips
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("gemini" to "Gemini", "openai" to "OpenAI", "claude" to "Claude").forEach { (provKey, provLabel) ->
+                        val isSelected = selectedProvider == provKey
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (isSelected) TextPrimary else BgTertiary)
+                                .border(1.dp, if (isSelected) TextPrimary else BorderColor, RoundedCornerShape(10.dp))
+                                .clickable {
+                                    selectedProvider = provKey
+                                    selectedModel = when (provKey) {
+                                        "openai" -> "gpt-4o-mini"
+                                        "claude" -> "claude-3-5-sonnet-latest"
+                                        else -> "gemini-2.0-flash"
+                                    }
+                                }
+                                .padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = provLabel,
+                                color = if (isSelected) BgPrimary else TextPrimary,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // API Key Input
+                Text("${selectedProvider.uppercase()} API Key", color = TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                OutlinedTextField(
+                    value = apiKeyInput,
+                    onValueChange = { apiKeyInput = it },
+                    placeholder = { Text("Yeni veya güncel API Key girin...", color = TextDim) },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = BorderLight,
+                        unfocusedBorderColor = BorderColor,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedContainerColor = BgPrimary,
+                        unfocusedContainerColor = BgPrimary
+                    ),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // Model Selection
+                Text("Kullanılacak Model", color = TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    currentModelList.forEach { (mId, mLabel) ->
+                        val isModelSelected = selectedModel == mId
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (isModelSelected) BgTertiary else BgPrimary)
+                                .border(1.dp, if (isModelSelected) AccentBlue else BorderColor, RoundedCornerShape(10.dp))
+                                .clickable { selectedModel = mId }
+                                .padding(horizontal = 12.dp, vertical = 10.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = mLabel,
+                                    color = if (isModelSelected) TextPrimary else TextSecondary,
+                                    fontSize = 13.sp,
+                                    fontWeight = if (isModelSelected) FontWeight.Bold else FontWeight.Normal
+                                )
+                                if (isModelSelected) {
+                                    Icon(Icons.Filled.CheckCircle, "Seçili", tint = AccentBlue, modifier = Modifier.size(16.dp))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(18.dp))
+
+        // 4. Default Signature Section
         Text(text = "Varsayılan E-Posta İmzası", color = TextSecondary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(8.dp))
         OutlinedTextField(
             value = signature,
             onValueChange = { signature = it },
@@ -91,47 +276,42 @@ fun SettingsScreen(
             modifier = Modifier.fillMaxWidth().height(100.dp)
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Gemini AI API Key
-        Text(text = "Google Gemini API Anahtarı", color = TextSecondary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(6.dp))
-        OutlinedTextField(
-            value = geminiKey,
-            onValueChange = { geminiKey = it },
-            placeholder = { Text("AI_zaSy...", color = TextDim) },
-            singleLine = true,
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = BorderLight,
-                unfocusedBorderColor = BorderColor,
-                focusedTextColor = TextPrimary,
-                unfocusedTextColor = TextPrimary,
-                focusedContainerColor = BgSecondary,
-                unfocusedContainerColor = BgSecondary
-            ),
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier.fillMaxWidth()
-        )
-
         if (message != null) {
-            Text(text = message!!, color = AccentGreen, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = message!!,
+                color = if (isError) AccentRed else AccentGreen,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold
+            )
         }
 
         Spacer(modifier = Modifier.height(20.dp))
 
+        // Save Button
         Button(
             onClick = {
                 isSaving = true
+                message = null
                 scope.launch {
                     try {
                         val req = UpdateSettingsRequest(
                             defaultSignature = signature,
-                            geminiKey = geminiKey.takeIf { it.isNotBlank() }
+                            aiProvider = selectedProvider,
+                            aiModel = selectedModel,
+                            geminiKey = if (selectedProvider == "gemini") apiKeyInput.takeIf { it.isNotBlank() } else null,
+                            openaiKey = if (selectedProvider == "openai") apiKeyInput.takeIf { it.isNotBlank() } else null,
+                            claudeKey = if (selectedProvider == "claude") apiKeyInput.takeIf { it.isNotBlank() } else null,
+                            approvalSystemEnabled = approvalEnabled,
+                            spyPixelBlocking = spyPixelEnabled
                         )
                         ApiClient.getService(context).updateSettings(req)
-                        message = "Ayarlar başarıyla kaydedildi."
+                        message = "Tüm ayarlar başarıyla kaydedildi ✓"
+                        isError = false
+                        apiKeyInput = ""
                     } catch (e: Exception) {
                         message = "Kaydedilemedi: ${e.message}"
+                        isError = true
                     } finally {
                         isSaving = false
                     }
@@ -171,3 +351,4 @@ fun SettingsScreen(
         }
     }
 }
+

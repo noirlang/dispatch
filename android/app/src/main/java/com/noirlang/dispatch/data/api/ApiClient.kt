@@ -17,8 +17,16 @@ object ApiClient {
 
     fun getService(context: Context): DispatchApiService {
         val session = SessionManager.getInstance(context)
-        val rawUrl = session.serverUrl.ifBlank { "http://10.0.2.2:3000" }
+        var rawUrl = session.serverUrl.ifBlank { "http://10.0.2.2:3000" }.trim()
+        if (!rawUrl.startsWith("http://") && !rawUrl.startsWith("https://")) {
+            rawUrl = if (rawUrl.contains("localhost") || rawUrl.contains("10.0.2.2") || rawUrl.contains("192.168.") || rawUrl.contains("127.0.0.1")) {
+                "http://$rawUrl"
+            } else {
+                "https://$rawUrl"
+            }
+        }
         val normalizedUrl = if (rawUrl.endsWith("/")) rawUrl else "$rawUrl/"
+
 
         if (cachedService != null && currentBaseUrl == normalizedUrl) {
             return cachedService!!

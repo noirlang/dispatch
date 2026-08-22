@@ -195,7 +195,12 @@ fun EmailDetailScreen(
                                 webViewClient = WebViewClient()
                                 settings.javaScriptEnabled = false
                                 setBackgroundColor(0x00000000)
-                                val styledHtml = """
+                                val rawBodyHtml = mail.bodyHtml
+                                val fullHtml = if (rawBodyHtml.contains("<html", ignoreCase = true)) {
+                                    rawBodyHtml
+                                } else {
+                                    """
+                                    <!DOCTYPE html>
                                     <html>
                                     <head>
                                     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -205,10 +210,11 @@ fun EmailDetailScreen(
                                     img { max-width: 100%; height: auto; }
                                     </style>
                                     </head>
-                                    <body>${mail.bodyHtml}</body>
+                                    <body>${rawBodyHtml}</body>
                                     </html>
-                                """.trimIndent()
-                                loadDataWithBaseURL(null, styledHtml, "text/html", "utf-8", null)
+                                    """.trimIndent()
+                                }
+                                loadDataWithBaseURL(null, fullHtml, "text/html", "utf-8", null)
                             }
                         },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 200.dp, max = 800.dp)
@@ -250,8 +256,9 @@ fun EmailDetailScreen(
                                 .background(BgSecondary)
                                 .border(1.dp, BorderColor, RoundedCornerShape(12.dp))
                                 .clickable {
-                                    val server = SessionManager.getInstance(context).serverUrl
-                                    val fullUrl = if (att.url?.startsWith("http") == true) att.url else "${server}${att.url}"
+                                    val server = SessionManager.getInstance(context).serverUrl.trimEnd('/')
+                                    val token = SessionManager.getInstance(context).authToken ?: ""
+                                    val fullUrl = "${server}/api/v1/attachments/download?file=${Uri.encode(att.url ?: "")}&filename=${Uri.encode(att.filename)}&token=${token}"
                                     val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(fullUrl))
                                     context.startActivity(browserIntent)
                                 }
