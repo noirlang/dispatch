@@ -2,23 +2,19 @@ import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { motion, AnimatePresence } from "framer-motion"
 import {
-  Shield,
-  Lock,
   DownloadCloud,
-  RefreshCw,
   Server,
   Users,
   Key,
   LogOut,
-  ExternalLink,
   ShieldCheck,
   CheckCircle2,
-  Sparkles,
   AlertCircle,
   Database,
   Mail,
   Eye,
-  EyeOff
+  EyeOff,
+  RefreshCw
 } from "lucide-react"
 
 export default function AdminView() {
@@ -38,11 +34,8 @@ export default function AdminView() {
         <div className="flex flex-col gap-5">
           {/* Logo & Title */}
           <div className="flex items-center gap-3 px-2 py-1">
-            <div className="w-9 h-9 rounded-xl bg-white text-black flex items-center justify-center font-bold text-sm shadow-sm">
-              <Shield size={18} />
-            </div>
+            <img src="/dispatch.png" alt="Dispatch" className="h-7 w-auto object-contain" />
             <div>
-              <div className="text-xs font-bold tracking-wide uppercase">Dispatch Admin</div>
               <div className="text-[10px] text-[var(--text-dim)] flex items-center gap-1.5 mt-0.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse" />
                 <span>Yönetici Paneli</span>
@@ -55,7 +48,7 @@ export default function AdminView() {
             <AdminTabBtn
               id="updates"
               icon={<DownloadCloud size={15} />}
-              label="Sistem Güncelleme"
+              label="Sistem Eşitleme"
               active={tab}
               setTab={setTab}
             />
@@ -85,6 +78,11 @@ export default function AdminView() {
 
         {/* Bottom Actions */}
         <div className="flex flex-col gap-2 pt-4 border-t border-[var(--border-color)]">
+          <div className="flex items-center justify-between px-2 py-1 mb-1">
+            <span className="text-[10px] text-[var(--text-dim)]">Altyapı:</span>
+            <img src="/sirket.png" alt="Şirket" className="h-5 w-auto object-contain opacity-80" />
+          </div>
+
           <a
             href="/app"
             className="flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-card)] transition-colors"
@@ -200,13 +198,11 @@ function AdminLogin({ onLogin }: { onLogin: (token: string) => void }) {
         className="w-full max-w-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-3xl p-8 shadow-2xl flex flex-col gap-6 relative z-10"
       >
         <div className="flex flex-col items-center text-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-white text-black flex items-center justify-center shadow-md">
-            <Lock size={22} />
-          </div>
+          <img src="/dispatch.png" alt="Dispatch" className="h-9 w-auto object-contain" />
           <div>
-            <h1 className="text-lg font-bold text-[var(--text-main)]">Yönetici Girişi</h1>
+            <h1 className="text-base font-bold text-[var(--text-main)]">Yönetici Girişi</h1>
             <p className="text-xs text-[var(--text-muted)] mt-0.5">
-              Dispatch sistem yönetimi ve güncelleme paneli
+              Dispatch sistem yönetimi ve servis eşitleme paneli
             </p>
           </div>
         </div>
@@ -256,13 +252,11 @@ function AdminLogin({ onLogin }: { onLogin: (token: string) => void }) {
           </motion.button>
         </form>
 
-        <div className="pt-2 border-t border-[var(--border-color)] text-center">
-          <a
-            href="/"
-            className="text-[11px] text-[var(--text-dim)] hover:text-[var(--text-main)] transition-colors"
-          >
+        <div className="pt-2 border-t border-[var(--border-color)] flex items-center justify-between text-[11px] text-[var(--text-dim)]">
+          <a href="/" className="hover:text-[var(--text-main)] transition-colors">
             ← Ana Sayfaya Dön
           </a>
+          <img src="/sirket.png" alt="Şirket" className="h-4 w-auto object-contain opacity-70" />
         </div>
       </motion.div>
     </div>
@@ -270,23 +264,23 @@ function AdminLogin({ onLogin }: { onLogin: (token: string) => void }) {
 }
 
 /* =========================================================================
-   1. ADMIN UPDATES TAB (NOIRLANG/DISPATCH SAFE UPDATER)
+   1. ADMIN UPDATES & REBUILD TAB
    ========================================================================= */
 function AdminUpdatesTab({ token }: { token: string }) {
   const qc = useQueryClient()
 
-  const { data: updateInfo, isLoading, refetch, isRefetching } = useQuery({
+  const { data: updateInfo } = useQuery({
     queryKey: ["admin-updates"],
     queryFn: async () => {
       const res = await fetch("http://localhost:3000/api/v1/admin/updates/check", {
         headers: { Authorization: `Bearer ${token}` }
       })
-      if (!res.ok) throw new Error("Güncelleme bilgisi alınamadı")
+      if (!res.ok) throw new Error("Durum bilgisi alınamadı")
       return res.json()
     }
   })
 
-  const applyUpdate = useMutation({
+  const applyRebuild = useMutation({
     mutationFn: async () => {
       const res = await fetch("http://localhost:3000/api/v1/admin/updates/apply", {
         method: "POST",
@@ -294,12 +288,13 @@ function AdminUpdatesTab({ token }: { token: string }) {
       })
       if (!res.ok) {
         const err = await res.json()
-        throw new Error(err.error || "Güncelleme uygulanamadı")
+        throw new Error(err.error || "Eşitleme başarısız oldu")
       }
       return res.json()
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-updates"] })
+      qc.invalidateQueries({ queryKey: ["admin-status"] })
     }
   })
 
@@ -313,10 +308,10 @@ function AdminUpdatesTab({ token }: { token: string }) {
       <div>
         <h2 className="text-xl font-bold text-[var(--text-main)] flex items-center gap-2">
           <DownloadCloud size={22} />
-          <span>Sistem Güncelleme Motoru</span>
+          <span>Sistem Derleme & Servis Eşitleme</span>
         </h2>
         <p className="text-xs text-[var(--text-muted)] mt-1">
-          Resmi GitHub deposu (<span className="text-[var(--text-main)] font-mono font-bold">noirlang/dispatch</span>) üzerinden güvenli, veri kaybı yaşatmayan çekirdek sistem güncellemeleri.
+          Veritabanı şemalarını kontrol eder, frontend varlıklarını optimize eder ve servisleri sıfır kesintiyle eşitler.
         </p>
       </div>
 
@@ -327,110 +322,61 @@ function AdminUpdatesTab({ token }: { token: string }) {
         </div>
         <div>
           <div className="text-xs font-bold text-[var(--text-main)] mb-1">
-            %100 Güvenli Güncelleme Garantisi (Zero-Data Loss)
+            %100 Güvenli Eşitleme Garantisi (Zero-Data Loss)
           </div>
           <div className="text-[11px] text-[var(--text-muted)] leading-relaxed">
-            Güncelleme işlemi sırasında <strong>veritabanındaki kullanıcılar, gelen/giden e-postalar, şifreler, DNS kayıtları ve ayarlar ASLA silinmez veya bozulmaz</strong>. Yalnızca yeni kodlar, geliştirmeler ve migrasyonlar güvenle entegre edilir.
+            Bu işlem sırasında <strong>veritabanındaki kullanıcılar, gelen/giden e-postalar, şifreler, DNS kayıtları ve ayarlar ASLA silinmez veya bozulmaz</strong>. Yalnızca veritabanı migrasyonları ve frontend varlıkları güncellenir.
           </div>
         </div>
       </div>
 
-      {/* Version Status Box */}
-      <div className="p-5 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex flex-col gap-4 shadow-sm">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)] flex items-center justify-center text-[var(--text-main)] font-mono text-xs font-bold">
-              GIT
+      {/* Current Version Box */}
+      <div className="p-5 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-between shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)] flex items-center justify-center font-mono text-xs font-bold text-[#3b82f6]">
+            SYS
+          </div>
+          <div>
+            <div className="text-xs font-bold text-[var(--text-main)]">
+              Çekirdek Sürüm: <span className="font-mono text-[#3b82f6]">#{updateInfo?.current_commit || "dev"}</span>
             </div>
-            <div>
-              <div className="text-xs font-bold text-[var(--text-main)]">
-                Mevcut Yerel Sürüm: <span className="font-mono text-[#3b82f6]">#{updateInfo?.current_commit || "dev"}</span>
-              </div>
-              <div className="text-[11px] text-[var(--text-dim)] truncate max-w-sm">
-                {updateInfo?.current_message || "Yerel çalışma kopyası"}
-              </div>
+            <div className="text-[11px] text-[var(--text-dim)]">
+              {updateInfo?.current_message || "Dispatch Sistemi"} · {updateInfo?.current_date || "Güncel"}
             </div>
           </div>
-
-          <button
-            type="button"
-            disabled={isLoading || isRefetching}
-            onClick={() => refetch()}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] hover:bg-[var(--bg-card)] text-xs font-medium text-[var(--text-main)] transition-colors shadow-xs"
-          >
-            <RefreshCw size={12} className={isLoading || isRefetching ? "animate-spin" : ""} />
-            <span>Kontrol Et</span>
-          </button>
         </div>
 
-        <div className="pt-3 border-t border-[var(--border-color)] flex items-center justify-between text-xs">
-          <span className="text-[var(--text-muted)]">GitHub Uzak Depo:</span>
-          <a
-            href="https://github.com/noirlang/dispatch"
-            target="_blank"
-            rel="noreferrer"
-            className="font-mono text-xs text-[var(--text-main)] hover:underline flex items-center gap-1 font-bold"
-          >
-            <span>noirlang/dispatch</span>
-            <ExternalLink size={12} />
-          </a>
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#22c55e15] text-[#22c55e] border border-[#22c55e30] text-xs font-bold">
+          <CheckCircle2 size={14} />
+          <span>Sistem Hazır</span>
         </div>
+      </div>
 
-        {updateInfo?.remote_commit && (
-          <div className="pt-2 border-t border-[var(--border-color)] flex items-center justify-between text-xs">
-            <span className="text-[var(--text-muted)]">Son GitHub Commit:</span>
-            <span className="font-mono text-xs text-[var(--text-main)] font-semibold">
-              #{updateInfo.remote_commit} ({updateInfo.remote_message || "Son güncelleme"})
+      {/* Rebuild Action Card */}
+      <div className="p-6 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex flex-col gap-4 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div>
+            <span className="text-sm font-bold text-[var(--text-main)] block">Sistemi Yeniden Derle ve Servisleri Eşitle</span>
+            <span className="text-xs text-[var(--text-muted)] block mt-0.5">
+              Veritabanı tablolarını senkronize eder ve frontend arayüzünü yeniden derler.
             </span>
           </div>
-        )}
-      </div>
 
-      {/* Action Update Button */}
-      <div className="flex flex-col gap-3">
-        {updateInfo?.update_available ? (
-          <div className="p-4 rounded-2xl bg-[#f59e0b15] border border-[#f59e0b30] flex flex-col gap-3">
-            <div className="flex items-center gap-2 text-xs font-bold text-[#f59e0b]">
-              <Sparkles size={16} />
-              <span>Yeni bir güncelleme mevcut!</span>
-            </div>
-            <p className="text-[11px] text-[var(--text-muted)]">
-              GitHub üzerindeki son geliştirmeleri tek tıkla güvenle sunucuya uygulayabilirsiniz.
-            </p>
-            <button
-              type="button"
-              disabled={applyUpdate.isPending}
-              onClick={() => applyUpdate.mutate()}
-              className="w-full bg-[#f59e0b] hover:bg-[#d97706] text-black font-bold text-xs py-3 px-4 rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all"
-            >
-              <DownloadCloud size={15} />
-              <span>{applyUpdate.isPending ? "Sistem Güncelleniyor..." : "Sistemi Güvenle Güncelle"}</span>
-            </button>
-          </div>
-        ) : (
-          <div className="p-4 rounded-2xl bg-[#22c55e15] border border-[#22c55e30] flex items-center justify-between text-xs text-[#22c55e] font-bold">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 size={16} />
-              <span>Sisteminiz en son sürümde (Güncel ✓)</span>
-            </div>
-            <button
-              type="button"
-              disabled={applyUpdate.isPending}
-              onClick={() => {
-                if (confirm("Sistemi zorla tekrar derlemek ve servisleri yenilemek istiyor musunuz?")) {
-                  applyUpdate.mutate()
-                }
-              }}
-              className="text-[11px] text-[var(--text-muted)] hover:text-[var(--text-main)] underline font-normal"
-            >
-              Yeniden Derle / Eşitle
-            </button>
-          </div>
-        )}
+          <motion.button
+            whileTap={{ scale: 0.96 }}
+            whileHover={{ scale: 1.02 }}
+            disabled={applyRebuild.isPending}
+            onClick={() => applyRebuild.mutate()}
+            className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs font-bold px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-sm disabled:opacity-40 hover:opacity-90 transition-all shrink-0"
+          >
+            <RefreshCw size={13} className={applyRebuild.isPending ? "animate-spin" : ""} />
+            <span>{applyRebuild.isPending ? "Eşitleniyor..." : "Yeniden Derle ve Eşitle"}</span>
+          </motion.button>
+        </div>
 
-        {applyUpdate.data?.logs && (
-          <div className="p-3.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] font-mono text-[10px] text-[var(--text-muted)] max-h-48 overflow-y-auto whitespace-pre-wrap">
-            {applyUpdate.data.logs}
+        {applyRebuild.data?.logs && (
+          <div className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)] font-mono text-[10px] text-[var(--text-main)] whitespace-pre-wrap leading-relaxed">
+            {applyRebuild.data.logs}
           </div>
         )}
       </div>

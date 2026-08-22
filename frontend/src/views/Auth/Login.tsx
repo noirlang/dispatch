@@ -140,9 +140,8 @@ export default function Login() {
       </div>
 
       {/* Brand Logo */}
-      <div className="flex items-center gap-2.5 mb-12">
-        <div className="w-3.5 h-3.5 rounded-full bg-[var(--accent)]" />
-        <span className="text-2xl font-bold tracking-tight">Dispatch</span>
+      <div className="flex items-center gap-2.5 mb-10">
+        <img src="/dispatch.png" alt="Dispatch" className="h-10 w-auto object-contain" />
       </div>
 
       {/* Step Indicators */}

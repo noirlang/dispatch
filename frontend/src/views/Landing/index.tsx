@@ -30,8 +30,7 @@ export default function LandingView() {
       <header className="h-16 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] px-8 flex items-center justify-between sticky top-0 z-50 backdrop-blur-md">
         {/* Brand */}
         <div className="flex items-center gap-3">
-          <div className="w-3 h-3 rounded-full bg-[var(--accent)]" />
-          <span className="font-bold text-base tracking-wide">Dispatch</span>
+          <img src="/dispatch.png" alt="Dispatch" className="h-7 w-auto object-contain" />
         </div>
 
         {/* Right Actions: Lang, Theme, Login, Register */}
@@ -187,8 +186,9 @@ export default function LandingView() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-[var(--border-color)] bg-[var(--bg-secondary)] py-6 px-8 text-center text-xs text-[var(--text-dim)]">
+      <footer className="border-t border-[var(--border-color)] bg-[var(--bg-secondary)] py-6 px-8 flex items-center justify-between text-xs text-[var(--text-dim)]">
         <span>Dispatch © 2026. Self-hosted modern email client.</span>
+        <img src="/sirket.png" alt="Şirket" className="h-5 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity" />
       </footer>
     </div>
   )

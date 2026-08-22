@@ -89,17 +89,13 @@ export default function AppLayout({
     <div className="h-screen w-screen flex flex-col bg-[var(--bg-primary)] text-[var(--text-main)] overflow-hidden">
       {/* Top Header & Floating Center Dock */}
       <header className="h-14 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] px-6 flex items-center justify-between shrink-0 select-none z-30 shadow-xs">
-        {/* Left: Brand with pulse dot */}
+        {/* Left: Brand logo */}
         <motion.div
-          whileHover={{ scale: 1.05 }}
-          className="flex items-center gap-2.5 cursor-pointer"
+          whileHover={{ scale: 1.03 }}
+          className="flex items-center gap-2 cursor-pointer"
+          onClick={() => setActive("email")}
         >
-          <motion.div
-            animate={{ scale: [1, 1.2, 1] }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-            className="w-2.5 h-2.5 rounded-full bg-[var(--accent)] shadow-xs"
-          />
-          <span className="font-bold text-sm tracking-wide">Dispatch</span>
+          <img src="/dispatch.png" alt="Dispatch" className="h-6 w-auto object-contain" />
         </motion.div>
 
         {/* Center: Modern Floating Nav Bar / Dock with Spring Morph */}
@@ -130,7 +126,7 @@ export default function AppLayout({
           />
         </nav>
 
-        {/* Right: Flag Buttons, Notifications prompt, Theme Toggle, Settings Button */}
+        {/* Right: Flag Buttons, Notifications prompt, Theme Toggle, Settings Button, Company Logo */}
         <div className="flex items-center gap-2">
           {/* Notification Permission Prompt if not granted */}
           {notifPermission === "default" && (
@@ -197,6 +193,11 @@ export default function AppLayout({
           >
             <Settings size={15} />
           </motion.button>
+
+          {/* Company Logo on Top-Right */}
+          <div className="pl-2 border-l border-[var(--border-color)] flex items-center">
+            <img src="/sirket.png" alt="Şirket" className="h-6 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity" />
+          </div>
         </div>
       </header>
 
