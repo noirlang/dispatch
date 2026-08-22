@@ -47,15 +47,14 @@ class DispatchMailbox < ApplicationMailbox
       to_address: mail.to.first,
       cc: mail.cc&.join(", "),
       subject: mail.subject,
-      body_text: mail.text_part&.body&.decoded || mail.decoded,
-      body_html: mail.html_part&.body&.decoded,
+      body_text: (mail.text_part&.body&.decoded || (mail.multipart? ? "" : (mail.body&.decoded rescue ""))).to_s.force_encoding("UTF-8").scrub,
+      body_html: (mail.html_part&.body&.decoded rescue nil)&.to_s&.force_encoding("UTF-8")&.scrub,
       message_id: mail.message_id,
       folder: folder,
       is_read: false,
       attachments: saved_attachments
     )
   end
-
 
   def find_or_create_thread(user)
     in_reply_to = mail.in_reply_to
@@ -68,7 +67,12 @@ class DispatchMailbox < ApplicationMailbox
   end
 
   def speakeasy_trusted?(user, mail)
-    content = "#{mail.subject} #{mail.decoded}"
+    body_content = if mail.multipart?
+                     mail.parts.reject(&:attachment?).map { |p| (p.body&.decoded.to_s.force_encoding("UTF-8").scrub rescue "") }.join(" ")
+                   else
+                     (mail.body&.decoded.to_s.force_encoding("UTF-8").scrub rescue "")
+                   end
+    content = "#{mail.subject} #{body_content}"
     user.speakeasy_codes.active.any? do |sc|
       if content.include?(sc.code) && sc.valid_code?
         sc.update!(used: true) if sc.single_use
@@ -77,3 +81,5 @@ class DispatchMailbox < ApplicationMailbox
     end
   end
 end
+
+

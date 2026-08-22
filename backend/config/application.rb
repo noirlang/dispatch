@@ -10,6 +10,8 @@ module Backend
     config.autoload_paths << Rails.root.join("lib")
     config.time_zone = "UTC"
     config.beginning_of_week = :monday
+    config.active_storage.service = :local
+
 
     # OWASP Recommended Security Headers
     config.action_dispatch.default_headers = {
