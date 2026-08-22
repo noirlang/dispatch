@@ -1,1 +1,19 @@
+# Secrets
 .env
+config/credentials.yml.enc
+config/master.key
+
+# Logs & temp
+log/
+tmp/
+*.log
+
+# Storage & uploads
+public/avatars/
+storage/
+
+# Bundler
+vendor/bundle
+
+# Test coverage
+coverage/
