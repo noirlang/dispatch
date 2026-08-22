@@ -4,13 +4,27 @@ class Api::V1::SettingsController < Api::V1::BaseController
   end
 
   def update
-    current_user.update!(settings_params)
+    # Handle password change if requested
+    if params[:password].present?
+      if params[:current_password].blank? || !current_user.authenticate(params[:current_password])
+        return render json: { error: "Current password is incorrect" }, status: :unprocessable_entity
+      end
+      current_user.password = params[:password]
+      current_user.password_confirmation = params[:password_confirmation]
+    end
+
+    current_user.assign_attributes(settings_params)
+    
     # Update encrypted API keys separately if provided
     current_user.gemini_key = params[:gemini_key] if params[:gemini_key].present?
     current_user.claude_key = params[:claude_key] if params[:claude_key].present?
     current_user.openai_key = params[:openai_key] if params[:openai_key].present?
-    current_user.save!
-    render json: settings_json
+    
+    if current_user.save
+      render json: settings_json
+    else
+      render json: { errors: current_user.errors.full_messages }, status: :unprocessable_entity
+    end
   end
 
   def test_ai
@@ -22,7 +36,13 @@ class Api::V1::SettingsController < Api::V1::BaseController
 
     result = Ai::TestService.call(current_user)
     if result.success?
-      render json: { message: "Connection successful", provider: current_user.ai_provider, model: current_user.ai_model }
+      models = Ai::AnalyzeService.models_for(current_user.ai_provider)
+      render json: {
+        message: "Connection successful",
+        provider: current_user.ai_provider,
+        model: current_user.ai_model,
+        models: models
+      }
     else
       render json: { error: result.error }, status: :unprocessable_entity
     end

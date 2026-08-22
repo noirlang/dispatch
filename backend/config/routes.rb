@@ -12,8 +12,9 @@ Rails.application.routes.draw do
       post "setup",        to: "setup#create"
       get  "setup/dns",   to: "setup#dns"
 
-      # Sender avatar (public)
-      get "sender_profiles/avatar", to: "sender_profiles#avatar"
+      # Sender avatar
+      get  "sender_profiles/avatar",        to: "sender_profiles#avatar"
+      post "sender_profiles/update_avatar", to: "sender_profiles#update_avatar"
 
       # Emails
       resources :emails, only: [:index, :show, :create, :destroy] do
@@ -41,7 +42,7 @@ Rails.application.routes.draw do
       resources :speakeasy_codes, only: [:index, :create, :destroy]
 
       # AI dashboard
-      resources :dashboard, only: [:index, :show, :destroy] do
+      resources :dashboard, only: [:index, :show, :create, :destroy] do
         member do
           post :add_to_calendar
         end

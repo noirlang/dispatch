@@ -8,6 +8,17 @@ class Api::V1::DashboardController < Api::V1::BaseController
     render json: current_user.dashboard_cards.find(params[:id])
   end
 
+  def create
+    card = current_user.dashboard_cards.create!(
+      card_type: params[:card_type].presence || "general",
+      summary: params[:summary].to_s,
+      priority: params[:priority].presence || "medium",
+      actionable_items: params[:actionable_items] || [],
+      tags: params[:tags] || ["pano_notu"]
+    )
+    render json: card, status: :created
+  end
+
   def destroy
     current_user.dashboard_cards.find(params[:id]).update!(dismissed: true)
     render json: { message: "Dismissed" }
@@ -23,7 +34,7 @@ class Api::V1::DashboardController < Api::V1::BaseController
       description: suggestion["description"],
       starts_at: Time.parse("#{suggestion["date"]} #{suggestion["time"] || "00:00"}"),
       all_day: suggestion["all_day"] || false,
-      source: "ai_extracted",
+      source: "manual",
       email_id: card.email_id
     )
     render json: event, status: :created
