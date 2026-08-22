@@ -41,3 +41,5 @@ group :development, :test do
   gem "faker"
   gem "dotenv-rails"
 end
+
+gem "kramdown", "~> 2.5"
