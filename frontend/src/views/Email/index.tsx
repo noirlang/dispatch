@@ -14,9 +14,10 @@ export type Folder = "inbox" | "approvals" | "sent" | "drafts" | "trash" | "cont
 
 export default function EmailView() {
   const t = useT()
-  const { lang } = useAppStore()
+  const { lang, activeEmailFolder, setActiveEmailFolder } = useAppStore()
   const { user } = useAuth()
-  const [folder, setFolder] = useState<Folder>("inbox")
+  const folder = activeEmailFolder
+  const setFolder = setActiveEmailFolder
   const [selectedId, setSelectedId] = useState<number | null>(null)
 
   // Fullscreen compose state
@@ -152,9 +153,9 @@ export default function EmailView() {
   }
 
   return (
-    <div className="h-full flex bg-[var(--bg-primary)] overflow-hidden">
-      {/* Sidebar Folders */}
-      <aside className="w-56 border-r border-[var(--border-color)] bg-[var(--bg-secondary)] flex flex-col p-3 gap-1 shrink-0 overflow-hidden">
+    <div className="h-full flex bg-[var(--bg-primary)] overflow-hidden relative">
+      {/* Sidebar Folders (Desktop only, mobile accesses via Top-Right Hamburger menu) */}
+      <aside className="hidden md:flex w-56 border-r border-[var(--border-color)] bg-[var(--bg-secondary)] flex-col p-3 gap-1 shrink-0 overflow-hidden">
         <motion.button
           whileTap={{ scale: 0.96 }}
           whileHover={{ scale: 1.02 }}
@@ -222,13 +223,13 @@ export default function EmailView() {
         </div>
       ) : (
         <>
-          {/* Email List column */}
-          <div className="w-80 border-r border-[var(--border-color)] bg-[var(--bg-primary)] shrink-0 overflow-hidden flex flex-col">
+          {/* Email List column (Full width on mobile when no email selected, 80 width on desktop) */}
+          <div className={`${selectedId ? "hidden md:flex" : "flex"} w-full md:w-80 border-r border-[var(--border-color)] bg-[var(--bg-primary)] shrink-0 overflow-hidden flex-col`}>
             <EmailList folder={folder} selectedId={selectedId} onSelect={setSelectedId} />
           </div>
 
-          {/* Email Reader View with Fluid Slide/Fade Transitions */}
-          <main className="flex-1 bg-[var(--bg-primary)] overflow-hidden">
+          {/* Email Reader View (Full width on mobile when email selected, flex-1 on desktop) */}
+          <main className={`${selectedId ? "flex" : "hidden md:flex"} flex-1 bg-[var(--bg-primary)] overflow-hidden flex-col`}>
             <AnimatePresence mode="wait">
               {selectedId ? (
                 <motion.div
@@ -237,14 +238,26 @@ export default function EmailView() {
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
                   transition={{ duration: 0.18, ease: "easeOut" }}
-                  className="h-full w-full"
+                  className="h-full w-full flex flex-col"
                 >
-                  <EmailReader
-                    id={selectedId}
-                    folder={folder}
-                    onReply={handleReply}
-                    onForward={handleForward}
-                  />
+                  {/* Mobile Back Button Bar */}
+                  <div className="flex md:hidden items-center gap-2 p-2.5 border-b border-[var(--border-color)] bg-[var(--bg-secondary)]">
+                    <button
+                      onClick={() => setSelectedId(null)}
+                      className="px-3 py-1 rounded-lg bg-[var(--bg-card)] border border-[var(--border-color)] text-xs font-bold text-[var(--text-main)] flex items-center gap-1 shadow-xs"
+                    >
+                      <span>← {lang === "tr" ? "Listeye Dön" : "Back to List"}</span>
+                    </button>
+                  </div>
+
+                  <div className="flex-1 overflow-hidden">
+                    <EmailReader
+                      id={selectedId}
+                      folder={folder}
+                      onReply={handleReply}
+                      onForward={handleForward}
+                    />
+                  </div>
                 </motion.div>
               ) : (
                 <motion.div
@@ -264,6 +277,16 @@ export default function EmailView() {
           </main>
         </>
       )}
+
+      {/* Floating Action Button for Mobile Quick Compose */}
+      <motion.button
+        whileTap={{ scale: 0.9 }}
+        onClick={startCompose}
+        className="flex md:hidden fixed bottom-18 right-5 z-40 bg-[var(--accent)] text-[var(--accent-invert)] p-4 rounded-full shadow-2xl items-center justify-center"
+        title={t("compose")}
+      >
+        <Plus size={20} />
+      </motion.button>
     </div>
   )
 }
