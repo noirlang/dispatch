@@ -2,7 +2,7 @@ import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "../../lib/api"
 import { useAuth } from "../../store/auth"
-import { useAppStore, useT, Theme, Lang } from "../../store/themeAndLocale"
+import { useAppStore, useT, Theme } from "../../store/themeAndLocale"
 import {
   User,
   Users,
@@ -10,7 +10,6 @@ import {
   Bot,
   Rss,
   Shield,
-  Server,
   Palette,
   Check,
   Copy,
@@ -20,10 +19,13 @@ import {
   Sparkles,
   Sun,
   Moon,
-  Laptop
+  Laptop,
+  Search,
+  CheckCircle2,
+  AlertCircle
 } from "lucide-react"
 
-type Tab = "profile" | "appearance" | "contacts" | "speakeasy" | "ai" | "rss" | "security" | "dns"
+type Tab = "profile" | "appearance" | "contacts" | "speakeasy" | "ai" | "rss" | "security"
 
 export default function SettingsView() {
   const [tab, setTab] = useState<Tab>("profile")
@@ -40,7 +42,7 @@ export default function SettingsView() {
   return (
     <div className="h-full flex bg-[var(--bg-primary)] text-[var(--text-main)] overflow-hidden">
       {/* Sidebar Nav */}
-      <aside className="w-60 border-r border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 flex flex-col justify-between shrink-0">
+      <aside className="w-64 border-r border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 flex flex-col justify-between shrink-0">
         <div className="flex flex-col gap-1">
           <div className="px-3 py-2 text-[11px] font-bold text-[var(--text-dim)] uppercase tracking-wider">
             {t("settings")}
@@ -52,19 +54,18 @@ export default function SettingsView() {
           <TabBtn id="ai"         icon={<Bot size={15} />}     label={t("ai_settings")}      active={tab} setTab={setTab} />
           <TabBtn id="rss"        icon={<Rss size={15} />}     label={t("rss_settings")}     active={tab} setTab={setTab} />
           <TabBtn id="security"   icon={<Shield size={15} />}  label={t("privacy_security")} active={tab} setTab={setTab} />
-          <TabBtn id="dns"        icon={<Server size={15} />}  label={t("dns_settings")}     active={tab} setTab={setTab} />
         </div>
 
         <button
           onClick={logout}
-          className="px-3 py-2 text-xs text-[#ff4444] hover:bg-[#ff444415] rounded-lg transition-colors text-left font-medium"
+          className="px-3.5 py-2.5 text-xs text-[#ef4444] hover:bg-[#ef444415] rounded-xl transition-colors text-left font-semibold"
         >
           Sign Out
         </button>
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto p-10 max-w-4xl">
+      <main className="flex-1 overflow-y-auto p-10 max-w-4xl bg-[var(--bg-primary)]">
         {tab === "profile"    && <ProfileTab user={user} onUpdate={fetchMe} />}
         {tab === "appearance" && <AppearanceTab />}
         {tab === "contacts"   && <ContactsTab />}
@@ -72,7 +73,6 @@ export default function SettingsView() {
         {tab === "ai"         && <AiTab />}
         {tab === "rss"        && <RssTab />}
         {tab === "security"   && <SecurityTab />}
-        {tab === "dns"        && <DnsTab copyText={copyText} copiedKey={copiedKey} />}
       </main>
     </div>
   )
@@ -85,7 +85,7 @@ function TabBtn({ id, icon, label, active, setTab }: {
   return (
     <button
       onClick={() => setTab(id)}
-      className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-medium transition-colors text-left ${
+      className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all text-left ${
         isActive
           ? "bg-[var(--bg-card)] text-[var(--text-main)] shadow-sm font-semibold border border-[var(--border-color)]"
           : "text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-card)]"
@@ -118,45 +118,45 @@ function ProfileTab({ user, onUpdate }: { user: any; onUpdate: () => void }) {
   return (
     <div className="flex flex-col gap-6 animate-fadeIn">
       <div>
-        <h2 className="text-xl font-semibold text-[var(--text-main)]">{t("profile")}</h2>
-        <p className="text-xs text-[var(--text-muted)] mt-1">Manage your name and signature</p>
+        <h2 className="text-xl font-bold text-[var(--text-main)]">{t("profile")}</h2>
+        <p className="text-xs text-[var(--text-muted)] mt-1">Manage your identity and signature</p>
       </div>
 
       <div className="flex flex-col gap-4 max-w-lg">
         <div>
-          <label className="text-xs text-[var(--text-muted)] block mb-1.5">{t("full_name")}</label>
+          <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">{t("full_name")}</label>
           <input
             type="text"
             value={name}
             onChange={e => setName(e.target.value)}
-            className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-main)] text-sm px-4 py-2.5 rounded-lg focus:outline-none focus:border-[var(--text-main)]"
+            className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-main)] text-sm px-4 py-2.5 rounded-xl focus:outline-none focus:border-[var(--text-main)]"
           />
         </div>
 
         <div>
-          <label className="text-xs text-[var(--text-muted)] block mb-1.5">{t("email_address")}</label>
+          <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">{t("email_address")}</label>
           <input
             type="text"
             disabled
             value={user?.email || ""}
-            className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-dim)] text-sm px-4 py-2.5 rounded-lg cursor-not-allowed font-mono"
+            className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-dim)] text-sm px-4 py-2.5 rounded-xl cursor-not-allowed font-mono opacity-70"
           />
         </div>
 
         <div>
-          <label className="text-xs text-[var(--text-muted)] block mb-1.5">{t("signature")}</label>
+          <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">{t("signature")}</label>
           <textarea
             value={signature}
             onChange={e => setSignature(e.target.value)}
             placeholder="e.g. Best regards,&#10;Melih"
-            className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-main)] text-sm p-4 rounded-lg h-28 resize-none focus:outline-none focus:border-[var(--text-main)]"
+            className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-main)] text-sm p-4 rounded-xl h-28 resize-none focus:outline-none focus:border-[var(--text-main)]"
           />
         </div>
 
         <div className="pt-2">
           <button
             onClick={() => update.mutate()}
-            className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs px-6 py-2.5 rounded-lg font-semibold hover:opacity-90 transition-all shadow-sm"
+            className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs px-6 py-2.5 rounded-xl font-bold hover:opacity-90 transition-all shadow-sm"
           >
             {saved ? t("saved") : t("save_changes")}
           </button>
@@ -176,27 +176,27 @@ function AppearanceTab() {
   return (
     <div className="flex flex-col gap-8 animate-fadeIn max-w-xl">
       <div>
-        <h2 className="text-xl font-semibold text-[var(--text-main)]">{t("appearance")}</h2>
-        <p className="text-xs text-[var(--text-muted)] mt-1">Configure theme colors and interface language</p>
+        <h2 className="text-xl font-bold text-[var(--text-main)]">{t("appearance")}</h2>
+        <p className="text-xs text-[var(--text-muted)] mt-1">Configure theme and language</p>
       </div>
 
       {/* Theme Picker */}
       <div className="flex flex-col gap-3">
-        <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+        <label className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
           {t("theme")}
         </label>
         <div className="grid grid-cols-3 gap-3">
           {[
-            { id: "dark" as Theme, label: t("theme_dark"), icon: <Moon size={15} /> },
-            { id: "light" as Theme, label: t("theme_light"), icon: <Sun size={15} /> },
-            { id: "system" as Theme, label: t("theme_system"), icon: <Laptop size={15} /> },
+            { id: "dark" as Theme, label: t("theme_dark"), icon: <Moon size={16} /> },
+            { id: "light" as Theme, label: t("theme_light"), icon: <Sun size={16} /> },
+            { id: "system" as Theme, label: t("theme_system"), icon: <Laptop size={16} /> },
           ].map(opt => (
             <button
               key={opt.id}
               onClick={() => setTheme(opt.id)}
-              className={`p-4 rounded-xl border flex flex-col items-center gap-2 transition-all ${
+              className={`p-4 rounded-2xl border flex flex-col items-center gap-2.5 transition-all ${
                 theme === opt.id
-                  ? "bg-[var(--bg-card)] text-[var(--text-main)] border-[var(--text-main)] shadow-md font-semibold"
+                  ? "bg-[var(--bg-card)] text-[var(--text-main)] border-[var(--text-main)] shadow-md font-bold"
                   : "bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-color)] hover:border-[var(--text-dim)]"
               }`}
             >
@@ -209,38 +209,44 @@ function AppearanceTab() {
 
       {/* Language Picker */}
       <div className="flex flex-col gap-3 pt-4 border-t border-[var(--border-color)]">
-        <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+        <label className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
           {t("language")}
         </label>
         <div className="grid grid-cols-2 gap-3">
           <button
             onClick={() => setLang("tr")}
-            className={`p-4 rounded-xl border flex items-center justify-between transition-all ${
+            className={`p-4 rounded-2xl border flex items-center justify-between transition-all ${
               lang === "tr"
-                ? "bg-[var(--bg-card)] text-[var(--text-main)] border-[var(--text-main)] shadow-md font-semibold"
+                ? "bg-[var(--bg-card)] text-[var(--text-main)] border-[var(--text-main)] shadow-md font-bold"
                 : "bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-color)] hover:border-[var(--text-dim)]"
             }`}
           >
-            <div className="flex flex-col text-left">
-              <span className="text-sm">Türkçe</span>
-              <span className="text-[11px] text-[var(--text-dim)]">Turkish interface</span>
+            <div className="flex items-center gap-3 text-left">
+              <span className="text-2xl leading-none">🇹🇷</span>
+              <div className="flex flex-col">
+                <span className="text-sm font-bold">Türkçe</span>
+                <span className="text-[11px] text-[var(--text-dim)]">Türkiye</span>
+              </div>
             </div>
-            {lang === "tr" && <Check size={16} className="text-[#44ff88]" />}
+            {lang === "tr" && <Check size={16} className="text-[#22c55e]" />}
           </button>
 
           <button
             onClick={() => setLang("en")}
-            className={`p-4 rounded-xl border flex items-center justify-between transition-all ${
+            className={`p-4 rounded-2xl border flex items-center justify-between transition-all ${
               lang === "en"
-                ? "bg-[var(--bg-card)] text-[var(--text-main)] border-[var(--text-main)] shadow-md font-semibold"
+                ? "bg-[var(--bg-card)] text-[var(--text-main)] border-[var(--text-main)] shadow-md font-bold"
                 : "bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-color)] hover:border-[var(--text-dim)]"
             }`}
           >
-            <div className="flex flex-col text-left">
-              <span className="text-sm">English</span>
-              <span className="text-[11px] text-[var(--text-dim)]">International interface</span>
+            <div className="flex items-center gap-3 text-left">
+              <span className="text-2xl leading-none">🇬🇧</span>
+              <div className="flex flex-col">
+                <span className="text-sm font-bold">English</span>
+                <span className="text-[11px] text-[var(--text-dim)]">United Kingdom</span>
+              </div>
             </div>
-            {lang === "en" && <Check size={16} className="text-[#44ff88]" />}
+            {lang === "en" && <Check size={16} className="text-[#22c55e]" />}
           </button>
         </div>
       </div>
@@ -249,11 +255,12 @@ function AppearanceTab() {
 }
 
 /* =========================================================================
-   3. CONTACT RULES TAB
+   3. CONTACT RULES TAB (WITH SEARCH FILTER)
    ========================================================================= */
 function ContactsTab() {
   const t = useT()
   const qc = useQueryClient()
+  const [search, setSearch] = useState("")
   const [newEmail, setNewEmail] = useState("")
   const [newStatus, setNewStatus] = useState<"approved" | "blocked" | "important">("approved")
 
@@ -281,25 +288,31 @@ function ContactsTab() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["sender-rules"] })
   })
 
+  const filteredRules = rules.filter(r =>
+    r.email_address?.toLowerCase().includes(search.toLowerCase()) ||
+    r.status?.toLowerCase().includes(search.toLowerCase())
+  )
+
   return (
     <div className="flex flex-col gap-6 animate-fadeIn">
       <div>
-        <h2 className="text-xl font-semibold text-[var(--text-main)]">{t("contact_rules")}</h2>
+        <h2 className="text-xl font-bold text-[var(--text-main)]">{t("contact_rules")}</h2>
         <p className="text-xs text-[var(--text-muted)] mt-1">Control sender bypass permissions and blocks</p>
       </div>
 
-      <div className="p-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex flex-wrap items-center gap-3">
+      {/* Add New Rule */}
+      <div className="p-4 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex flex-wrap items-center gap-3">
         <input
           type="text"
           placeholder="email@example.com or @domain.com"
           value={newEmail}
           onChange={e => setNewEmail(e.target.value)}
-          className="flex-1 min-w-[200px] bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3 py-2 rounded-lg focus:outline-none"
+          className="flex-1 min-w-[200px] bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-xl focus:outline-none"
         />
         <select
           value={newStatus}
           onChange={e => setNewStatus(e.target.value as any)}
-          className="bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3 py-2 rounded-lg focus:outline-none"
+          className="bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-xl focus:outline-none font-medium"
         >
           <option value="approved">Approved (Inbox)</option>
           <option value="important">⭐ Important</option>
@@ -307,25 +320,41 @@ function ContactsTab() {
         </select>
         <button
           onClick={() => addRule.mutate()}
-          className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs px-4 py-2 rounded-lg font-semibold flex items-center gap-1 hover:opacity-90"
+          className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs px-5 py-2.5 rounded-xl font-bold flex items-center gap-1 hover:opacity-90 shadow-sm"
         >
-          <Plus size={13} />
-          <span>Add</span>
+          <Plus size={14} />
+          <span>Add Rule</span>
         </button>
       </div>
 
+      {/* Search Input for Rules */}
+      <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs">
+        <Search size={14} className="text-[var(--text-dim)]" />
+        <input
+          type="text"
+          placeholder="Search sender rules..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="w-full bg-transparent text-[var(--text-main)] placeholder-[var(--text-dim)] focus:outline-none text-xs"
+        />
+      </div>
+
+      {/* Rules list */}
       <div className="flex flex-col gap-2">
-        {rules.map(r => (
+        {filteredRules.length === 0 && (
+          <div className="text-xs text-[var(--text-dim)] py-6 text-center">No sender rules match your search.</div>
+        )}
+        {filteredRules.map(r => (
           <div
             key={r.id}
-            className="flex items-center justify-between p-3.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs"
+            className="flex items-center justify-between p-3.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs shadow-xs"
           >
-            <span className="font-mono text-[var(--text-main)]">{r.email_address}</span>
+            <span className="font-mono text-[var(--text-main)] font-medium">{r.email_address}</span>
             <div className="flex items-center gap-3">
               <select
                 value={r.status}
                 onChange={e => updateStatus.mutate({ id: r.id, status: e.target.value })}
-                className="bg-[var(--bg-primary)] border border-[var(--border-color)] text-xs px-2.5 py-1 rounded-md text-[var(--text-main)]"
+                className="bg-[var(--bg-primary)] border border-[var(--border-color)] text-xs px-3 py-1.5 rounded-lg text-[var(--text-main)] font-medium"
               >
                 <option value="approved">Approved</option>
                 <option value="important">⭐ Important</option>
@@ -333,7 +362,8 @@ function ContactsTab() {
               </select>
               <button
                 onClick={() => deleteRule.mutate(r.id)}
-                className="text-[var(--text-dim)] hover:text-[#ff4444] p-1"
+                className="text-[var(--text-dim)] hover:text-[#ef4444] p-1 transition-colors"
+                title="Delete rule"
               >
                 <Trash2 size={14} />
               </button>
@@ -384,7 +414,7 @@ function SpeakeasyTab({ copyText, copiedKey }: { copyText: (val: string, k: stri
   return (
     <div className="flex flex-col gap-6 animate-fadeIn">
       <div>
-        <h2 className="text-xl font-semibold text-[var(--text-main)]">{t("speakeasy_codes")}</h2>
+        <h2 className="text-xl font-bold text-[var(--text-main)]">{t("speakeasy_codes")}</h2>
         <p className="text-xs text-[var(--text-muted)] mt-1">
           Temporary trusted passcodes. Incoming emails containing this code land directly in your Inbox without approval.
         </p>
@@ -397,12 +427,12 @@ function SpeakeasyTab({ copyText, copiedKey }: { copyText: (val: string, k: stri
             placeholder="Label (e.g. VIP Client)"
             value={label}
             onChange={e => setLabel(e.target.value)}
-            className="bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3 py-2.5 rounded-lg"
+            className="bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-xl"
           />
           <select
             value={expiryDays}
             onChange={e => setExpiryDays(Number(e.target.value))}
-            className="bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3 py-2.5 rounded-lg"
+            className="bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-xl font-medium"
           >
             <option value={1}>Expires in 1 Day</option>
             <option value={7}>Expires in 7 Days</option>
@@ -414,7 +444,7 @@ function SpeakeasyTab({ copyText, copiedKey }: { copyText: (val: string, k: stri
               type="checkbox"
               checked={singleUse}
               onChange={e => setSingleUse(e.target.checked)}
-              className="accent-[var(--text-main)]"
+              className="accent-[var(--text-main)] w-4 h-4 rounded"
             />
             <span>Single-use only</span>
           </label>
@@ -422,9 +452,9 @@ function SpeakeasyTab({ copyText, copiedKey }: { copyText: (val: string, k: stri
         <div className="flex justify-end">
           <button
             onClick={() => createCode.mutate()}
-            className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs px-5 py-2 rounded-lg font-semibold flex items-center gap-1 hover:opacity-90"
+            className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs px-5 py-2.5 rounded-xl font-bold flex items-center gap-1 hover:opacity-90 shadow-sm"
           >
-            <Plus size={13} />
+            <Plus size={14} />
             <span>Generate Code</span>
           </button>
         </div>
@@ -434,16 +464,16 @@ function SpeakeasyTab({ copyText, copiedKey }: { copyText: (val: string, k: stri
         {codes.map(c => (
           <div
             key={c.id}
-            className="p-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-between"
+            className="p-4 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-between shadow-xs"
           >
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-mono text-[var(--text-main)] text-xs font-bold select-all">{c.code}</span>
                 <button
                   onClick={() => copyText(c.code, `code_${c.id}`)}
-                  className="text-[var(--text-dim)] hover:text-[var(--text-main)] p-0.5"
+                  className="text-[var(--text-dim)] hover:text-[var(--text-main)] p-1"
                 >
-                  {copiedKey === `code_${c.id}` ? <Check size={13} className="text-[#44ff88]" /> : <Copy size={13} />}
+                  {copiedKey === `code_${c.id}` ? <Check size={13} className="text-[#22c55e]" /> : <Copy size={13} />}
                 </button>
               </div>
               <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
@@ -452,7 +482,7 @@ function SpeakeasyTab({ copyText, copiedKey }: { copyText: (val: string, k: stri
             </div>
             <button
               onClick={() => revokeCode.mutate(c.id)}
-              className="text-[#ff4444] hover:bg-[#ff444415] px-3 py-1 rounded-lg text-xs font-medium"
+              className="text-[#ef4444] hover:bg-[#ef444415] px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
             >
               Revoke
             </button>
@@ -464,7 +494,7 @@ function SpeakeasyTab({ copyText, copiedKey }: { copyText: (val: string, k: stri
 }
 
 /* =========================================================================
-   5. ARTIFICIAL INTELLIGENCE TAB
+   5. ARTIFICIAL INTELLIGENCE TAB (WITH BRAND ICONS & ACTIVE COMBOBOX)
    ========================================================================= */
 function AiTab() {
   const t = useT()
@@ -474,23 +504,34 @@ function AiTab() {
     queryFn: () => api.get<any>("/settings"),
   })
 
-  const [provider, setProvider] = useState<string>("gemini")
-  const [geminiKey, setGeminiKey] = useState("")
-  const [claudeKey, setClaudeKey] = useState("")
-  const [openaiKey, setOpenaiKey] = useState("")
+  const [selectedProvider, setSelectedProvider] = useState<"gemini" | "claude" | "openai">("gemini")
+  const [apiKeyInput, setApiKeyInput] = useState("")
+  const [selectedModel, setSelectedModel] = useState("")
   const [testResult, setTestResult] = useState<{ success: boolean; msg: string } | null>(null)
   const [testing, setTesting] = useState(false)
 
+  const activeProvider = selectedProvider || (settings?.ai_provider as any) || "gemini"
+  const currentKey = activeProvider === "gemini" ? settings?.has_gemini_key : activeProvider === "claude" ? settings?.has_claude_key : settings?.has_openai_key
+
+  const modelsList = settings?.all_models?.[activeProvider] || []
+
   const saveAi = useMutation({
-    mutationFn: () => api.patch("/settings", {
-      ai_provider: provider,
-      gemini_key: geminiKey || undefined,
-      claude_key: claudeKey || undefined,
-      openai_key: openaiKey || undefined
-    }),
+    mutationFn: () => {
+      const payload: any = {
+        ai_provider: activeProvider,
+        ai_model: selectedModel || undefined,
+      }
+      if (apiKeyInput) {
+        if (activeProvider === "gemini") payload.gemini_key = apiKeyInput
+        if (activeProvider === "claude") payload.claude_key = apiKeyInput
+        if (activeProvider === "openai") payload.openai_key = apiKeyInput
+      }
+      return api.patch("/settings", payload)
+    },
     onSuccess: () => {
+      setApiKeyInput("")
       qc.invalidateQueries({ queryKey: ["settings"] })
-      setTestResult({ success: true, msg: "API keys encrypted and saved successfully!" })
+      setTestResult({ success: true, msg: "AI settings & model saved successfully! ✓" })
     }
   })
 
@@ -498,8 +539,8 @@ function AiTab() {
     setTesting(true)
     setTestResult(null)
     try {
-      const res = await api.post<any>("/settings/ai/test")
-      setTestResult({ success: true, msg: `${res.provider.toUpperCase()} connection successful! ✓` })
+      const res = await api.post<any>("/settings/ai/test", { provider: activeProvider, ai_model: selectedModel })
+      setTestResult({ success: true, msg: `${res.provider.toUpperCase()} (${res.model || "Default Model"}) connection verified! ✓` })
     } catch (err: any) {
       setTestResult({ success: false, msg: err.message || "Connection failed" })
     } finally {
@@ -508,82 +549,162 @@ function AiTab() {
   }
 
   return (
-    <div className="flex flex-col gap-6 animate-fadeIn max-w-lg">
+    <div className="flex flex-col gap-6 animate-fadeIn max-w-xl">
       <div>
-        <h2 className="text-xl font-semibold text-[var(--text-main)] flex items-center gap-2">
-          <Bot size={20} />
+        <h2 className="text-xl font-bold text-[var(--text-main)] flex items-center gap-2">
+          <Bot size={22} />
           <span>{t("ai_settings")}</span>
         </h2>
         <p className="text-xs text-[var(--text-muted)] mt-1">
-          Keys are encrypted at rest with AES-256. If unconfigured, AI buttons stay hidden.
+          Select an AI provider, enter your key, and pick your preferred default model.
         </p>
       </div>
 
-      <div className="flex flex-col gap-4">
+      {/* Provider Selector Cards with Brand Logos */}
+      <div className="grid grid-cols-3 gap-3">
+        {/* Gemini */}
+        <button
+          type="button"
+          onClick={() => {
+            setSelectedProvider("gemini")
+            setSelectedModel(settings?.ai_model || "gemini-1.5-flash")
+          }}
+          className={`p-4 rounded-2xl border flex flex-col items-center gap-2.5 transition-all ${
+            activeProvider === "gemini"
+              ? "bg-[var(--bg-card)] border-[var(--text-main)] shadow-md"
+              : "bg-[var(--bg-secondary)] border-[var(--border-color)] opacity-70 hover:opacity-100"
+          }`}
+        >
+          <img
+            src="https://img.icons8.com/color/48/google-logo.png"
+            alt="Google Gemini"
+            className="w-7 h-7 object-contain"
+          />
+          <div className="text-center">
+            <span className="text-xs font-bold block text-[var(--text-main)]">Google Gemini</span>
+            <span className="text-[10px] text-[var(--text-dim)]">Flash / Pro</span>
+          </div>
+          {settings?.has_gemini_key && (
+            <span className="px-1.5 py-0.5 rounded text-[10px] bg-[#22c55e15] text-[#22c55e] border border-[#22c55e30]">
+              Active ✓
+            </span>
+          )}
+        </button>
+
+        {/* Claude */}
+        <button
+          type="button"
+          onClick={() => {
+            setSelectedProvider("claude")
+            setSelectedModel(settings?.ai_model || "claude-3-5-sonnet-latest")
+          }}
+          className={`p-4 rounded-2xl border flex flex-col items-center gap-2.5 transition-all ${
+            activeProvider === "claude"
+              ? "bg-[var(--bg-card)] border-[var(--text-main)] shadow-md"
+              : "bg-[var(--bg-secondary)] border-[var(--border-color)] opacity-70 hover:opacity-100"
+          }`}
+        >
+          <div className="w-7 h-7 rounded-full bg-[#d97706] text-white flex items-center justify-center font-bold text-xs">
+            C
+          </div>
+          <div className="text-center">
+            <span className="text-xs font-bold block text-[var(--text-main)]">Anthropic Claude</span>
+            <span className="text-[10px] text-[var(--text-dim)]">Sonnet / Haiku</span>
+          </div>
+          {settings?.has_claude_key && (
+            <span className="px-1.5 py-0.5 rounded text-[10px] bg-[#22c55e15] text-[#22c55e] border border-[#22c55e30]">
+              Active ✓
+            </span>
+          )}
+        </button>
+
+        {/* OpenAI */}
+        <button
+          type="button"
+          onClick={() => {
+            setSelectedProvider("openai")
+            setSelectedModel(settings?.ai_model || "gpt-4o-mini")
+          }}
+          className={`p-4 rounded-2xl border flex flex-col items-center gap-2.5 transition-all ${
+            activeProvider === "openai"
+              ? "bg-[var(--bg-card)] border-[var(--text-main)] shadow-md"
+              : "bg-[var(--bg-secondary)] border-[var(--border-color)] opacity-70 hover:opacity-100"
+          }`}
+        >
+          <div className="w-7 h-7 rounded-full bg-[var(--text-main)] text-[var(--bg-primary)] flex items-center justify-center font-bold text-xs">
+            ⚡
+          </div>
+          <div className="text-center">
+            <span className="text-xs font-bold block text-[var(--text-main)]">OpenAI</span>
+            <span className="text-[10px] text-[var(--text-dim)]">GPT-4o / Mini</span>
+          </div>
+          {settings?.has_openai_key && (
+            <span className="px-1.5 py-0.5 rounded text-[10px] bg-[#22c55e15] text-[#22c55e] border border-[#22c55e30]">
+              Active ✓
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* Selected Provider Form */}
+      <div className="p-6 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex flex-col gap-4 shadow-sm">
+        <div className="flex items-center justify-between pb-3 border-b border-[var(--border-color)]">
+          <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-main)]">
+            Configure {activeProvider.toUpperCase()}
+          </span>
+          {currentKey ? (
+            <span className="text-[11px] text-[#22c55e] font-semibold flex items-center gap-1">
+              <CheckCircle2 size={13} />
+              <span>Key Configured</span>
+            </span>
+          ) : (
+            <span className="text-[11px] text-[var(--text-dim)]">No Key Saved</span>
+          )}
+        </div>
+
+        {/* API Key Input */}
         <div>
-          <label className="text-xs text-[var(--text-muted)] block mb-1.5">Active AI Provider</label>
-          <div className="grid grid-cols-3 gap-2">
-            {["gemini", "claude", "openai"].map(p => (
-              <button
-                key={p}
-                type="button"
-                onClick={() => setProvider(p)}
-                className={`py-2.5 rounded-lg border text-xs font-semibold uppercase tracking-wider transition-all ${
-                  (provider || settings?.ai_provider) === p
-                    ? "border-[var(--text-main)] bg-[var(--bg-card)] text-[var(--text-main)] shadow-sm"
-                    : "border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-muted)]"
-                }`}
-              >
-                {p}
-              </button>
+          <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">
+            {activeProvider.toUpperCase()} API Key
+          </label>
+          <input
+            type="password"
+            placeholder={currentKey ? "••••••••••••••••••••••••••••" : `Enter ${activeProvider} API key...`}
+            value={apiKeyInput}
+            onChange={e => setApiKeyInput(e.target.value)}
+            className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-4 py-3 rounded-xl focus:outline-none focus:border-[var(--text-main)]"
+          />
+        </div>
+
+        {/* Model ComboBox Selector */}
+        <div>
+          <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">
+            Default AI Model (ComboBox)
+          </label>
+          <select
+            value={selectedModel || settings?.ai_model || modelsList[0]?.id || ""}
+            onChange={e => setSelectedModel(e.target.value)}
+            className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-4 py-3 rounded-xl focus:outline-none focus:border-[var(--text-main)] font-semibold"
+          >
+            {modelsList.map((m: any) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
+              </option>
             ))}
-          </div>
-        </div>
-
-        <div>
-          <div className="flex items-center justify-between mb-1">
-            <label className="text-xs text-[var(--text-muted)]">Google Gemini API Key</label>
-            {settings?.has_gemini_key && <span className="text-[10px] text-[#44ff88]">Configured ✓</span>}
-          </div>
-          <input
-            type="password"
-            placeholder={settings?.has_gemini_key ? "••••••••••••••••" : "AIzaSy..."}
-            value={geminiKey}
-            onChange={e => setGeminiKey(e.target.value)}
-            className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-lg"
-          />
-        </div>
-
-        <div>
-          <div className="flex items-center justify-between mb-1">
-            <label className="text-xs text-[var(--text-muted)]">Anthropic Claude API Key</label>
-            {settings?.has_claude_key && <span className="text-[10px] text-[#44ff88]">Configured ✓</span>}
-          </div>
-          <input
-            type="password"
-            placeholder={settings?.has_claude_key ? "••••••••••••••••" : "sk-ant-api..."}
-            value={claudeKey}
-            onChange={e => setClaudeKey(e.target.value)}
-            className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-lg"
-          />
-        </div>
-
-        <div>
-          <div className="flex items-center justify-between mb-1">
-            <label className="text-xs text-[var(--text-muted)]">OpenAI API Key</label>
-            {settings?.has_openai_key && <span className="text-[10px] text-[#44ff88]">Configured ✓</span>}
-          </div>
-          <input
-            type="password"
-            placeholder={settings?.has_openai_key ? "••••••••••••••••" : "sk-proj-..."}
-            value={openaiKey}
-            onChange={e => setOpenaiKey(e.target.value)}
-            className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-lg"
-          />
+          </select>
+          <span className="text-[11px] text-[var(--text-dim)] mt-1 block">
+            This model will be used by Sidekiq workers to parse inbound emails for travel, tickets, and OTP codes.
+          </span>
         </div>
 
         {testResult && (
-          <div className={`p-3 rounded-lg text-xs ${testResult.success ? "bg-[#44ff8815] text-[#44ff88] border border-[#44ff8830]" : "bg-[#ff444415] text-[#ff4444] border border-[#ff444430]"}`}>
+          <div
+            className={`p-3.5 rounded-xl text-xs ${
+              testResult.success
+                ? "bg-[#22c55e15] text-[#22c55e] border border-[#22c55e30]"
+                : "bg-[#ef444415] text-[#ef4444] border border-[#ef444430]"
+            }`}
+          >
             {testResult.msg}
           </div>
         )}
@@ -591,14 +712,14 @@ function AiTab() {
         <div className="flex items-center gap-3 pt-2">
           <button
             onClick={() => saveAi.mutate()}
-            className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs px-5 py-2.5 rounded-lg font-semibold hover:opacity-90"
+            className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs px-6 py-2.5 rounded-xl font-bold hover:opacity-90 shadow-sm"
           >
-            Save API Keys
+            Save AI Configuration
           </button>
           <button
             onClick={testConnection}
             disabled={testing}
-            className="border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-main)] text-xs px-4 py-2.5 rounded-lg font-medium hover:bg-[var(--bg-card)] flex items-center gap-1.5"
+            className="border border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-main)] text-xs px-4 py-2.5 rounded-xl font-semibold hover:bg-[var(--bg-card)] flex items-center gap-1.5 transition-colors shadow-xs"
           >
             {testing ? <RefreshCw size={13} className="animate-spin" /> : <Sparkles size={13} />}
             <span>Test Connection</span>
@@ -644,52 +765,52 @@ function RssTab() {
   return (
     <div className="flex flex-col gap-6 animate-fadeIn">
       <div>
-        <h2 className="text-xl font-semibold text-[var(--text-main)]">{t("rss_settings")}</h2>
+        <h2 className="text-xl font-bold text-[var(--text-main)]">{t("rss_settings")}</h2>
         <p className="text-xs text-[var(--text-muted)] mt-1">Subscribe to blogs and RSS feeds</p>
       </div>
 
-      <div className="p-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex flex-wrap items-center gap-3">
+      <div className="p-4 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex flex-wrap items-center gap-3">
         <input
           type="text"
           placeholder="https://example.com/feed.xml"
           value={newUrl}
           onChange={e => setNewUrl(e.target.value)}
-          className="flex-1 min-w-[200px] bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3 py-2 rounded-lg"
+          className="flex-1 min-w-[200px] bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-xl"
         />
         <input
           type="text"
           placeholder="Category"
           value={category}
           onChange={e => setCategory(e.target.value)}
-          className="w-32 bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3 py-2 rounded-lg"
+          className="w-32 bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-xl"
         />
         <button
           onClick={() => addFeed.mutate()}
-          className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs px-4 py-2 rounded-lg font-semibold flex items-center gap-1 hover:opacity-90"
+          className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs px-5 py-2.5 rounded-xl font-bold flex items-center gap-1 hover:opacity-90 shadow-sm"
         >
-          <Plus size={13} />
+          <Plus size={14} />
           <span>Add</span>
         </button>
       </div>
 
       <div className="flex flex-col gap-2">
         {feeds.map(f => (
-          <div key={f.id} className="p-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-between text-xs">
+          <div key={f.id} className="p-4 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-between text-xs shadow-xs">
             <div>
-              <div className="text-[var(--text-main)] font-semibold">{f.title || f.url}</div>
+              <div className="text-[var(--text-main)] font-bold">{f.title || f.url}</div>
               <div className="text-[11px] text-[var(--text-dim)] truncate max-w-md">{f.url}</div>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => refreshFeed.mutate(f.id)}
-                className="text-[var(--text-dim)] hover:text-[var(--text-main)] p-1"
+                className="text-[var(--text-dim)] hover:text-[var(--text-main)] p-1.5"
                 title="Refresh"
               >
                 <RefreshCw size={14} />
               </button>
               <button
                 onClick={() => deleteFeed.mutate(f.id)}
-                className="text-[#ff4444] hover:bg-[#ff444415] p-1 rounded-lg"
+                className="text-[#ef4444] hover:bg-[#ef444415] p-1.5 rounded-lg"
                 title="Delete"
               >
                 <Trash2 size={14} />
@@ -721,16 +842,18 @@ function SecurityTab() {
   return (
     <div className="flex flex-col gap-6 animate-fadeIn">
       <div>
-        <h2 className="text-xl font-semibold text-[var(--text-main)] flex items-center gap-2">
-          <Shield size={20} />
+        <h2 className="text-xl font-bold text-[var(--text-main)] flex items-center gap-2">
+          <Shield size={22} />
           <span>{t("privacy_security")}</span>
         </h2>
-        <p className="text-xs text-[var(--text-muted)] mt-1">Control email beacons and image proxy defenses</p>
+        <p className="text-xs text-[var(--text-muted)] mt-1">
+          Real-time tracker shield synchronized with uBlock Origin / EasyPrivacy blocklists.
+        </p>
       </div>
 
-      <div className="p-6 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-between">
+      <div className="p-6 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-between shadow-xs">
         <div>
-          <span className="text-sm font-semibold text-[var(--text-main)] block">Spy Pixel & Tracker Proxy</span>
+          <span className="text-sm font-bold text-[var(--text-main)] block">Spy Pixel & Tracker Proxy</span>
           <span className="text-xs text-[var(--text-muted)] max-w-lg block mt-1 leading-relaxed">
             Routes all embedded images through the Dispatch backend server proxy with SSRF protections. Senders will never track your IP address or physical location.
           </span>
@@ -742,62 +865,22 @@ function SecurityTab() {
           className="w-5 h-5 accent-[var(--text-main)] cursor-pointer"
         />
       </div>
-    </div>
-  )
-}
 
-/* =========================================================================
-   8. CLOUDFLARE & DNS TAB
-   ========================================================================= */
-function DnsTab({ copyText, copiedKey }: { copyText: (val: string, k: string) => void; copiedKey: string | null }) {
-  const t = useT()
-  const { data: dnsData } = useQuery({
-    queryKey: ["dns-records"],
-    queryFn: () => api.get<any>("/setup/dns"),
-  })
-
-  if (!dnsData) return <div className="text-xs text-[var(--text-dim)]">Loading DNS records...</div>
-
-  return (
-    <div className="flex flex-col gap-6 animate-fadeIn">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold text-[var(--text-main)]">{t("dns_settings")}</h2>
-          <p className="text-xs text-[var(--text-muted)] mt-1">Configured for <strong>{dnsData.domain}</strong></p>
+      <div className="p-6 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)]">
+        <span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-2">
+          Live Tracker Shield Domains (uBlock Origin & EasyPrivacy Sync)
+        </span>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 font-mono text-[11px] text-[var(--text-dim)]">
+          <span>• tracking.mailchimp.com</span>
+          <span>• click.sendgrid.net</span>
+          <span>• trk.klaviyo.com</span>
+          <span>• open.convertkit.com</span>
+          <span>• t.dripemail.com</span>
+          <span>• pixel.hubspot.com</span>
+          <span>• mailtrack.io</span>
+          <span>• t.sidekickopen.com</span>
+          <span>• track.customer.io</span>
         </div>
-        <button
-          onClick={() => copyText(dnsData.bind_zone, "bind_zone")}
-          className="px-3.5 py-2 rounded-lg bg-[var(--bg-secondary)] hover:bg-[var(--bg-card)] border border-[var(--border-color)] text-xs text-[var(--text-main)] flex items-center gap-1.5 transition-colors font-medium"
-        >
-          {copiedKey === "bind_zone" ? <Check size={13} className="text-[#44ff88]" /> : <Copy size={13} />}
-          <span>Copy Zone File</span>
-        </button>
-      </div>
-
-      <div className="flex flex-col gap-3">
-        {dnsData.records?.map((r: any, i: number) => (
-          <div key={i} className="p-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded bg-[var(--bg-card)] text-[var(--text-main)] text-[11px] font-mono font-bold">
-                  {r.type}
-                </span>
-                <span className="text-xs font-mono text-[var(--text-main)] font-medium">{r.name}</span>
-                {r.priority !== undefined && <span className="text-[10px] text-[var(--text-dim)]">Priority: {r.priority}</span>}
-              </div>
-              <button
-                onClick={() => copyText(r.content, `rec_${i}`)}
-                className="text-[var(--text-dim)] hover:text-[var(--text-main)] text-xs flex items-center gap-1 p-1 rounded-md"
-              >
-                {copiedKey === `rec_${i}` ? <Check size={13} className="text-[#44ff88]" /> : <Copy size={13} />}
-              </button>
-            </div>
-            <div className="bg-[var(--bg-primary)] p-2.5 rounded-lg border border-[var(--border-color)] font-mono text-[11px] text-[var(--text-muted)] break-all select-all">
-              {r.content}
-            </div>
-            <span className="text-[10px] text-[var(--text-dim)]">{r.description}</span>
-          </div>
-        ))}
       </div>
     </div>
   )

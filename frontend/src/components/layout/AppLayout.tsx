@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { Calendar, Mail, Rss, Settings, LayoutDashboard, Sun, Moon, Laptop, Globe, X } from "lucide-react"
+import { Calendar, Mail, Rss, Settings, LayoutDashboard, Sun, Moon, Laptop, X } from "lucide-react"
 import { useAppStore, useT, applyThemeToDOM } from "../../store/themeAndLocale"
 import { motion, AnimatePresence } from "framer-motion"
 
@@ -33,9 +33,9 @@ export default function AppLayout({
   return (
     <div className="h-screen w-screen flex flex-col bg-[var(--bg-primary)] text-[var(--text-main)] overflow-hidden">
       {/* Top Header & Floating Center Dock */}
-      <header className="h-14 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] px-6 flex items-center justify-between shrink-0 select-none z-30">
+      <header className="h-14 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] px-6 flex items-center justify-between shrink-0 select-none z-30 shadow-xs">
         {/* Left: Brand */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <div className="w-2.5 h-2.5 rounded-full bg-[var(--accent)]" />
           <span className="font-bold text-sm tracking-wide">Dispatch</span>
         </div>
@@ -74,22 +74,31 @@ export default function AppLayout({
           />
         </nav>
 
-        {/* Right: Theme & Language Switchers */}
+        {/* Right: Flag Language & Theme Switchers */}
         <div className="flex items-center gap-2">
-          {/* Language toggle */}
+          {/* Language Flag toggle */}
           <button
             onClick={() => setLang(lang === "tr" ? "en" : "tr")}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)] text-xs font-medium hover:bg-[var(--bg-card)] transition-colors"
-            title="Switch Language"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)] text-xs font-semibold hover:bg-[var(--bg-card)] transition-colors shadow-xs"
+            title={lang === "tr" ? "Switch to English (UK)" : "Türkçe'ye Geç (TR)"}
           >
-            <Globe size={13} />
-            <span className="uppercase">{lang}</span>
+            {lang === "tr" ? (
+              <>
+                <span className="text-sm leading-none">🇹🇷</span>
+                <span className="text-[11px] font-bold">TR</span>
+              </>
+            ) : (
+              <>
+                <span className="text-sm leading-none">🇬🇧</span>
+                <span className="text-[11px] font-bold">EN</span>
+              </>
+            )}
           </button>
 
           {/* Theme toggle */}
           <button
             onClick={() => setTheme(nextTheme)}
-            className="p-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-card)] transition-colors"
+            className="p-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-card)] transition-colors shadow-xs"
             title={`Current Theme: ${theme}`}
           >
             {theme === "dark" && <Moon size={14} />}
@@ -100,7 +109,7 @@ export default function AppLayout({
       </header>
 
       {/* Main Full-Screen Viewport for Active Panel */}
-      <main className="flex-1 w-full overflow-hidden relative">
+      <main className="flex-1 w-full overflow-hidden relative bg-[var(--bg-primary)]">
         <AnimatePresence mode="wait">
           {active === "email" && (
             <motion.div
@@ -122,7 +131,7 @@ export default function AppLayout({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.1 }}
-              className="h-full w-full p-6 max-w-6xl mx-auto"
+              className="h-full w-full"
             >
               {calendarPanel}
             </motion.div>
@@ -135,7 +144,7 @@ export default function AppLayout({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.1 }}
-              className="h-full w-full p-6 max-w-5xl mx-auto"
+              className="h-full w-full"
             >
               {feedPanel}
             </motion.div>
