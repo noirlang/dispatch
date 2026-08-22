@@ -15,14 +15,29 @@
 
 ---
 
-## 🚀 0'dan Temiz Kurulum Kılavuzu (Adım Adım)
+## 🚀 Canlı Sunucuya 1-Komutla Kurulum (Production)
 
-Mail sunucunuzu sıfırlayıp Dispatch'i sıfırdan kurmak için aşağıdaki adımları sırasıyla uygulayın:
+Temiz bir Ubuntu/Debian sunucuya format attıktan sonra tek komutla tüm bağımlılıkları (Nginx, Postfix, Dovecot, PostgreSQL, Redis, SSL) kurup web kurulum sihirbazını başlatmak için:
 
-### 1. Depoyu Klonlayın
 ```bash
 git clone https://github.com/noirlang/dispatch.git
 cd dispatch
+sudo bash install.sh
+```
+
+Script çalıştığında sunucunun IP adresini otomatik tespit eder, tüm servisleri ayağa kaldırır ve ekrana web bağlantınızı verir:
+```text
+=============================================================
+✔ DISPATCH BAŞARIYLA BAŞLATILDI!
+=============================================================
+Şimdi bilgisayarınızdan veya telefonunuzdan şu adrese gidin:
+👉 http://SUNUCU_IP/setup
+
+Açılan web ekranında:
+  1. Alan adınızı (örn: noirlang.tr) girin
+  2. Yönetici hesabınızı belirleyin
+  3. Cloudflare API Token'ı yapıştırıp tek tıkla kurun!
+=============================================================
 ```
 
 ---

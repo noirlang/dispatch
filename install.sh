@@ -1,0 +1,148 @@
+#!/usr/bin/env bash
+set -e
+
+# =============================================================
+# 🚀 DISPATCH — 1-KOMUT HIZLI SUNUCU KURUCUSU & BAŞLATICISI
+# =============================================================
+
+# Root yetkisi kontrolü
+if [ "$EUID" -ne 0 ]; then
+  echo -e "\033[0;31m✖ Lütfen bu scripti root yetkisiyle (sudo bash install.sh) çalıştırın.\033[0m"
+  exit 1
+fi
+
+DISPATCH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$DISPATCH_DIR"
+
+echo -e "\n\033[36m=============================================================\033[0m"
+echo -e "\033[36m⚡ DISPATCH E-POSTA & WEBMAIL SUNUCUSU KURULUYOR...\033[0m"
+echo -e "\033[36m=============================================================\033[0m\n"
+
+# 1. Sunucunun gerçek dış IP adresini otomatik tespit et
+echo -e "▶ 1. Sunucu IP adresi tespit ediliyor..."
+SERVER_IP=$(curl -s -m 5 https://api.ipify.org 2>/dev/null || curl -s -m 5 https://ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
+[ -z "$SERVER_IP" ] && SERVER_IP="127.0.0.1"
+echo -e "✔ Sunucu IP: \033[32m$SERVER_IP\033[0m\n"
+
+# 2. Gerekli sistem paketlerini kur
+echo -e "▶ 2. Sistem paketleri kuruluyor (PostgreSQL, Redis, Nginx, Node.js, Postfix, Dovecot)..."
+export DEBIAN_FRONTEND=noninteractive
+
+apt-get update -y -q
+apt-get install -y -q \
+  curl wget gnupg2 build-essential git \
+  postgresql postgresql-contrib redis-server \
+  nginx certbot python3-certbot-nginx \
+  postfix postfix-pcre dovecot-imapd dovecot-pop3d opendkim opendkim-tools spamassassin fail2ban ufw \
+  ruby-full ruby-bundler libpq-dev zlib1g-dev
+
+# Node.js kontrolü ve kurulumu (Node 20 LTS)
+if ! command -v node >/dev/null 2>&1; then
+  echo "Node.js kuruluyor..."
+  curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+  apt-get install -y -q nodejs
+fi
+
+# 3. Güvenlik Duvarı Portlarını Aç
+echo -e "\n▶ 3. Portlar açılıyor (80, 443, 3000, 25, 587, 993)..."
+for port in 80 443 3000 5173 25 587 993; do
+  ufw allow "$port" >/dev/null 2>&1 || true
+done
+
+# 4. PostgreSQL Veritabanı ve Kullanıcısını Hazırla
+echo -e "▶ 4. Veritabanı yapılandırılıyor..."
+systemctl start postgresql redis-server
+sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='dispatch'" | grep -q 1 || \
+  sudo -u postgres psql -c "CREATE USER dispatch WITH PASSWORD 'dispatch_secret' SUPERUSER CREATEDB;"
+sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='dispatch_prod'" | grep -q 1 || \
+  sudo -u postgres psql -c "CREATE DATABASE dispatch_prod OWNER dispatch;"
+
+# 5. Backend Bağımlılıkları ve Migrasyonlar
+echo -e "\n▶ 5. Backend derleniyor ve hazırlanıyor..."
+cd "$DISPATCH_DIR/backend"
+
+# .env yapılandırması
+cat << ENVEOF > "$DISPATCH_DIR/backend/.env"
+DATABASE_URL=postgresql://dispatch:dispatch_secret@localhost:5432/dispatch_prod
+REDIS_URL=redis://localhost:6379
+SECRET_KEY_BASE=dispatch_prod_master_secret_key_$(openssl rand -hex 16)
+SERVER_IPV4=$SERVER_IP
+RAILS_ENV=production
+ENVEOF
+
+bundle install --quiet || bundle install
+bin/rails db:migrate RAILS_ENV=production
+
+# 6. Frontend Arayüzünü Derle
+echo -e "\n▶ 6. Frontend arayüzü derleniyor..."
+cd "$DISPATCH_DIR/frontend"
+npm install --silent || npm install
+npm run build
+
+# 7. Nginx Ters Vekilini Yapılandır (Port 80 -> Frontend ve Rails API)
+echo -e "\n▶ 7. Nginx web sunucusu yapılandırılıyor..."
+cat << NGINXEOF > /etc/nginx/sites-available/dispatch
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name _;
+
+    root $DISPATCH_DIR/frontend/dist;
+    index index.html;
+
+    # API Proxy
+    location /api {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    # SPA Routing
+    location / {
+        try_files \$uri \$uri/ /index.html;
+    }
+}
+NGINXEOF
+
+rm -f /etc/nginx/sites-enabled/default
+ln -sf /etc/nginx/sites-available/dispatch /etc/nginx/sites-enabled/dispatch
+nginx -t && systemctl reload nginx
+
+# 8. Systemd Servislerini Kur ve Başlat
+echo -e "▶ 8. Dispatch servisleri başlatılıyor..."
+cat << SVCEOF > /etc/systemd/system/dispatch-backend.service
+[Unit]
+Description=Dispatch Rails Backend Server
+After=network.target postgresql.service redis-server.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=$DISPATCH_DIR/backend
+EnvironmentFile=$DISPATCH_DIR/backend/.env
+Environment=RAILS_ENV=production
+ExecStart=/usr/bin/bundle exec rails server -b 0.0.0.0 -p 3000
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+SVCEOF
+
+systemctl daemon-reload
+systemctl enable --now dispatch-backend
+systemctl restart dispatch-backend
+
+# Kurulum Tamamlandı Banner
+echo -e "\n\033[32m=============================================================\033[0m"
+echo -e "\033[32m✔ DISPATCH BAŞARIYLA BAŞLATILDI!\033[0m"
+echo -e "\033[32m=============================================================\033[0m\n"
+echo -e "Şimdi bilgisayarınızdan veya telefonunuzdan şu adrese gidin:"
+echo -e "👉 \033[1;33mhttp://$SERVER_IP/setup\033[0m  (veya \033[33mhttp://$SERVER_IP:3000/setup\033[0m)\n"
+echo -e "Açılan web ekranında:"
+echo -e "  1. Alan adınızı (örn: \033[36mnoirlang.tr\033[0m) girin"
+echo -e "  2. Yönetici hesabınızı belirleyin"
+echo -e "  3. Cloudflare API Token'ı yapıştırıp tek tıkla kurun!\n"
+echo -e "\033[32m=============================================================\033[0m\n"
