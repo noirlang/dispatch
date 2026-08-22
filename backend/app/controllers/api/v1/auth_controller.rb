@@ -12,12 +12,30 @@ class Api::V1::AuthController < ActionController::API
   end
 
   def login
-    user = User.find_by(email: params[:email]&.downcase)
+    user = User.find_by(email: params[:email]&.downcase&.strip)
     if user&.authenticate(params[:password])
       token = JwtHelper.encode(user_id: user.id)
       render json: { token: token, user: user_json(user) }
     else
       render json: { error: "Invalid email or password" }, status: :unauthorized
+    end
+  end
+
+  def check_email
+    email = params[:email].to_s.downcase.strip
+    user = User.find_by(email: email)
+    if user
+      render json: {
+        exists: true,
+        name: user.name,
+        email: user.email,
+        avatar_path: user.avatar_path
+      }
+    else
+      render json: {
+        exists: false,
+        error: "Bu e-posta adresine ait bir hesap bulunamadı."
+      }, status: :not_found
     end
   end
 

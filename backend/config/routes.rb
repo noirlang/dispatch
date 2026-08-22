@@ -2,10 +2,11 @@ Rails.application.routes.draw do
   namespace :api do
     namespace :v1 do
       # Auth
-      post   "auth/register",  to: "auth#register"
-      post   "auth/login",     to: "auth#login"
-      delete "auth/logout",    to: "auth#logout"
-      get    "auth/me",        to: "auth#me"
+      post   "auth/register",    to: "auth#register"
+      post   "auth/login",       to: "auth#login"
+      post   "auth/check_email", to: "auth#check_email"
+      delete "auth/logout",      to: "auth#logout"
+      get    "auth/me",          to: "auth#me"
 
       # Setup Wizard & DNS
       get  "setup/status", to: "setup#status"
