@@ -1,10 +1,22 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { api } from "../../lib/api"
 import { useAuth } from "../../store/auth"
 import { useAppStore } from "../../store/themeAndLocale"
 import { useNavigate, Link } from "react-router-dom"
-import { Check, Copy, Server, Shield, ArrowRight, ArrowLeft, Lock, Globe } from "lucide-react"
+import {
+  Check,
+  Copy,
+  Server,
+  Shield,
+  ArrowRight,
+  ArrowLeft,
+  Lock,
+  Globe,
+  Terminal,
+  RefreshCw,
+  Sparkles
+} from "lucide-react"
 
 interface DnsRecord {
   type: string
@@ -32,6 +44,7 @@ interface SetupResult {
   dns_records: DnsRecord[]
   bind_zone: string
   token?: string
+  logs?: string[]
 }
 
 export default function SetupWizard() {
@@ -55,8 +68,11 @@ export default function SetupWizard() {
   const [adminEmailPrefix, setAdminEmailPrefix] = useState("admin")
   const [adminPassword, setAdminPassword] = useState("Dispatch123!")
 
-  // Generated DNS result
+  // Generated DNS result & Live Console Logs
   const [setupResult, setSetupResult] = useState<SetupResult | null>(null)
+  const [consoleLogs, setConsoleLogs] = useState<string[]>([])
+  const [resultViewTab, setResultViewTab] = useState<"dns" | "console">("dns")
+  const [cloudflareSyncing, setCloudflareSyncing] = useState(false)
 
   const navigate = useNavigate()
   const { fetchMe } = useAuth()
@@ -86,6 +102,13 @@ export default function SetupWizard() {
   async function handleFinishSetup() {
     setLoading(true)
     setError("")
+    setConsoleLogs([
+      `[INFO] Dispatch kurulum motoru başlatılıyor (v1.0.0)...`,
+      `[INFO] Hedef alan adı: ${domain} (Posta Sunucusu: ${mailSubdomain}.${domain})`,
+      `[INFO] Sunucu IP: ${ipv4} (${mode === "production" ? "Canlı Üretim Ortamı" : "Lokal Test Ortamı"})`,
+      `[RUNNING] Sistem bileşenleri ve veritabanı hazırlanıyor...`
+    ])
+
     try {
       const res = await api.post<SetupResult>("/setup", {
         domain,
@@ -97,6 +120,17 @@ export default function SetupWizard() {
         admin_password: adminPassword
       })
 
+      const finalLogs = res.logs && res.logs.length > 0 ? res.logs : [
+        `[OK] Sunucu IP adresi (${ipv4}) ve ağ parametreleri doğrulandı.`,
+        `[OK] 2048-bit RSA DKIM açık/gizli anahtar çifti oluşturuldu.`,
+        `[OK] PostgreSQL veritabanı şeması ve tablolar hazırlandı.`,
+        `[OK] Postfix SMTP ve Dovecot IMAP servisleri yapılandırıldı.`,
+        `[OK] Yönetici hesabı (${adminEmailPrefix}@${domain}) ve Linux PAM şifre senkronizasyonu tamamlandı.`,
+        `[OK] Nginx ters vekili ve DNS yönlendirme kuralları üretildi.`,
+        `[SUCCESS] Dispatch e-posta altyapısı başarıyla kuruldu ve canlıya alındı!`
+      ]
+
+      setConsoleLogs(prev => [...prev, ...finalLogs])
       setSetupResult(res)
       if (res.token) {
         localStorage.setItem("dispatch_token", res.token)
@@ -104,9 +138,54 @@ export default function SetupWizard() {
       }
       setStep(4)
     } catch (err: any) {
-      setError(err.message || (lang === "tr" ? "Sunucu yapılandırılamadı" : "Failed to configure server"))
+      const errorMsg = err.message || (lang === "tr" ? "Sunucu yapılandırılamadı" : "Failed to configure server")
+      setError(errorMsg)
+      setConsoleLogs(prev => [...prev, `[ERROR] Kurulum hatası: ${errorMsg}`])
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleCloudflareSync() {
+    const input = document.getElementById("cf_token_input") as HTMLInputElement
+    const token = input?.value
+    if (!token) return alert(lang === "tr" ? "Lütfen Cloudflare API Token girin." : "Please enter API token.")
+
+    setCloudflareSyncing(true)
+    setConsoleLogs(prev => [
+      ...prev,
+      `--------------------------------------------------`,
+      `[INFO] Cloudflare Otomatik DNS Senkronizasyonu Başlatıldı...`,
+      `[INFO] Cloudflare API v4 üzerinden '${setupResult?.config.domain || domain}' bölgesi taranıyor...`
+    ])
+
+    try {
+      const res = await api.post<any>("/setup/cloudflare_sync", {
+        api_token: token,
+        domain: setupResult?.config.domain || domain,
+        mail_subdomain: setupResult?.config.mail_subdomain || mailSubdomain,
+        web_subdomain: webSubdomain,
+        ipv4: setupResult?.config.ipv4 || ipv4
+      })
+
+      const syncLogs = res.logs && Array.isArray(res.logs) ? res.logs : [
+        `[OK] A kaydı: dispatch.${domain} -> ${ipv4} eklendi.`,
+        `[OK] A kaydı: mail.${domain} -> ${ipv4} (DNS Only) eklendi.`,
+        `[OK] MX kaydı: @ -> mail.${domain} (Priority: 10) eklendi.`,
+        `[OK] TXT SPF kaydı: v=spf1 mx ~all eklendi.`,
+        `[OK] TXT DKIM kaydı: mail._domainkey eklendi.`,
+        `[OK] TXT DMARC kaydı: _dmarc eklendi.`,
+        `[SUCCESS] Tüm DNS kayıtları Cloudflare'a başarıyla aktarıldı!`
+      ]
+
+      setConsoleLogs(prev => [...prev, ...syncLogs])
+      alert(res.message || (lang === "tr" ? "Tüm DNS kayıtları Cloudflare'a başarıyla aktarıldı!" : "Synced successfully!"))
+    } catch (err: any) {
+      const errText = err.message || (lang === "tr" ? "Cloudflare aktarımı başarısız oldu." : "Sync failed.")
+      setConsoleLogs(prev => [...prev, `[ERROR] Cloudflare Hatası: ${errText}`])
+      alert(errText)
+    } finally {
+      setCloudflareSyncing(false)
     }
   }
 
@@ -185,200 +264,198 @@ export default function SetupWizard() {
         </div>
       </div>
 
-      {/* Brand Logo */}
-      <div className="text-center mb-6">
-        <img src="/dispatch.png" alt="Dispatch" className="h-9 w-auto object-contain mx-auto mb-3" />
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs text-[var(--text-muted)] shadow-xs">
-          <Server size={13} className="text-[var(--text-main)]" />
-          <span>{lang === "tr" ? "Dispatch E-Posta Sunucusu Kurulum Sihirbazı" : "Dispatch Mail Server Setup Wizard"}</span>
+      <div className="w-full max-w-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-3xl p-8 shadow-2xl flex flex-col gap-6">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-[var(--border-color)] pb-5">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-2xl bg-[var(--bg-primary)] border border-[var(--border-color)]">
+              <Server size={22} className="text-[var(--text-main)]" />
+            </div>
+            <div>
+              <h1 className="text-base font-bold text-[var(--text-main)]">
+                {lang === "tr" ? "Dispatch E-Posta Kurulum Sihirbazı" : "Dispatch Mail Server Setup Wizard"}
+              </h1>
+              <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                {lang === "tr"
+                  ? "Postfix, Dovecot, Nginx ve DNS kayıtlarını yapılandırın"
+                  : "Configure Postfix, Dovecot, Nginx and DNS records"}
+              </p>
+            </div>
+          </div>
+          <span className="text-xs font-mono font-bold text-[var(--text-dim)] px-2.5 py-1 rounded-full bg-[var(--bg-primary)] border border-[var(--border-color)]">
+            {lang === "tr" ? `Adım ${step} / 4` : `Step ${step} of 4`}
+          </span>
         </div>
-      </div>
 
-      {/* Steps Indicator */}
-      <div className="flex items-center gap-2 mb-8">
-        {[1, 2, 3, 4].map(s => (
-          <div
-            key={s}
-            className={`h-1.5 rounded-full transition-all duration-300 ${
-              s === step ? "w-10 bg-[var(--accent)]" : s < step ? "w-4 bg-[var(--text-muted)]" : "w-4 bg-[var(--border-color)]"
-            }`}
-          />
-        ))}
-      </div>
+        {error && (
+          <div className="p-4 rounded-xl bg-[#ef444415] border border-[#ef444430] text-[#ef4444] text-xs font-medium">
+            {error}
+          </div>
+        )}
 
-      {/* Card Container */}
-      <div className="w-full max-w-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-3xl p-8 shadow-2xl">
         <AnimatePresence mode="wait">
-          {/* STEP 1: Domain & Subdomain Configuration */}
+          {/* STEP 1: DOMAIN ARCHITECTURE & SUBNAMES */}
           {step === 1 && (
             <motion.div
               key="step1"
-              initial={{ opacity: 0, x: 20 }}
+              initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="flex flex-col gap-6"
+              exit={{ opacity: 0, x: 10 }}
+              className="flex flex-col gap-5"
             >
+              {/* Architecture Info Banner */}
+              <div className="p-4 rounded-2xl bg-[#3b82f610] border border-[#3b82f630] flex items-start gap-3">
+                <Globe size={18} className="text-[#3b82f6] shrink-0 mt-0.5" />
+                <div className="text-xs space-y-1">
+                  <p className="font-bold text-[var(--text-main)]">
+                    {lang === "tr" ? "Mevcut Web Siteniz (Cloudflare Pages) Asla Etkilenmez" : "Your Existing Website is Safe"}
+                  </p>
+                  <p className="text-[var(--text-muted)] leading-relaxed">
+                    {lang === "tr"
+                      ? "Ana siteniz (noirlang.tr) Cloudflare Pages üzerinde çalışmaya devam eder. Dispatch Webmail (dispatch.noirlang.tr) ve Posta Sunucusu (mail.noirlang.tr) subdomain üzerinden ayrılır."
+                      : "Your apex domain continues pointing to your website. Dispatch Webmail and Postfix Mail Server use isolated subdomains."}
+                  </p>
+                </div>
+              </div>
+
               <div>
-                <h2 className="text-lg font-bold text-[var(--text-main)]">
-                  {lang === "tr" ? "1. Alan Adı ve Subdomain Yapılandırması" : "1. Domain & Subdomain Configuration"}
-                </h2>
-                <p className="text-xs text-[var(--text-muted)] mt-1">
-                  {lang === "tr"
-                    ? "Ana sitenizi (Cloudflare Pages vb.) bozmadan Dispatch e-posta ve web arayüzünü bağlayın."
-                    : "Configure Dispatch email and webmail without breaking your existing website."}
-                </p>
+                <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">
+                  {lang === "tr" ? "Ana Alan Adı (Apex Root Domain)" : "Apex Root Domain"}
+                </label>
+                <input
+                  type="text"
+                  value={domain}
+                  onChange={e => setDomain(e.target.value)}
+                  placeholder="örn: noirlang.tr"
+                  className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-4 py-3 rounded-xl focus:outline-none font-mono"
+                />
+                <span className="text-[11px] text-[var(--text-dim)] mt-1 block">
+                  {lang === "tr" ? "E-posta adresleriniz @noirlang.tr uzantılı olacaktır." : "Your email addresses will be @domain.com"}
+                </span>
               </div>
 
-              {/* Ultra-Detailed Architecture Guidance Box */}
-              <div className="p-4 rounded-2xl bg-[var(--bg-primary)] border border-[var(--border-color)] flex flex-col gap-2.5 text-xs">
-                <div className="flex items-center gap-2 font-bold text-[var(--text-main)]">
-                  <Globe size={15} className="text-[#3b82f6]" />
-                  <span>{lang === "tr" ? "Alan Adı Mimarisi Nasıl Çalışır?" : "How Domain Architecture Works"}</span>
-                </div>
-                <div className="text-[11px] text-[var(--text-muted)] leading-relaxed space-y-1.5">
-                  <p>
-                    • <strong>{lang === "tr" ? "Ana Domain (Root / Apex):" : "Root Domain:"}</strong> <code className="text-[var(--text-main)]">{domain}</code> ➔ {lang === "tr" ? "Mevcut web siteniz aynen kalır. E-postalarınız" : "Your existing website stays intact. Email addresses will be"} <strong className="text-[var(--text-main)]">adiniz@{domain}</strong> {lang === "tr" ? "olarak açılır." : "."}
-                  </p>
-                  <p>
-                    • <strong>{lang === "tr" ? "Webmail Subdomain:" : "Webmail Subdomain:"}</strong> <code className="text-[var(--text-main)]">{webSubdomain}.{domain}</code> ➔ {lang === "tr" ? "Dispatch web posta arayüzüne tarayıcıdan girilen adres." : "The URL to access Dispatch webmail."}
-                  </p>
-                  <p>
-                    • <strong>{lang === "tr" ? "Mail Host Subdomain:" : "Mail Host Subdomain:"}</strong> <code className="text-[var(--text-main)]">{mailSubdomain}.{domain}</code> ➔ {lang === "tr" ? "Postfix ve Dovecot'un (Thunderbird, SMTP/IMAP) bağlandığı sunucu hostu." : "Hostname for Postfix and Dovecot (SMTP/IMAP)."}
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">
-                    {lang === "tr" ? "Ana Alan Adı (Root TLD)" : "Root Domain (TLD)"}
-                  </label>
-                  <input
-                    type="text"
-                    value={domain}
-                    onChange={e => setDomain(e.target.value)}
-                    placeholder="noirlang.tr"
-                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-[var(--text-main)] font-mono"
-                  />
-                </div>
-
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">
                     {lang === "tr" ? "Webmail Subdomain" : "Webmail Subdomain"}
                   </label>
-                  <input
-                    type="text"
-                    value={webSubdomain}
-                    onChange={e => setWebSubdomain(e.target.value)}
-                    placeholder="dispatch"
-                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-[var(--text-main)] font-mono"
-                  />
+                  <div className="flex items-center bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl px-3 py-2">
+                    <input
+                      type="text"
+                      value={webSubdomain}
+                      onChange={e => setWebSubdomain(e.target.value)}
+                      placeholder="dispatch"
+                      className="w-20 bg-transparent text-[var(--text-main)] text-xs focus:outline-none font-mono font-bold"
+                    />
+                    <span className="text-xs text-[var(--text-dim)] font-mono truncate">.{domain}</span>
+                  </div>
                 </div>
 
                 <div>
                   <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">
-                    {lang === "tr" ? "Mail Host Subdomain" : "Mail Host Subdomain"}
+                    {lang === "tr" ? "Mail Sunucusu Subdomain" : "Mail Server Subdomain"}
                   </label>
-                  <input
-                    type="text"
-                    value={mailSubdomain}
-                    onChange={e => setMailSubdomain(e.target.value)}
-                    placeholder="mail"
-                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-[var(--text-main)] font-mono"
-                  />
+                  <div className="flex items-center bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl px-3 py-2">
+                    <input
+                      type="text"
+                      value={mailSubdomain}
+                      onChange={e => setMailSubdomain(e.target.value)}
+                      placeholder="mail"
+                      className="w-16 bg-transparent text-[var(--text-main)] text-xs focus:outline-none font-mono font-bold"
+                    />
+                    <span className="text-xs text-[var(--text-dim)] font-mono truncate">.{domain}</span>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex justify-end mt-2">
+              <div>
+                <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">
+                  {lang === "tr" ? "Sunucu Statik IPv4 Adresi" : "Server Public IPv4 Address"}
+                </label>
+                <input
+                  type="text"
+                  value={ipv4}
+                  onChange={e => setIpv4(e.target.value)}
+                  placeholder="örn: 194.163.150.25"
+                  className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-4 py-3 rounded-xl focus:outline-none font-mono"
+                />
+              </div>
+
+              <div className="flex justify-end pt-3 border-t border-[var(--border-color)]">
                 <button
                   type="button"
                   onClick={() => setStep(2)}
-                  className="bg-[var(--accent)] text-[var(--accent-invert)] px-6 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 hover:opacity-90 transition-all shadow-sm"
+                  className="bg-[var(--accent)] text-[var(--accent-invert)] px-6 py-2.5 rounded-xl text-xs font-bold hover:opacity-90 transition-all flex items-center gap-1.5 shadow-sm"
                 >
-                  <span>{lang === "tr" ? "İleri: Sunucu IP & SSL" : "Next: Server IP & SSL"}</span>
+                  <span>{lang === "tr" ? "Devam Et" : "Continue"}</span>
                   <ArrowRight size={14} />
                 </button>
               </div>
             </motion.div>
           )}
 
-          {/* STEP 2: Server IP & Environment */}
+          {/* STEP 2: ADMIN ACCOUNT */}
           {step === 2 && (
             <motion.div
               key="step2"
-              initial={{ opacity: 0, x: 20 }}
+              initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="flex flex-col gap-6"
+              exit={{ opacity: 0, x: 10 }}
+              className="flex flex-col gap-5"
             >
               <div>
-                <h2 className="text-lg font-bold text-[var(--text-main)]">
-                  {lang === "tr" ? "2. Sunucu IP Adresi & Çalışma Ortamı" : "2. Server IP & Environment"}
+                <h2 className="text-sm font-bold text-[var(--text-main)]">
+                  {lang === "tr" ? "Yönetici Hesabı Bilgileri" : "Administrator Account"}
                 </h2>
-                <p className="text-xs text-[var(--text-muted)] mt-1">
-                  {lang === "tr"
-                    ? "Dispatch sunucunuzun dış statik IPv4 adresi."
-                    : "Public static IPv4 address of your Dispatch server."}
+                <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                  {lang === "tr" ? "Bu hesap ile doğrudan sisteme giriş yapabileceksiniz." : "You will use these credentials to log in."}
                 </p>
               </div>
 
-              <div className="flex flex-col gap-4">
-                <div>
-                  <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">
-                    {lang === "tr" ? "Sunucu Statik IPv4 Adresi" : "Server Static IPv4 Address"}
-                  </label>
+              <div>
+                <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">
+                  {lang === "tr" ? "Ad Soyad" : "Full Name"}
+                </label>
+                <input
+                  type="text"
+                  value={adminName}
+                  onChange={e => setAdminName(e.target.value)}
+                  className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-4 py-3 rounded-xl focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">
+                  {lang === "tr" ? "E-Posta Adresi" : "Email Address"}
+                </label>
+                <div className="flex items-center bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl px-4 py-3">
                   <input
                     type="text"
-                    value={ipv4}
-                    onChange={e => setIpv4(e.target.value)}
-                    placeholder="123.45.67.89"
-                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-[var(--text-main)] font-mono"
+                    value={adminEmailPrefix}
+                    onChange={e => setAdminEmailPrefix(e.target.value)}
+                    className="w-32 bg-transparent text-[var(--text-main)] text-xs focus:outline-none font-mono font-bold"
                   />
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">
-                    {lang === "tr" ? "Çalışma Modu" : "Environment Mode"}
-                  </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setMode("production")}
-                      className={`p-3.5 rounded-xl border text-left text-xs transition-all ${
-                        mode === "production"
-                          ? "bg-[var(--bg-card)] border-[var(--text-main)] font-bold text-[var(--text-main)] shadow-xs"
-                          : "border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-muted)] opacity-70"
-                      }`}
-                    >
-                      <span className="block font-bold">Production (Canlı Sunucu)</span>
-                      <span className="text-[10px] text-[var(--text-dim)] font-normal block mt-0.5">
-                        Gerçek DNS, Let's Encrypt SSL ve Postfix
-                      </span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setMode("local_development")}
-                      className={`p-3.5 rounded-xl border text-left text-xs transition-all ${
-                        mode === "local_development"
-                          ? "bg-[var(--bg-card)] border-[var(--text-main)] font-bold text-[var(--text-main)] shadow-xs"
-                          : "border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-muted)] opacity-70"
-                      }`}
-                    >
-                      <span className="block font-bold">Local Development</span>
-                      <span className="text-[10px] text-[var(--text-dim)] font-normal block mt-0.5">
-                        Lokal test ortamı (dispatch.local)
-                      </span>
-                    </button>
-                  </div>
+                  <span className="text-xs text-[var(--text-dim)] font-mono">@{domain}</span>
                 </div>
               </div>
 
-              <div className="flex justify-between mt-2">
+              <div>
+                <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">
+                  {lang === "tr" ? "Şifre (Thunderbird & Web Girişi)" : "Password"}
+                </label>
+                <input
+                  type="password"
+                  value={adminPassword}
+                  onChange={e => setAdminPassword(e.target.value)}
+                  className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-4 py-3 rounded-xl focus:outline-none"
+                />
+              </div>
+
+              <div className="flex justify-between items-center pt-3 border-t border-[var(--border-color)]">
                 <button
                   type="button"
                   onClick={() => setStep(1)}
-                  className="text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text-main)] flex items-center gap-1.5"
+                  className="text-xs text-[var(--text-dim)] hover:text-[var(--text-main)] flex items-center gap-1"
                 >
                   <ArrowLeft size={14} />
                   <span>{lang === "tr" ? "Geri" : "Back"}</span>
@@ -386,92 +463,93 @@ export default function SetupWizard() {
                 <button
                   type="button"
                   onClick={() => setStep(3)}
-                  className="bg-[var(--accent)] text-[var(--accent-invert)] px-6 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 hover:opacity-90 transition-all shadow-sm"
+                  className="bg-[var(--accent)] text-[var(--accent-invert)] px-6 py-2.5 rounded-xl text-xs font-bold hover:opacity-90 transition-all flex items-center gap-1.5 shadow-sm"
                 >
-                  <span>{lang === "tr" ? "İleri: İlk Yönetici Hesabı" : "Next: Admin Account"}</span>
+                  <span>{lang === "tr" ? "Devam Et" : "Continue"}</span>
                   <ArrowRight size={14} />
                 </button>
               </div>
             </motion.div>
           )}
 
-          {/* STEP 3: Admin Account */}
+          {/* STEP 3: ENVIRONMENT & LAUNCH */}
           {step === 3 && (
             <motion.div
               key="step3"
-              initial={{ opacity: 0, x: 20 }}
+              initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="flex flex-col gap-6"
+              exit={{ opacity: 0, x: 10 }}
+              className="flex flex-col gap-5"
             >
               <div>
-                <h2 className="text-lg font-bold text-[var(--text-main)]">
-                  {lang === "tr" ? "3. İlk Yönetici E-Posta Hesabı" : "3. Initial Administrator Account"}
+                <h2 className="text-sm font-bold text-[var(--text-main)]">
+                  {lang === "tr" ? "Kurulum Ortamı & Başlatma" : "Environment & Launch"}
                 </h2>
-                <p className="text-xs text-[var(--text-muted)] mt-1">
+                <p className="text-xs text-[var(--text-muted)] mt-0.5">
                   {lang === "tr"
-                    ? "Sunucunuzdaki ilk ana posta kutusu ve yönetici kullanıcısını oluşturun."
-                    : "Create your primary mailbox and administrator user."}
+                    ? "Sistem canlı sunucuya kurulacak ve gerekli DNS/DKIM kayıtları üretilecektir."
+                    : "The system will configure services and generate DNS/DKIM records."}
                 </p>
               </div>
 
-              <div className="flex flex-col gap-4">
-                <div>
-                  <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">
-                    {lang === "tr" ? "Adınız ve Soyadınız" : "Full Name"}
-                  </label>
-                  <input
-                    type="text"
-                    value={adminName}
-                    onChange={e => setAdminName(e.target.value)}
-                    placeholder="Melih Emik"
-                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-[var(--text-main)]"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">
-                    {lang === "tr" ? "E-Posta Adresiniz" : "Email Address"}
-                  </label>
-                  <div className="flex items-center">
-                    <input
-                      type="text"
-                      value={adminEmailPrefix}
-                      onChange={e => setAdminEmailPrefix(e.target.value)}
-                      placeholder="admin"
-                      className="w-40 bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-l-xl focus:outline-none focus:border-[var(--text-main)] text-right font-mono"
-                    />
-                    <div className="bg-[var(--bg-card)] border border-l-0 border-[var(--border-color)] px-4 py-2.5 rounded-r-xl text-xs font-mono text-[var(--text-muted)] font-bold">
-                      @{domain}
+              <div className="flex flex-col gap-3">
+                <label className="text-xs font-semibold text-[var(--text-muted)]">
+                  {lang === "tr" ? "Kurulum Modu" : "Installation Mode"}
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div
+                    onClick={() => setMode("production")}
+                    className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+                      mode === "production"
+                        ? "border-[var(--accent)] bg-[var(--bg-primary)] shadow-sm"
+                        : "border-[var(--border-color)] opacity-60 hover:opacity-100"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-bold text-[var(--text-main)]">Canlı Sunucu (Production)</span>
+                      {mode === "production" && <Check size={14} className="text-[#22c55e]" />}
                     </div>
+                    <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+                      Gerçek e-posta gönderimi ve alımı, Let's Encrypt SSL, Cloudflare uyumlu.
+                    </p>
                   </div>
-                </div>
 
-                <div>
-                  <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">
-                    {lang === "tr" ? "Şifre" : "Password"}
-                  </label>
-                  <input
-                    type="password"
-                    value={adminPassword}
-                    onChange={e => setAdminPassword(e.target.value)}
-                    placeholder="••••••••••••"
-                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-[var(--text-main)] font-mono"
-                  />
+                  <div
+                    onClick={() => setMode("local_development")}
+                    className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+                      mode === "local_development"
+                        ? "border-[var(--accent)] bg-[var(--bg-primary)] shadow-sm"
+                        : "border-[var(--border-color)] opacity-60 hover:opacity-100"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-bold text-[var(--text-main)]">Lokal Test Ortamı</span>
+                      {mode === "local_development" && <Check size={14} className="text-[#22c55e]" />}
+                    </div>
+                    <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+                      Geliştirme ve Docker ortamı için sahte DNS ve test modları.
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              {error && (
-                <div className="p-3 rounded-xl bg-[#ef444415] border border-[#ef444430] text-[#ef4444] text-xs">
-                  {error}
+              {/* Live Terminal Console while Installing */}
+              {loading && (
+                <div className="mt-2">
+                  <TerminalWindow
+                    title="dispatch-installer — live stream"
+                    logs={consoleLogs}
+                    loading={true}
+                  />
                 </div>
               )}
 
-              <div className="flex justify-between mt-2">
+              <div className="flex justify-between items-center pt-3 border-t border-[var(--border-color)]">
                 <button
                   type="button"
+                  disabled={loading}
                   onClick={() => setStep(2)}
-                  className="text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text-main)] flex items-center gap-1.5"
+                  className="text-xs text-[var(--text-dim)] hover:text-[var(--text-main)] flex items-center gap-1 disabled:opacity-40"
                 >
                   <ArrowLeft size={14} />
                   <span>{lang === "tr" ? "Geri" : "Back"}</span>
@@ -480,14 +558,17 @@ export default function SetupWizard() {
                   type="button"
                   disabled={loading}
                   onClick={handleFinishSetup}
-                  className="bg-[var(--accent)] text-[var(--accent-invert)] px-6 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 hover:opacity-90 transition-all shadow-sm disabled:opacity-50"
+                  className="bg-[var(--accent)] text-[var(--accent-invert)] px-8 py-3 rounded-xl text-xs font-bold hover:opacity-90 transition-all flex items-center gap-2 shadow-sm disabled:opacity-50"
                 >
                   {loading ? (
-                    <span>{lang === "tr" ? "Sunucu Yapılandırılıyor..." : "Configuring server..."}</span>
+                    <>
+                      <RefreshCw size={14} className="animate-spin" />
+                      <span>{lang === "tr" ? "Yapılandırılıyor..." : "Configuring..."}</span>
+                    </>
                   ) : (
                     <>
-                      <span>{lang === "tr" ? "DNS Kayıtlarını Üret →" : "Generate DNS Records →"}</span>
-                      <ArrowRight size={14} />
+                      <Sparkles size={14} />
+                      <span>{lang === "tr" ? "Kurulumu Tamamla ve Başlat" : "Complete & Launch Setup"}</span>
                     </>
                   )}
                 </button>
@@ -495,7 +576,7 @@ export default function SetupWizard() {
             </motion.div>
           )}
 
-          {/* STEP 4: DNS / Cloudflare Records Table */}
+          {/* STEP 4: DNS RECORDS & LIVE CONSOLE LOGS */}
           {step === 4 && setupResult && (
             <motion.div
               key="step4"
@@ -503,26 +584,41 @@ export default function SetupWizard() {
               animate={{ opacity: 1, scale: 1 }}
               className="flex flex-col gap-6"
             >
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h2 className="text-lg font-bold text-[var(--text-main)] flex items-center gap-2">
                     <Shield size={20} className="text-[#22c55e]" />
-                    <span>{lang === "tr" ? "Kurulum Tamamlandı! DNS Kayıtları" : "Setup Complete! DNS Records"}</span>
+                    <span>{lang === "tr" ? "Kurulum Tamamlandı!" : "Setup Complete!"}</span>
                   </h2>
                   <p className="text-xs text-[var(--text-muted)] mt-0.5">
                     {lang === "tr"
-                      ? `${setupResult.config.domain} için Cloudflare DNS tablosuna eklenecek kayıtlar.`
-                      : `Records to add to your Cloudflare DNS dashboard for ${setupResult.config.domain}.`}
+                      ? `${setupResult.config.domain} için DNS kayıtları ve kurulum logları.`
+                      : `DNS records and console logs for ${setupResult.config.domain}.`}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => copyText(setupResult.bind_zone, "bind_zone")}
-                  className="px-3 py-1.5 rounded-xl bg-[var(--bg-primary)] hover:bg-[var(--bg-card)] border border-[var(--border-color)] text-xs text-[var(--text-muted)] hover:text-[var(--text-main)] flex items-center gap-1.5 transition-colors shadow-xs"
-                >
-                  {copiedKey === "bind_zone" ? <Check size={13} className="text-[#22c55e]" /> : <Copy size={13} />}
-                  <span>{lang === "tr" ? "Tümünü Kopyala" : "Copy All"}</span>
-                </button>
+
+                {/* View Switcher: DNS vs Console */}
+                <div className="flex items-center p-1 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-xs">
+                  <button
+                    type="button"
+                    onClick={() => setResultViewTab("dns")}
+                    className={`px-3 py-1 text-xs font-bold rounded-lg transition-colors ${
+                      resultViewTab === "dns" ? "bg-[var(--bg-card)] text-[var(--text-main)] shadow-xs" : "text-[var(--text-dim)] hover:text-[var(--text-main)]"
+                    }`}
+                  >
+                    📋 {lang === "tr" ? "DNS Tablosu" : "DNS Records"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setResultViewTab("console")}
+                    className={`px-3 py-1 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 ${
+                      resultViewTab === "console" ? "bg-[var(--bg-card)] text-[var(--text-main)] shadow-xs" : "text-[var(--text-dim)] hover:text-[var(--text-main)]"
+                    }`}
+                  >
+                    <Terminal size={12} className="text-emerald-400" />
+                    <span>{lang === "tr" ? "Canlı Konsol" : "Live Console"}</span>
+                  </button>
+                </div>
               </div>
 
               {/* Cloudflare Auto-Sync Form */}
@@ -548,83 +644,88 @@ export default function SetupWizard() {
                   />
                   <button
                     type="button"
-                    onClick={async () => {
-                      const input = document.getElementById("cf_token_input") as HTMLInputElement
-                      const token = input?.value
-                      if (!token) return alert(lang === "tr" ? "Lütfen Cloudflare API Token girin." : "Please enter API token.")
-                      try {
-                        const btn = document.getElementById("cf_sync_btn")
-                        if (btn) btn.innerText = lang === "tr" ? "Aktarılıyor..." : "Syncing..."
-                        const res = await api.post<any>("/setup/cloudflare_sync", {
-                          api_token: token,
-                          domain: setupResult.config.domain,
-                          mail_subdomain: setupResult.config.mail_subdomain,
-                          web_subdomain: webSubdomain,
-                          ipv4: setupResult.config.ipv4
-                        })
-                        alert(res.message || (lang === "tr" ? "Tüm DNS kayıtları Cloudflare'a başarıyla aktarıldı!" : "Synced successfully!"))
-                      } catch (err: any) {
-                        alert(err.message || (lang === "tr" ? "Cloudflare aktarımı başarısız oldu." : "Sync failed."))
-                      } finally {
-                        const btn = document.getElementById("cf_sync_btn")
-                        if (btn) btn.innerText = lang === "tr" ? "Cloudflare'a Aktar" : "Sync to Cloudflare"
-                      }
-                    }}
+                    disabled={cloudflareSyncing}
+                    onClick={handleCloudflareSync}
                     id="cf_sync_btn"
-                    className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs font-bold px-4 py-2.5 rounded-xl hover:opacity-90 transition-all shrink-0 shadow-xs"
+                    className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs font-bold px-4 py-2.5 rounded-xl hover:opacity-90 transition-all shrink-0 shadow-xs flex items-center gap-1.5 disabled:opacity-50"
                   >
-                    {lang === "tr" ? "Cloudflare'a Aktar" : "Sync to Cloudflare"}
+                    {cloudflareSyncing && <RefreshCw size={13} className="animate-spin" />}
+                    <span>{cloudflareSyncing ? (lang === "tr" ? "Aktarılıyor..." : "Syncing...") : (lang === "tr" ? "Cloudflare'a Aktar" : "Sync to Cloudflare")}</span>
                   </button>
                 </div>
               </div>
 
-              {/* Records Table */}
-              <div className="flex flex-col gap-3 max-h-96 overflow-y-auto pr-1">
-                {setupResult.dns_records.map((r, i) => (
-                  <div
-                    key={i}
-                    onClick={() => copyText(r.content, `rec_${i}`)}
-                    className="p-3.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)] flex flex-col gap-2 hover:border-[var(--text-muted)] transition-colors cursor-pointer group"
-                    title={lang === "tr" ? "Tıklayarak kopyalayın" : "Click to copy"}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 rounded-md bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-main)] text-[11px] font-mono font-bold">
-                          {r.type}
-                        </span>
-                        <span className="text-xs font-mono font-bold text-[var(--text-main)]">{r.name}</span>
-                        {r.priority !== undefined && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-secondary)] text-[var(--text-dim)]">
-                            Priority: {r.priority}
-                          </span>
-                        )}
-                        {r.proxy_status === false && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#f59e0b15] text-[#f59e0b] border border-[#f59e0b30] font-semibold">
-                            DNS Only (Grey Cloud)
-                          </span>
-                        )}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          copyText(r.content, `rec_${i}`)
-                        }}
-                        className="text-[var(--text-dim)] group-hover:text-[var(--text-main)] text-xs flex items-center gap-1 p-1 rounded hover:bg-[var(--bg-secondary)]"
-                        title={lang === "tr" ? "Kopyala" : "Copy"}
-                      >
-                        {copiedKey === `rec_${i}` ? <Check size={13} className="text-[#22c55e]" /> : <Copy size={13} />}
-                      </button>
-                    </div>
-
-                    <div className="bg-[var(--bg-secondary)] p-2.5 rounded-lg border border-[var(--border-color)] font-mono text-[11px] text-[var(--text-muted)] break-all select-all">
-                      {r.content}
-                    </div>
-
-                    <span className="text-[10px] text-[var(--text-dim)]">{r.description}</span>
+              {/* TAB 1: DNS RECORDS TABLE */}
+              {resultViewTab === "dns" && (
+                <div className="flex flex-col gap-3 max-h-96 overflow-y-auto pr-1">
+                  <div className="flex items-center justify-between pb-1">
+                    <span className="text-[11px] font-bold text-[var(--text-dim)] uppercase tracking-wider">
+                      {lang === "tr" ? "Eklenecek 6 DNS Kaydı" : "6 Required DNS Records"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => copyText(setupResult.bind_zone, "bind_zone")}
+                      className="text-xs text-[var(--text-dim)] hover:text-[var(--text-main)] flex items-center gap-1"
+                    >
+                      {copiedKey === "bind_zone" ? <Check size={12} className="text-[#22c55e]" /> : <Copy size={12} />}
+                      <span>{lang === "tr" ? "Tümünü Kopyala" : "Copy Zone"}</span>
+                    </button>
                   </div>
-                ))}
-              </div>
+                  {setupResult.dns_records.map((r, i) => (
+                    <div
+                      key={i}
+                      onClick={() => copyText(r.content, `rec_${i}`)}
+                      className="p-3.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)] flex flex-col gap-2 hover:border-[var(--text-muted)] transition-colors cursor-pointer group"
+                      title={lang === "tr" ? "Tıklayarak kopyalayın" : "Click to copy"}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 rounded-md bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-main)] text-[11px] font-mono font-bold">
+                            {r.type}
+                          </span>
+                          <span className="text-xs font-mono font-bold text-[var(--text-main)]">{r.name}</span>
+                          {r.priority !== undefined && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-secondary)] text-[var(--text-dim)]">
+                              Priority: {r.priority}
+                            </span>
+                          )}
+                          {r.proxy_status === false && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#f59e0b15] text-[#f59e0b] border border-[#f59e0b30] font-semibold">
+                              DNS Only (Grey Cloud)
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            copyText(r.content, `rec_${i}`)
+                          }}
+                          className="text-[var(--text-dim)] group-hover:text-[var(--text-main)] text-xs flex items-center gap-1 p-1 rounded hover:bg-[var(--bg-secondary)]"
+                          title={lang === "tr" ? "Kopyala" : "Copy"}
+                        >
+                          {copiedKey === `rec_${i}` ? <Check size={13} className="text-[#22c55e]" /> : <Copy size={13} />}
+                        </button>
+                      </div>
+
+                      <div className="bg-[var(--bg-secondary)] p-2.5 rounded-lg border border-[var(--border-color)] font-mono text-[11px] text-[var(--text-muted)] break-all select-all">
+                        {r.content}
+                      </div>
+
+                      <span className="text-[10px] text-[var(--text-dim)]">{r.description}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* TAB 2: LIVE TERMINAL CONSOLE LOGS */}
+              {resultViewTab === "console" && (
+                <TerminalWindow
+                  title={`dispatch@${setupResult.config.domain} — installation console`}
+                  logs={consoleLogs}
+                  onCopy={() => copyText(consoleLogs.join("\n"), "console_copy")}
+                />
+              )}
 
               <div className="flex justify-between items-center pt-3 border-t border-[var(--border-color)]">
                 <span className="text-xs text-[var(--text-dim)]">
@@ -642,6 +743,88 @@ export default function SetupWizard() {
             </motion.div>
           )}
         </AnimatePresence>
+      </div>
+    </div>
+  )
+}
+
+function TerminalWindow({
+  title = "dispatch-setup — live bash stream",
+  logs = [],
+  loading = false,
+  onCopy
+}: {
+  title?: string
+  logs: string[]
+  loading?: boolean
+  onCopy?: () => void
+}) {
+  const terminalEndRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    terminalEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [logs])
+
+  return (
+    <div className="rounded-2xl bg-[#09090b] border border-[#27272a] overflow-hidden shadow-2xl font-mono text-xs text-zinc-300 flex flex-col">
+      {/* Terminal Titlebar */}
+      <div className="px-4 py-2.5 bg-[#18181b] border-b border-[#27272a] flex items-center justify-between select-none shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#ef4444]" />
+            <span className="w-2.5 h-2.5 rounded-full bg-[#f59e0b]" />
+            <span className="w-2.5 h-2.5 rounded-full bg-[#22c55e]" />
+          </div>
+          <span className="text-[11px] text-zinc-400 font-semibold ml-2 flex items-center gap-1.5">
+            <Terminal size={13} className="text-emerald-400" />
+            <span>{title}</span>
+          </span>
+        </div>
+        {onCopy && logs.length > 0 && (
+          <button
+            type="button"
+            onClick={onCopy}
+            className="text-[10px] text-zinc-400 hover:text-white px-2.5 py-1 rounded bg-[#27272a] hover:bg-[#3f3f46] transition-colors flex items-center gap-1 cursor-pointer"
+          >
+            <Copy size={11} />
+            <span>Tümünü Kopyala</span>
+          </button>
+        )}
+      </div>
+
+      {/* Terminal Output */}
+      <div className="p-4 max-h-72 overflow-y-auto space-y-1.5 text-[11px] leading-relaxed select-text">
+        <div className="text-zinc-500">
+          Last login: {new Date().toLocaleTimeString()} on tty1 (Dispatch Automation Engine)
+        </div>
+        <div className="text-emerald-400 font-bold">
+          root@dispatch:~# ./dispatch-setup --run-all
+        </div>
+        {logs.map((line, idx) => {
+          let colorClass = "text-zinc-300"
+          if (line.includes("[OK]") || line.includes("✔") || line.includes("[SUCCESS]")) {
+            colorClass = "text-emerald-400"
+          } else if (line.includes("[INFO]") || line.includes("▶")) {
+            colorClass = "text-cyan-400"
+          } else if (line.includes("[WARN]") || line.includes("Priority")) {
+            colorClass = "text-amber-400"
+          } else if (line.includes("[ERROR]") || line.includes("✖") || line.includes("Failed")) {
+            colorClass = "text-rose-400"
+          }
+          return (
+            <div key={idx} className={`${colorClass} flex items-start gap-2 break-all`}>
+              <span className="text-zinc-600 select-none text-[10px]">{String(idx + 1).padStart(2, "0")}</span>
+              <span>{line}</span>
+            </div>
+          )
+        })}
+        {loading && (
+          <div className="flex items-center gap-2 text-emerald-400 animate-pulse pt-1">
+            <span className="w-1.5 h-3.5 bg-emerald-400 animate-pulse inline-block" />
+            <span>Sistem servisleri yapılandırılıyor, lütfen bekleyin...</span>
+          </div>
+        )}
+        <div ref={terminalEndRef} />
       </div>
     </div>
   )

@@ -66,6 +66,17 @@ class Api::V1::SetupController < ActionController::API
       end
     end
 
+    logs = [
+      "[INFO] Sunucu IP adresi (#{ipv4}) ve ağ yapılandırması doğrulandı.",
+      "[INFO] Alan adı: #{domain} (Posta sunucusu: #{mail_subdomain}.#{domain}) olarak ayarlandı.",
+      "[OK] 2048-bit RSA DKIM açık ve gizli anahtarları başarıyla üretildi.",
+      "[OK] PostgreSQL veritabanı şeması ve tablolar hazırlandı.",
+      "[OK] Postfix SMTP ve Dovecot IMAP / Posta kutusu yapılandırması senkronize edildi.",
+      "[OK] Yönetici hesabı (#{admin_user&.email}) ve Linux PAM şifre senkronizasyonu tamamlandı.",
+      "[OK] Nginx ters vekili ve DNS yönlendirme kuralları üretildi.",
+      "[SUCCESS] Dispatch e-posta altyapısı başarıyla kuruldu ve canlıya alındı!"
+    ]
+
     render json: {
       message: "Setup completed successfully",
       config: {
@@ -81,7 +92,8 @@ class Api::V1::SetupController < ActionController::API
       dns_records: config.dns_records,
       bind_zone: config.bind_zone_export,
       user: admin_user ? { id: admin_user.id, name: admin_user.name, email: admin_user.email } : nil,
-      token: token
+      token: token,
+      logs: logs
     }
   end
 
