@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "../../lib/api"
 import { useT } from "../../store/themeAndLocale"
 import { formatDistanceToNow, format } from "date-fns"
-import { Plus, ExternalLink, Rss, BookOpen, Clock, Check, X, RefreshCw } from "lucide-react"
+import { Plus, ExternalLink, Rss, BookOpen, Clock, X } from "lucide-react"
 import DOMPurify from "dompurify"
 
 interface RssItem {

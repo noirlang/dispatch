@@ -10,8 +10,6 @@ import {
   eachDayOfInterval,
   endOfWeek,
   isToday,
-  setHours,
-  setMinutes
 } from "date-fns"
 import {
   ChevronLeft,
@@ -19,7 +17,7 @@ import {
   Plus,
   Calendar as CalIcon,
   MapPin,
-  Clock,
+  
   Trash2,
   X,
   Edit2
@@ -58,7 +56,7 @@ export default function CalendarView() {
     color: "#22c55e",
   })
 
-  const { data: events = [], isLoading } = useQuery({
+  const { data: events = [] } = useQuery({
     queryKey: ["calendar", weekStart.toISOString()],
     queryFn: () =>
       api.get<CalEvent[]>(

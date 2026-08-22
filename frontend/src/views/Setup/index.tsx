@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { api } from "../../lib/api"
 import { useAuth } from "../../store/auth"
 import { useNavigate } from "react-router-dom"
-import { Check, Copy, Server, Globe, Shield, Terminal, ArrowRight, ArrowLeft } from "lucide-react"
+import { Check, Copy, Server, Shield, ArrowRight, ArrowLeft } from "lucide-react"
 
 interface DnsRecord {
   type: string

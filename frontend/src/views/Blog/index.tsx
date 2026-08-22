@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom"
 import { formatDistanceToNow, format } from "date-fns"
 import SenderAvatar from "../../components/ui/SenderAvatar"
 import ReactMarkdown from "react-markdown"
-import { ArrowLeft, BookOpen, Clock, Globe } from "lucide-react"
+import { ArrowLeft, BookOpen, Clock } from "lucide-react"
 
 const BLOG_API = import.meta.env.VITE_API_URL || "http://localhost:3000"
 

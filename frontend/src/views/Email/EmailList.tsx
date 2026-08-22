@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "../../lib/api"
+import { useT } from "../../store/themeAndLocale"
 import { formatDistanceToNow } from "date-fns"
 import SenderAvatar from "../../components/ui/SenderAvatar"
 import { Search, GitMerge, CheckSquare, Square } from "lucide-react"
@@ -24,6 +25,7 @@ interface Props {
 }
 
 export default function EmailList({ folder, selectedId, onSelect }: Props) {
+  const t = useT()
   const qc = useQueryClient()
   const [search, setSearch] = useState("")
   const [multiSelectMode, setMultiSelectMode] = useState(false)
@@ -60,17 +62,17 @@ export default function EmailList({ folder, selectedId, onSelect }: Props) {
   })
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-[var(--bg-primary)]">
       {/* Search & Actions Header */}
-      <div className="p-2 border-b border-[#1a1a1a] flex flex-col gap-2 shrink-0">
-        <div className="flex items-center gap-1.5 px-2 py-1 bg-[#111] border border-[#222] rounded text-xs">
-          <Search size={12} className="text-[#555]" />
+      <div className="p-3 border-b border-[var(--border-color)] flex flex-col gap-2.5 shrink-0 bg-[var(--bg-secondary)]">
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl text-xs shadow-xs">
+          <Search size={13} className="text-[var(--text-dim)]" />
           <input
             type="text"
-            placeholder="Search emails..."
+            placeholder={t("search")}
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full bg-transparent text-white placeholder-[#555] focus:outline-none text-xs"
+            className="w-full bg-transparent text-[var(--text-main)] placeholder-[var(--text-dim)] focus:outline-none text-xs"
           />
         </div>
 
@@ -80,54 +82,58 @@ export default function EmailList({ folder, selectedId, onSelect }: Props) {
               setMultiSelectMode(m => !m)
               setSelectedIds([])
             }}
-            className={`text-[11px] flex items-center gap-1 transition-colors ${
-              multiSelectMode ? "text-white font-medium" : "text-[#555] hover:text-white"
+            className={`text-xs flex items-center gap-1.5 transition-colors font-medium ${
+              multiSelectMode ? "text-[var(--text-main)] font-bold" : "text-[var(--text-dim)] hover:text-[var(--text-main)]"
             }`}
           >
-            {multiSelectMode ? <CheckSquare size={12} /> : <Square size={12} />}
-            <span>Select</span>
+            {multiSelectMode ? <CheckSquare size={13} /> : <Square size={13} />}
+            <span>{t("select")}</span>
           </button>
 
           {multiSelectMode && selectedIds.length >= 2 && (
             <button
               onClick={() => mergeThreads.mutate()}
               disabled={mergeThreads.isPending}
-              className="text-[11px] text-[#44ff88] hover:underline flex items-center gap-1"
+              className="text-xs text-[#22c55e] hover:underline flex items-center gap-1 font-bold"
             >
-              <GitMerge size={11} />
-              <span>Merge ({selectedIds.length})</span>
+              <GitMerge size={12} />
+              <span>{t("merge")} ({selectedIds.length})</span>
             </button>
           )}
         </div>
       </div>
 
-      {/* List */}
+      {/* Email List Items */}
       <div className="flex-1 overflow-y-auto">
-        {isLoading && <div className="p-4 text-[#444] text-xs">Loading messages...</div>}
+        {isLoading && <div className="p-6 text-[var(--text-dim)] text-xs text-center">Loading...</div>}
         {!isLoading && filtered.length === 0 && (
-          <div className="p-4 text-[#444] text-xs text-center">No messages</div>
+          <div className="p-8 text-[var(--text-dim)] text-xs text-center">{t("no_messages")}</div>
         )}
 
         {filtered.map(email => {
           const isChecked = selectedIds.includes(email.id)
+          const isSelected = selectedId === email.id
+
           return (
             <div
               key={email.id}
               onClick={() => onSelect(email.id)}
-              className={`flex items-start gap-2.5 p-3 border-b border-[#111] cursor-pointer transition-colors hover:bg-[#111] ${
-                selectedId === email.id ? "bg-[#1a1a1a]" : ""
+              className={`flex items-start gap-3 p-3.5 border-b border-[var(--border-color)] cursor-pointer transition-all ${
+                isSelected
+                  ? "bg-[var(--bg-secondary)] border-l-4 border-l-[var(--accent)]"
+                  : "hover:bg-[var(--bg-secondary)]"
               }`}
             >
               {multiSelectMode && (
                 <button
                   type="button"
                   onClick={e => toggleSelect(email.id, e)}
-                  className="mt-1 text-[#666] hover:text-white"
+                  className="mt-1 text-[var(--text-dim)] hover:text-[var(--text-main)]"
                 >
                   {isChecked ? (
-                    <CheckSquare size={14} className="text-white" />
+                    <CheckSquare size={15} className="text-[var(--text-main)]" />
                   ) : (
-                    <Square size={14} />
+                    <Square size={15} />
                   )}
                 </button>
               )}
@@ -138,7 +144,7 @@ export default function EmailList({ folder, selectedId, onSelect }: Props) {
                   avatarUrl={email.avatar_url}
                   initials={email.avatar_initials || "?"}
                   name={email.sender_name || email.from}
-                  size={28}
+                  size={32}
                   isKnownCompany={email.is_known_company}
                 />
               </div>
@@ -146,19 +152,21 @@ export default function EmailList({ folder, selectedId, onSelect }: Props) {
               {/* Content */}
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-start gap-1">
-                  <span className={`text-xs truncate ${email.is_read ? "text-[#666]" : "text-white font-medium"}`}>
+                  <span className={`text-xs truncate ${email.is_read ? "text-[var(--text-muted)] font-normal" : "text-[var(--text-main)] font-bold"}`}>
                     {email.sender_name || email.from}
                   </span>
-                  <span className="text-[#333] text-[10px] shrink-0">
+                  <span className="text-[var(--text-dim)] text-[10px] shrink-0 font-mono">
                     {formatDistanceToNow(new Date(email.created_at), { addSuffix: true })}
                   </span>
                 </div>
-                <div className={`text-xs mt-0.5 truncate ${email.is_read ? "text-[#444]" : "text-[#ccc]"}`}>
-                  {email.subject}
+                <div className={`text-xs mt-1 truncate ${email.is_read ? "text-[var(--text-dim)]" : "text-[var(--text-main)] font-medium"}`}>
+                  {email.subject || "(No Subject)"}
                 </div>
               </div>
 
-              {!email.is_read && <div className="w-1.5 h-1.5 bg-white rounded-full shrink-0 mt-2" />}
+              {!email.is_read && (
+                <div className="w-2 h-2 bg-[#3b82f6] rounded-full shrink-0 mt-2" title="Unread" />
+              )}
             </div>
           )
         })}

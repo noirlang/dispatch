@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "../../lib/api"
 import { useT } from "../../store/themeAndLocale"
 import ReactMarkdown from "react-markdown"
-import { Send, X, Eye, Edit3, Sparkles } from "lucide-react"
+import { Send, X, Eye, Edit3 } from "lucide-react"
 
 interface Props {
   initialTo?: string

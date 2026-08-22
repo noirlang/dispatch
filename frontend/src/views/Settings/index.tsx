@@ -2,7 +2,7 @@ import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "../../lib/api"
 import { useAuth } from "../../store/auth"
-import { useAppStore, useT, Theme } from "../../store/themeAndLocale"
+import { useAppStore, useT, type Theme } from "../../store/themeAndLocale"
 import {
   User,
   Users,
@@ -22,7 +22,6 @@ import {
   Laptop,
   Search,
   CheckCircle2,
-  AlertCircle
 } from "lucide-react"
 
 type Tab = "profile" | "appearance" | "contacts" | "speakeasy" | "ai" | "rss" | "security"

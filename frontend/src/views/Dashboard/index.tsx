@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "../../lib/api"
+import { useT } from "../../store/themeAndLocale"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Plane,
@@ -48,6 +49,7 @@ interface DashboardCard {
 }
 
 export default function DashboardView() {
+  const t = useT()
   const qc = useQueryClient()
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
 
@@ -78,50 +80,52 @@ export default function DashboardView() {
 
   function getCardIcon(type: DashboardCard["card_type"]) {
     switch (type) {
-      case "travel":       return <Plane size={16} className="text-[#ffaa00]" />
+      case "travel":       return <Plane size={16} className="text-[#f59e0b]" />
       case "otp":
-      case "verification": return <Key size={16} className="text-[#44ff88]" />
-      case "tracking":     return <Package size={16} className="text-[#6688ff]" />
-      case "invoice":      return <FileText size={16} className="text-[#ff4444]" />
+      case "verification": return <Key size={16} className="text-[#22c55e]" />
+      case "tracking":     return <Package size={16} className="text-[#3b82f6]" />
+      case "invoice":      return <FileText size={16} className="text-[#ef4444]" />
       case "ticket":       return <Ticket size={16} className="text-[#d97706]" />
-      case "bank":         return <Building2 size={16} className="text-[#059669]" />
-      case "meeting":      return <Calendar size={16} className="text-[#7c3aed]" />
-      default:             return <Sparkles size={16} className="text-[#888]" />
+      case "bank":         return <Building2 size={16} className="text-[#10b981]" />
+      case "meeting":      return <Calendar size={16} className="text-[#8b5cf6]" />
+      default:             return <Sparkles size={16} className="text-[var(--text-muted)]" />
     }
   }
 
   return (
-    <div className="h-full flex flex-col bg-[#0a0a0a] overflow-y-auto p-6">
+    <div className="h-full flex flex-col bg-[var(--bg-primary)] overflow-y-auto p-8 max-w-6xl mx-auto animate-fadeIn">
       {/* Dashboard Header */}
-      <div className="flex items-center justify-between mb-8 pb-4 border-b border-[#1a1a1a]">
-        <div>
-          <h1 className="text-xl font-medium text-white flex items-center gap-2">
-            <Sparkles size={18} className="text-white" />
-            <span>Smart Notice Board (Pano)</span>
-          </h1>
-          <p className="text-xs text-[#666] mt-0.5">
-            Key actionable information extracted from your emails by AI
-          </p>
+      <div className="flex items-center justify-between mb-8 pb-6 border-b border-[var(--border-color)]">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)]">
+            <Sparkles size={18} className="text-[var(--text-main)]" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-[var(--text-main)]">{t("dashboard")}</h1>
+            <p className="text-xs text-[var(--text-muted)] mt-0.5">
+              Extracted flight codes, OTPs, tracking numbers, and actionable summaries
+            </p>
+          </div>
         </div>
-        <span className="text-xs text-[#555] px-3 py-1 rounded-full bg-[#111] border border-[#1a1a1a]">
-          {cards.length} active notes
+        <span className="text-xs font-mono font-semibold text-[var(--text-muted)] px-3 py-1.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] shadow-xs">
+          {cards.length} {t("active_notes")}
         </span>
       </div>
 
-      {isLoading && <div className="text-[#555] text-xs py-8 text-center">Analyzing mailbox...</div>}
+      {isLoading && <div className="text-[var(--text-dim)] text-xs py-8 text-center">Loading board...</div>}
 
       {!isLoading && cards.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <Sparkles size={28} className="text-[#333] mb-3" />
-          <h3 className="text-sm font-medium text-[#777]">Your Pano is clear</h3>
-          <p className="text-xs text-[#444] max-w-sm mt-1">
-            When emails containing verification codes, package tracking, flights, or invoices arrive, AI will extract them here.
+        <div className="flex flex-col items-center justify-center py-24 text-center">
+          <Sparkles size={32} className="text-[var(--text-dim)] mb-3 opacity-50" />
+          <h3 className="text-sm font-semibold text-[var(--text-muted)]">No active notices</h3>
+          <p className="text-xs text-[var(--text-dim)] max-w-sm mt-1">
+            When emails containing verification codes, package tracking, or flight tickets arrive, AI extracts them here.
           </p>
         </div>
       )}
 
       {/* Grid of Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
         <AnimatePresence>
           {cards.map(card => (
             <motion.div
@@ -129,39 +133,39 @@ export default function DashboardView() {
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className={`p-5 rounded-xl border flex flex-col justify-between transition-all ${
+              className={`p-6 rounded-2xl border flex flex-col justify-between transition-all shadow-xs ${
                 card.priority === "high"
-                  ? "bg-[#141414] border-[#333] shadow-lg shadow-black"
-                  : "bg-[#111] border-[#1f1f1f]"
+                  ? "bg-[var(--bg-card)] border-[var(--text-main)] shadow-sm"
+                  : "bg-[var(--bg-secondary)] border-[var(--border-color)] hover:border-[var(--text-dim)]"
               }`}
             >
               {/* Card Header */}
               <div>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded-lg bg-[#1a1a1a] border border-[#222]">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)]">
                       {getCardIcon(card.card_type)}
                     </div>
-                    <span className="text-xs uppercase font-medium tracking-wider text-[#aaa]">
+                    <span className="text-xs uppercase font-extrabold tracking-wider text-[var(--text-main)]">
                       {card.card_type}
                     </span>
                     {card.priority === "high" && (
-                      <span className="px-1.5 py-0.5 rounded text-[10px] bg-[#ffaa0020] text-[#ffaa00] border border-[#ffaa0030]">
-                        Urgent
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#f59e0b15] text-[#f59e0b] border border-[#f59e0b30]">
+                        {t("urgent")}
                       </span>
                     )}
                   </div>
                   <button
                     onClick={() => dismiss.mutate(card.id)}
-                    className="text-[#444] hover:text-white p-1 rounded transition-colors"
-                    title="Dismiss"
+                    className="text-[var(--text-dim)] hover:text-[var(--text-main)] p-1 rounded-lg transition-colors"
+                    title={t("dismiss")}
                   >
-                    <X size={14} />
+                    <X size={15} />
                   </button>
                 </div>
 
                 {/* Summary */}
-                <p className="text-sm text-[#eee] leading-relaxed mb-4">
+                <p className="text-sm text-[var(--text-main)] leading-relaxed mb-4 font-medium">
                   {card.summary}
                 </p>
 
@@ -171,11 +175,11 @@ export default function DashboardView() {
                     {card.actionable_items.map((item, idx) => (
                       <div
                         key={idx}
-                        className="flex items-center justify-between p-2 rounded-lg bg-[#0a0a0a] border border-[#1a1a1a] text-xs"
+                        className="flex items-center justify-between p-2.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)] text-xs"
                       >
-                        <span className="text-[#777]">{item.label}</span>
+                        <span className="text-[var(--text-muted)] font-medium">{item.label}</span>
                         <div className="flex items-center gap-2">
-                          <span className="font-mono text-white font-medium select-all">
+                          <span className="font-mono text-[var(--text-main)] font-bold select-all">
                             {item.value}
                           </span>
                           {item.url && (
@@ -183,7 +187,7 @@ export default function DashboardView() {
                               href={item.url}
                               target="_blank"
                               rel="noreferrer"
-                              className="text-[#888] hover:text-white"
+                              className="text-[var(--text-dim)] hover:text-[var(--text-main)]"
                               title="Open link"
                             >
                               <ExternalLink size={12} />
@@ -192,11 +196,11 @@ export default function DashboardView() {
                           {item.copyable !== false && (
                             <button
                               onClick={() => copyText(item.value, `card_${card.id}_item_${idx}`)}
-                              className="text-[#666] hover:text-white transition-colors"
-                              title="Copy"
+                              className="text-[var(--text-dim)] hover:text-[var(--text-main)] transition-colors p-0.5"
+                              title={t("copy")}
                             >
                               {copiedKey === `card_${card.id}_item_${idx}` ? (
-                                <Check size={12} className="text-[#44ff88]" />
+                                <Check size={12} className="text-[#22c55e]" />
                               ) : (
                                 <Copy size={12} />
                               )}
@@ -210,8 +214,8 @@ export default function DashboardView() {
               </div>
 
               {/* Card Footer */}
-              <div className="pt-3 border-t border-[#1a1a1a] flex items-center justify-between text-[11px] text-[#555]">
-                <div className="flex items-center gap-1.5">
+              <div className="pt-3 border-t border-[var(--border-color)] flex items-center justify-between text-[11px] text-[var(--text-dim)]">
+                <div className="flex items-center gap-1.5 font-mono">
                   <Clock size={11} />
                   <span>{formatDistanceToNow(new Date(card.created_at), { addSuffix: true })}</span>
                 </div>
@@ -219,10 +223,10 @@ export default function DashboardView() {
                 {card.calendar_suggestion && (
                   <button
                     onClick={() => addToCalendar.mutate(card.id)}
-                    className="flex items-center gap-1 text-[#44ff88] hover:underline transition-colors"
+                    className="flex items-center gap-1 text-[#22c55e] hover:underline transition-colors font-semibold"
                   >
-                    <Calendar size={11} />
-                    <span>Add to Calendar</span>
+                    <Calendar size={12} />
+                    <span>{t("add_to_calendar")}</span>
                   </button>
                 )}
               </div>
