@@ -34,14 +34,21 @@ export default function AppLayout({
     <div className="h-screen w-screen flex flex-col bg-[var(--bg-primary)] text-[var(--text-main)] overflow-hidden">
       {/* Top Header & Floating Center Dock */}
       <header className="h-14 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] px-6 flex items-center justify-between shrink-0 select-none z-30 shadow-xs">
-        {/* Left: Brand */}
-        <div className="flex items-center gap-2.5">
-          <div className="w-2.5 h-2.5 rounded-full bg-[var(--accent)]" />
+        {/* Left: Brand with pulse dot */}
+        <motion.div
+          whileHover={{ scale: 1.05 }}
+          className="flex items-center gap-2.5 cursor-pointer"
+        >
+          <motion.div
+            animate={{ scale: [1, 1.2, 1] }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            className="w-2.5 h-2.5 rounded-full bg-[var(--accent)] shadow-xs"
+          />
           <span className="font-bold text-sm tracking-wide">Dispatch</span>
-        </div>
+        </motion.div>
 
-        {/* Center: Modern Floating Nav Bar / Dock */}
-        <nav className="flex items-center p-1 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-sm gap-1">
+        {/* Center: Modern Floating Nav Bar / Dock with Spring Morph */}
+        <nav className="flex items-center p-1 rounded-2xl bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-sm gap-1">
           <DockBtn
             icon={<Mail size={16} />}
             label={t("email")}
@@ -74,50 +81,66 @@ export default function AppLayout({
           />
         </nav>
 
-        {/* Right: Flag Language & Theme Switchers */}
-        <div className="flex items-center gap-2">
-          {/* Language Flag toggle */}
-          <button
-            onClick={() => setLang(lang === "tr" ? "en" : "tr")}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)] text-xs font-semibold hover:bg-[var(--bg-card)] transition-colors shadow-xs"
-            title={lang === "tr" ? "Switch to English (UK)" : "Türkçe'ye Geç (TR)"}
-          >
-            {lang === "tr" ? (
-              <>
-                <span className="text-sm leading-none">🇹🇷</span>
-                <span className="text-[11px] font-bold">TR</span>
-              </>
-            ) : (
-              <>
-                <span className="text-sm leading-none">🇬🇧</span>
-                <span className="text-[11px] font-bold">EN</span>
-              </>
-            )}
-          </button>
+        {/* Right: Circular Flag Language & Theme Switchers */}
+        <div className="flex items-center gap-2.5">
+          {/* Circular Flags Side-by-Side */}
+          <div className="flex items-center gap-1.5 p-1 rounded-full bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-xs">
+            {/* Turkish Flag Circle */}
+            <motion.button
+              whileTap={{ scale: 0.88 }}
+              whileHover={{ scale: 1.1 }}
+              onClick={() => setLang("tr")}
+              className={`w-7 h-7 rounded-full flex items-center justify-center text-sm transition-all select-none overflow-hidden ${
+                lang === "tr"
+                  ? "ring-2 ring-[var(--text-main)] shadow-md bg-[var(--bg-card)]"
+                  : "opacity-40 hover:opacity-100"
+              }`}
+              title="Türkçe"
+            >
+              <span className="leading-none select-none pointer-events-none">🇹🇷</span>
+            </motion.button>
+
+            {/* UK Flag Circle */}
+            <motion.button
+              whileTap={{ scale: 0.88 }}
+              whileHover={{ scale: 1.1 }}
+              onClick={() => setLang("en")}
+              className={`w-7 h-7 rounded-full flex items-center justify-center text-sm transition-all select-none overflow-hidden ${
+                lang === "en"
+                  ? "ring-2 ring-[var(--text-main)] shadow-md bg-[var(--bg-card)]"
+                  : "opacity-40 hover:opacity-100"
+              }`}
+              title="English (UK)"
+            >
+              <span className="leading-none select-none pointer-events-none">🇬🇧</span>
+            </motion.button>
+          </div>
 
           {/* Theme toggle */}
-          <button
+          <motion.button
+            whileTap={{ scale: 0.88, rotate: 30 }}
+            whileHover={{ scale: 1.08 }}
             onClick={() => setTheme(nextTheme)}
-            className="p-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-card)] transition-colors shadow-xs"
+            className="w-8 h-8 rounded-full flex items-center justify-center border border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-card)] transition-colors shadow-xs"
             title={`Current Theme: ${theme}`}
           >
             {theme === "dark" && <Moon size={14} />}
             {theme === "light" && <Sun size={14} />}
             {theme === "system" && <Laptop size={14} />}
-          </button>
+          </motion.button>
         </div>
       </header>
 
-      {/* Main Full-Screen Viewport for Active Panel */}
+      {/* Main Full-Screen Viewport for Active Panel with Spring Slide */}
       <main className="flex-1 w-full overflow-hidden relative bg-[var(--bg-primary)]">
         <AnimatePresence mode="wait">
           {active === "email" && (
             <motion.div
               key="email"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.1 }}
+              initial={{ opacity: 0, y: 8, filter: "blur(4px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              exit={{ opacity: 0, y: -8, filter: "blur(4px)" }}
+              transition={{ type: "spring", damping: 28, stiffness: 280 }}
               className="h-full w-full"
             >
               {emailPanel}
@@ -127,10 +150,10 @@ export default function AppLayout({
           {active === "calendar" && (
             <motion.div
               key="calendar"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.1 }}
+              initial={{ opacity: 0, y: 8, filter: "blur(4px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              exit={{ opacity: 0, y: -8, filter: "blur(4px)" }}
+              transition={{ type: "spring", damping: 28, stiffness: 280 }}
               className="h-full w-full"
             >
               {calendarPanel}
@@ -140,10 +163,10 @@ export default function AppLayout({
           {active === "feed" && (
             <motion.div
               key="feed"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.1 }}
+              initial={{ opacity: 0, y: 8, filter: "blur(4px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              exit={{ opacity: 0, y: -8, filter: "blur(4px)" }}
+              transition={{ type: "spring", damping: 28, stiffness: 280 }}
               className="h-full w-full"
             >
               {feedPanel}
@@ -153,10 +176,10 @@ export default function AppLayout({
           {active === "dashboard" && (
             <motion.div
               key="dashboard"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.1 }}
+              initial={{ opacity: 0, y: 8, filter: "blur(4px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              exit={{ opacity: 0, y: -8, filter: "blur(4px)" }}
+              transition={{ type: "spring", damping: 28, stiffness: 280 }}
               className="h-full w-full"
             >
               {dashboardPanel}
@@ -166,10 +189,10 @@ export default function AppLayout({
           {active === "settings" && (
             <motion.div
               key="settings"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.1 }}
+              initial={{ opacity: 0, y: 8, filter: "blur(4px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              exit={{ opacity: 0, y: -8, filter: "blur(4px)" }}
+              transition={{ type: "spring", damping: 28, stiffness: 280 }}
               className="h-full w-full"
             >
               {settingsPanel}
@@ -184,17 +207,18 @@ export default function AppLayout({
           {toasts.map((toast) => (
             <motion.div
               key={toast.id}
-              initial={{ opacity: 0, y: 30, scale: 0.95 }}
+              initial={{ opacity: 0, y: 40, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, x: 50, scale: 0.9 }}
-              className="pointer-events-auto p-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] shadow-2xl flex items-center justify-between gap-4 max-w-sm"
+              exit={{ opacity: 0, x: 80, scale: 0.85 }}
+              transition={{ type: "spring", damping: 22, stiffness: 300 }}
+              className="pointer-events-auto p-4 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] shadow-2xl flex items-center justify-between gap-4 max-w-sm backdrop-blur-md"
             >
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-[var(--accent)] text-[var(--accent-invert)] flex items-center justify-center font-bold text-xs">
+                <div className="w-9 h-9 rounded-full bg-[var(--accent)] text-[var(--accent-invert)] flex items-center justify-center font-bold text-xs shadow-xs">
                   {toast.initials || "📧"}
                 </div>
                 <div>
-                  <div className="text-xs font-semibold text-[var(--text-main)] truncate max-w-[200px]">
+                  <div className="text-xs font-bold text-[var(--text-main)] truncate max-w-[200px]">
                     {toast.from}
                   </div>
                   <div className="text-[11px] text-[var(--text-muted)] truncate max-w-[200px]">
@@ -209,13 +233,13 @@ export default function AppLayout({
                     setActive("email")
                     removeToast(toast.id)
                   }}
-                  className="text-xs text-[var(--text-main)] underline font-medium px-2 py-1"
+                  className="text-xs text-[var(--text-main)] underline font-bold px-2 py-1"
                 >
                   {t("view_mail")}
                 </button>
                 <button
                   onClick={() => removeToast(toast.id)}
-                  className="p-1 text-[var(--text-dim)] hover:text-[var(--text-main)]"
+                  className="p-1.5 text-[var(--text-dim)] hover:text-[var(--text-main)] rounded-lg hover:bg-[var(--bg-card)]"
                 >
                   <X size={13} />
                 </button>
@@ -240,16 +264,25 @@ function DockBtn({
   onClick: () => void
 }) {
   return (
-    <button
+    <motion.button
+      whileTap={{ scale: 0.94 }}
+      whileHover={{ y: -1 }}
       onClick={onClick}
-      className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+      className={`relative flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium transition-all ${
         active
-          ? "bg-[var(--bg-secondary)] text-[var(--text-main)] shadow-sm font-semibold border border-[var(--border-color)]"
+          ? "bg-[var(--bg-secondary)] text-[var(--text-main)] shadow-sm font-bold border border-[var(--border-color)]"
           : "text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-secondary)]"
       }`}
     >
       {icon}
       <span>{label}</span>
-    </button>
+      {active && (
+        <motion.div
+          layoutId="activeDockIndicator"
+          className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-1 bg-[var(--text-main)] rounded-full"
+          transition={{ type: "spring", damping: 25, stiffness: 350 }}
+        />
+      )}
+    </motion.button>
   )
 }

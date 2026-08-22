@@ -2,6 +2,7 @@ import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "../../lib/api"
 import { useT } from "../../store/themeAndLocale"
+import { motion, AnimatePresence } from "framer-motion"
 import { formatDistanceToNow, format } from "date-fns"
 import { Plus, ExternalLink, Rss, BookOpen, Clock, X } from "lucide-react"
 import DOMPurify from "dompurify"
@@ -69,39 +70,57 @@ export default function FeedView() {
         </div>
 
         <div className="flex items-center gap-3">
-          <button
+          <motion.button
+            whileTap={{ scale: 0.94 }}
+            whileHover={{ scale: 1.03 }}
             onClick={() => setShowAdd((s) => !s)}
             className="flex items-center gap-1.5 bg-[var(--accent)] text-[var(--accent-invert)] px-4 py-2 rounded-xl text-xs font-bold hover:opacity-90 transition-all shadow-sm"
           >
             <Plus size={14} />
             <span>{t("add_feed")}</span>
-          </button>
+          </motion.button>
         </div>
       </div>
 
       {/* Add Feed Input Bar */}
-      {showAdd && (
-        <div className="p-4 mb-4 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center gap-3 shadow-xs animate-fadeIn">
-          <input
-            value={addUrl}
-            onChange={(e) => setAddUrl(e.target.value)}
-            placeholder={t("feed_url_placeholder")}
-            className="flex-1 bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-4 py-2.5 rounded-xl focus:outline-none focus:border-[var(--text-main)]"
-          />
-          <button
-            onClick={() => addFeed.mutate()}
-            disabled={addFeed.isPending || !addUrl}
-            className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs font-bold px-5 py-2.5 rounded-xl hover:opacity-90 transition-all disabled:opacity-40"
+      <AnimatePresence>
+        {showAdd && (
+          <motion.div
+            initial={{ opacity: 0, height: 0, y: -10 }}
+            animate={{ opacity: 1, height: "auto", y: 0 }}
+            exit={{ opacity: 0, height: 0, y: -10 }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            className="p-4 mb-4 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center gap-3 shadow-xs overflow-hidden"
           >
-            {addFeed.isPending ? "Adding..." : "Subscribe"}
-          </button>
-        </div>
-      )}
+            <input
+              autoFocus
+              value={addUrl}
+              onChange={(e) => setAddUrl(e.target.value)}
+              placeholder={t("feed_url_placeholder")}
+              className="flex-1 bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-4 py-2.5 rounded-xl focus:outline-none focus:border-[var(--text-main)]"
+            />
+            <motion.button
+              whileTap={{ scale: 0.94 }}
+              onClick={() => addFeed.mutate()}
+              disabled={addFeed.isPending || !addUrl}
+              className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs font-bold px-5 py-2.5 rounded-xl hover:opacity-90 transition-all disabled:opacity-40 shadow-xs"
+            >
+              {addFeed.isPending ? "Adding..." : "Subscribe"}
+            </motion.button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* Main Feed Content (Grid List + Reader Drawer) */}
-      <div className="flex-1 flex gap-6 overflow-hidden">
-        {/* Article Cards Stream */}
-        <div className="flex-1 overflow-y-auto pr-2 flex flex-col gap-3">
+      {/* Main Feed Content with Animated Resizing and Reader Drawer */}
+      <div className="flex-1 flex gap-6 overflow-hidden relative">
+        {/* Article Cards Stream - smoothly resizes with layout animation */}
+        <motion.div
+          layout
+          transition={{ type: "spring", damping: 28, stiffness: 260 }}
+          className={`overflow-y-auto pr-2 flex flex-col gap-3 transition-all ${
+            selectedArticle ? "w-1/2" : "w-full"
+          }`}
+        >
           {isLoading && (
             <div className="p-8 text-center text-xs text-[var(--text-dim)]">Loading feeds...</div>
           )}
@@ -113,13 +132,19 @@ export default function FeedView() {
             </div>
           )}
 
-          {items.map((item) => {
+          {items.map((item, idx) => {
             const isSelected = selectedArticle?.id === item.id
             return (
-              <div
+              <motion.div
+                layout
                 key={item.id}
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.02 }}
+                whileHover={{ y: -2, scale: 1.008 }}
+                whileTap={{ scale: 0.99 }}
                 onClick={() => handleOpenArticle(item)}
-                className={`p-5 rounded-2xl border cursor-pointer transition-all ${
+                className={`p-5 rounded-2xl border cursor-pointer transition-all select-none ${
                   isSelected
                     ? "bg-[var(--bg-secondary)] border-[var(--text-main)] shadow-sm"
                     : item.is_read
@@ -164,66 +189,77 @@ export default function FeedView() {
                     <span className="ml-auto w-2 h-2 rounded-full bg-[#3b82f6]" title="Unread" />
                   )}
                 </div>
-              </div>
+              </motion.div>
             )
           })}
-        </div>
+        </motion.div>
 
-        {/* In-App Full Article Reader Drawer (Side-by-side or Floating) */}
-        {selectedArticle && (
-          <div className="w-1/2 border border-[var(--border-color)] rounded-2xl bg-[var(--bg-secondary)] p-6 overflow-y-auto flex flex-col shadow-lg animate-fadeIn">
-            {/* Reader Header */}
-            <div className="flex items-center justify-between pb-4 mb-4 border-b border-[var(--border-color)]">
-              <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-dim)]">
-                In-App Reader
-              </span>
-              <div className="flex items-center gap-2">
-                <a
-                  href={selectedArticle.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-1 text-xs text-[var(--text-main)] underline font-medium px-2 py-1"
-                >
-                  <ExternalLink size={12} />
-                  <span>Open in Browser</span>
-                </a>
-                <button
-                  onClick={() => setSelectedArticle(null)}
-                  className="p-1 text-[var(--text-dim)] hover:text-[var(--text-main)] rounded-lg hover:bg-[var(--bg-card)]"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-            </div>
-
-            {/* Article Title */}
-            <h2 className="text-2xl font-extrabold text-[var(--text-main)] mb-3 leading-tight">
-              {selectedArticle.title}
-            </h2>
-
-            {/* Metadata */}
-            <div className="flex items-center gap-3 pb-4 mb-6 border-b border-[var(--border-color)] text-xs text-[var(--text-dim)]">
-              {selectedArticle.author && (
-                <span className="font-semibold text-[var(--text-main)]">
-                  By {selectedArticle.author}
+        {/* In-App Full Article Reader Drawer - slides in from right with spring damping */}
+        <AnimatePresence>
+          {selectedArticle && (
+            <motion.div
+              layout
+              key={`article-${selectedArticle.id}`}
+              initial={{ opacity: 0, x: 100, scale: 0.96 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: 100, scale: 0.96 }}
+              transition={{ type: "spring", damping: 25, stiffness: 220 }}
+              className="w-1/2 border border-[var(--border-color)] rounded-2xl bg-[var(--bg-secondary)] p-6 overflow-y-auto flex flex-col shadow-xl"
+            >
+              {/* Reader Header */}
+              <div className="flex items-center justify-between pb-4 mb-4 border-b border-[var(--border-color)]">
+                <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-dim)]">
+                  In-App Reader
                 </span>
-              )}
-              {selectedArticle.published_at && (
-                <span>{format(new Date(selectedArticle.published_at), "PPP p")}</span>
-              )}
-            </div>
+                <div className="flex items-center gap-2">
+                  <a
+                    href={selectedArticle.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1 text-xs text-[var(--text-main)] underline font-medium px-2 py-1"
+                  >
+                    <ExternalLink size={12} />
+                    <span>Open in Browser</span>
+                  </a>
+                  <motion.button
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => setSelectedArticle(null)}
+                    className="p-1.5 text-[var(--text-dim)] hover:text-[var(--text-main)] rounded-lg hover:bg-[var(--bg-card)]"
+                  >
+                    <X size={16} />
+                  </motion.button>
+                </div>
+              </div>
 
-            {/* Content with Clean HTML sanitization */}
-            <div
-              className="prose prose-neutral dark:prose-invert max-w-none text-sm leading-relaxed"
-              dangerouslySetInnerHTML={{
-                __html: DOMPurify.sanitize(
-                  selectedArticle.content || selectedArticle.title
-                ),
-              }}
-            />
-          </div>
-        )}
+              {/* Article Title */}
+              <h2 className="text-2xl font-extrabold text-[var(--text-main)] mb-3 leading-tight">
+                {selectedArticle.title}
+              </h2>
+
+              {/* Metadata */}
+              <div className="flex items-center gap-3 pb-4 mb-6 border-b border-[var(--border-color)] text-xs text-[var(--text-dim)]">
+                {selectedArticle.author && (
+                  <span className="font-semibold text-[var(--text-main)]">
+                    By {selectedArticle.author}
+                  </span>
+                )}
+                {selectedArticle.published_at && (
+                  <span>{format(new Date(selectedArticle.published_at), "PPP p")}</span>
+                )}
+              </div>
+
+              {/* Content with Clean HTML sanitization */}
+              <div
+                className="prose prose-neutral dark:prose-invert max-w-none text-sm leading-relaxed"
+                dangerouslySetInnerHTML={{
+                  __html: DOMPurify.sanitize(
+                    selectedArticle.content || selectedArticle.title
+                  ),
+                }}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   )

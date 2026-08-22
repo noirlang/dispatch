@@ -2,6 +2,7 @@ import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "../../lib/api"
 import { useT } from "../../store/themeAndLocale"
+import { motion, AnimatePresence } from "framer-motion"
 import {
   format,
   addWeeks,
@@ -9,7 +10,7 @@ import {
   startOfWeek,
   eachDayOfInterval,
   endOfWeek,
-  isToday,
+  isToday
 } from "date-fns"
 import {
   ChevronLeft,
@@ -17,7 +18,6 @@ import {
   Plus,
   Calendar as CalIcon,
   MapPin,
-  
   Trash2,
   X,
   Edit2
@@ -157,48 +157,62 @@ export default function CalendarView() {
         <div className="flex items-center gap-3">
           {/* Week Selector */}
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] shadow-xs">
-            <button
+            <motion.button
+              whileTap={{ scale: 0.9 }}
               onClick={() => setWeekStart((w) => subWeeks(w, 1))}
               className="p-1 text-[var(--text-muted)] hover:text-[var(--text-main)] rounded"
               title="Previous Week"
             >
               <ChevronLeft size={16} />
-            </button>
+            </motion.button>
             <span className="text-xs font-semibold font-mono text-[var(--text-main)] px-2">
               {format(weekStart, "MMM d")} – {format(weekEnd, "MMM d, yyyy")}
             </span>
-            <button
+            <motion.button
+              whileTap={{ scale: 0.9 }}
               onClick={() => setWeekStart((w) => addWeeks(w, 1))}
               className="p-1 text-[var(--text-muted)] hover:text-[var(--text-main)] rounded"
               title="Next Week"
             >
               <ChevronRight size={16} />
-            </button>
+            </motion.button>
           </div>
 
-          <button
+          <motion.button
+            whileTap={{ scale: 0.94 }}
+            whileHover={{ scale: 1.03 }}
             onClick={() => openCreateModal()}
             className="flex items-center gap-1.5 bg-[var(--accent)] text-[var(--accent-invert)] px-4 py-2 rounded-xl text-xs font-bold hover:opacity-90 transition-all shadow-sm"
           >
             <Plus size={14} />
             <span>{t("add_event")}</span>
-          </button>
+          </motion.button>
         </div>
       </div>
 
-      {/* Vertical Agenda Flow */}
-      <div className="flex-1 overflow-y-auto pr-2 flex flex-col gap-4">
-        {days.map((day) => {
+      {/* Vertical Agenda Flow with Staggered Motion */}
+      <motion.div
+        layout
+        key={weekStart.toISOString()}
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ type: "spring", damping: 25, stiffness: 300 }}
+        className="flex-1 overflow-y-auto pr-2 flex flex-col gap-4"
+      >
+        {days.map((day, dIdx) => {
           const dayEvents = eventsForDay(day)
           const today = isToday(day)
 
           return (
-            <div
+            <motion.div
               key={day.toISOString()}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: dIdx * 0.03 }}
               className={`p-5 rounded-2xl border transition-all ${
                 today
                   ? "bg-[var(--bg-secondary)] border-[var(--text-main)] shadow-sm"
-                  : "bg-[var(--bg-card)] border-[var(--border-color)]"
+                  : "bg-[var(--bg-card)] border-[var(--border-color)] hover:border-[var(--text-dim)]"
               }`}
             >
               {/* Day Header */}
@@ -221,16 +235,18 @@ export default function CalendarView() {
                   )}
                 </div>
 
-                <button
+                <motion.button
+                  whileTap={{ scale: 0.9 }}
+                  whileHover={{ scale: 1.05 }}
                   onClick={() => openCreateModal(day)}
                   className="text-xs text-[var(--text-dim)] hover:text-[var(--text-main)] flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-[var(--bg-secondary)]"
                 >
                   <Plus size={12} />
                   <span>{t("add_event")}</span>
-                </button>
+                </motion.button>
               </div>
 
-              {/* Day's Events List */}
+              {/* Day's Events List with Spring Hover Physics */}
               <div className="flex flex-col gap-2">
                 {dayEvents.length === 0 ? (
                   <span className="text-xs text-[var(--text-dim)] italic py-1">
@@ -238,14 +254,17 @@ export default function CalendarView() {
                   </span>
                 ) : (
                   dayEvents.map((ev) => (
-                    <div
+                    <motion.div
                       key={ev.id}
+                      whileHover={{ scale: 1.012, x: 3 }}
+                      whileTap={{ scale: 0.99 }}
                       onClick={() => openEditModal(ev)}
-                      className="flex items-center justify-between p-3.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)] hover:border-[var(--text-muted)] cursor-pointer group transition-all"
+                      className="flex items-center justify-between p-3.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)] hover:border-[var(--text-muted)] cursor-pointer group transition-all shadow-2xs"
                     >
                       <div className="flex items-center gap-3">
-                        <div
-                          className="w-2 h-7 rounded-full shrink-0"
+                        <motion.div
+                          whileHover={{ scale: 1.2 }}
+                          className="w-2.5 h-8 rounded-full shrink-0"
                           style={{ backgroundColor: ev.color || "#22c55e" }}
                         />
                         <div>
@@ -272,167 +291,185 @@ export default function CalendarView() {
                             ? t("all_day")
                             : format(new Date(ev.starts_at), "HH:mm")}
                         </span>
-                        <Edit2 size={13} className="text-[var(--text-dim)] group-hover:text-[var(--text-main)]" />
+                        <Edit2 size={13} className="text-[var(--text-dim)] group-hover:text-[var(--text-main)] transition-colors" />
                       </div>
-                    </div>
+                    </motion.div>
                   ))
                 )}
               </div>
-            </div>
+            </motion.div>
           )
         })}
-      </div>
+      </motion.div>
 
-      {/* Add / Edit Event Modal */}
-      {modalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fadeIn">
-          <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl w-full max-w-md p-6 shadow-2xl flex flex-col gap-4">
-            <div className="flex items-center justify-between pb-3 border-b border-[var(--border-color)]">
-              <span className="text-base font-bold text-[var(--text-main)]">
-                {editingEvent ? "Edit Event" : "Create Event"}
-              </span>
-              <button onClick={closeModal} className="text-[var(--text-dim)] hover:text-[var(--text-main)]">
-                <X size={16} />
-              </button>
-            </div>
-
-            <div className="flex flex-col gap-3">
-              <div>
-                <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1">
-                  Event Title
-                </label>
-                <input
-                  autoFocus
-                  type="text"
-                  placeholder="e.g. Project Review Meeting"
-                  value={form.title}
-                  onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                  className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-sm px-3.5 py-2 rounded-xl focus:outline-none focus:border-[var(--text-main)] font-semibold"
-                />
+      {/* Add / Edit Event Modal with Spring Pop Scale */}
+      <AnimatePresence>
+        {modalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.88, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.88, y: 20 }}
+              transition={{ type: "spring", damping: 25, stiffness: 320 }}
+              className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl w-full max-w-md p-6 shadow-2xl flex flex-col gap-4"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-[var(--border-color)]">
+                <span className="text-base font-bold text-[var(--text-main)]">
+                  {editingEvent ? "Edit Event" : "Create Event"}
+                </span>
+                <button onClick={closeModal} className="text-[var(--text-dim)] hover:text-[var(--text-main)] p-1 rounded-lg">
+                  <X size={16} />
+                </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-3">
                 <div>
                   <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1">
-                    Date
+                    Event Title
                   </label>
                   <input
-                    type="date"
-                    value={form.starts_at}
-                    onChange={(e) => setForm((f) => ({ ...f, starts_at: e.target.value }))}
-                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3 py-2 rounded-xl focus:outline-none"
+                    autoFocus
+                    type="text"
+                    placeholder="e.g. Project Review Meeting"
+                    value={form.title}
+                    onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-sm px-3.5 py-2 rounded-xl focus:outline-none focus:border-[var(--text-main)] font-semibold"
                   />
                 </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1">
+                      Date
+                    </label>
+                    <input
+                      type="date"
+                      value={form.starts_at}
+                      onChange={(e) => setForm((f) => ({ ...f, starts_at: e.target.value }))}
+                      className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3 py-2 rounded-xl focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1">
+                      Time
+                    </label>
+                    <input
+                      type="time"
+                      disabled={form.all_day}
+                      value={form.time}
+                      onChange={(e) => setForm((f) => ({ ...f, time: e.target.value }))}
+                      className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3 py-2 rounded-xl focus:outline-none disabled:opacity-40"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="checkbox"
+                    id="all_day"
+                    checked={form.all_day}
+                    onChange={(e) => setForm((f) => ({ ...f, all_day: e.target.checked }))}
+                    className="w-4 h-4 accent-[var(--text-main)]"
+                  />
+                  <label htmlFor="all_day" className="text-xs font-medium text-[var(--text-muted)] cursor-pointer">
+                    {t("all_day")}
+                  </label>
+                </div>
+
                 <div>
                   <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1">
-                    Time
+                    Location
                   </label>
                   <input
-                    type="time"
-                    disabled={form.all_day}
-                    value={form.time}
-                    onChange={(e) => setForm((f) => ({ ...f, time: e.target.value }))}
-                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3 py-2 rounded-xl focus:outline-none disabled:opacity-40"
+                    type="text"
+                    placeholder="e.g. Google Meet / Room 4B"
+                    value={form.location}
+                    onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))}
+                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2 rounded-xl focus:outline-none"
                   />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1">
+                    Description / Notes
+                  </label>
+                  <textarea
+                    placeholder="Additional notes..."
+                    value={form.description}
+                    onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs p-3 rounded-xl h-20 resize-none focus:outline-none"
+                  />
+                </div>
+
+                {/* Color Tag Picker */}
+                <div>
+                  <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1">
+                    Tag Color
+                  </label>
+                  <div className="flex items-center gap-2">
+                    {["#22c55e", "#3b82f6", "#f59e0b", "#ef4444", "#a855f7", "#ec4899"].map(
+                      (c) => (
+                        <motion.button
+                          key={c}
+                          whileTap={{ scale: 0.85 }}
+                          whileHover={{ scale: 1.15 }}
+                          type="button"
+                          onClick={() => setForm((f) => ({ ...f, color: c }))}
+                          className={`w-6 h-6 rounded-full border-2 transition-all ${
+                            form.color === c ? "scale-110 border-white shadow-xs" : "border-transparent"
+                          }`}
+                          style={{ backgroundColor: c }}
+                        />
+                      )
+                    )}
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="checkbox"
-                  id="all_day"
-                  checked={form.all_day}
-                  onChange={(e) => setForm((f) => ({ ...f, all_day: e.target.checked }))}
-                  className="w-4 h-4 accent-[var(--text-main)]"
-                />
-                <label htmlFor="all_day" className="text-xs font-medium text-[var(--text-muted)] cursor-pointer">
-                  {t("all_day")}
-                </label>
-              </div>
+              <div className="flex items-center justify-between pt-3 border-t border-[var(--border-color)]">
+                {editingEvent ? (
+                  <motion.button
+                    whileTap={{ scale: 0.9 }}
+                    type="button"
+                    onClick={() => deleteMutation.mutate(editingEvent.id)}
+                    className="text-xs font-semibold text-[#ef4444] hover:underline flex items-center gap-1"
+                  >
+                    <Trash2 size={13} />
+                    <span>Delete</span>
+                  </motion.button>
+                ) : (
+                  <div />
+                )}
 
-              <div>
-                <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1">
-                  Location
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Google Meet / Room 4B"
-                  value={form.location}
-                  onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))}
-                  className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2 rounded-xl focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1">
-                  Description / Notes
-                </label>
-                <textarea
-                  placeholder="Additional notes..."
-                  value={form.description}
-                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                  className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs p-3 rounded-xl h-20 resize-none focus:outline-none"
-                />
-              </div>
-
-              {/* Color Tag Picker */}
-              <div>
-                <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1">
-                  Tag Color
-                </label>
                 <div className="flex items-center gap-2">
-                  {["#22c55e", "#3b82f6", "#f59e0b", "#ef4444", "#a855f7", "#ec4899"].map(
-                    (c) => (
-                      <button
-                        key={c}
-                        type="button"
-                        onClick={() => setForm((f) => ({ ...f, color: c }))}
-                        className={`w-6 h-6 rounded-full border-2 transition-all ${
-                          form.color === c ? "scale-110 border-white" : "border-transparent"
-                        }`}
-                        style={{ backgroundColor: c }}
-                      />
-                    )
-                  )}
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    className="px-4 py-2 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-main)]"
+                  >
+                    Cancel
+                  </button>
+                  <motion.button
+                    whileTap={{ scale: 0.94 }}
+                    whileHover={{ scale: 1.02 }}
+                    type="button"
+                    disabled={saveMutation.isPending || !form.title}
+                    onClick={() => saveMutation.mutate()}
+                    className="bg-[var(--accent)] text-[var(--accent-invert)] px-5 py-2 rounded-xl text-xs font-bold hover:opacity-90 transition-all disabled:opacity-40 shadow-sm"
+                  >
+                    {saveMutation.isPending ? "Saving..." : editingEvent ? "Save Changes" : "Create"}
+                  </motion.button>
                 </div>
               </div>
-            </div>
-
-            <div className="flex items-center justify-between pt-3 border-t border-[var(--border-color)]">
-              {editingEvent ? (
-                <button
-                  type="button"
-                  onClick={() => deleteMutation.mutate(editingEvent.id)}
-                  className="text-xs font-semibold text-[#ef4444] hover:underline flex items-center gap-1"
-                >
-                  <Trash2 size={13} />
-                  <span>Delete</span>
-                </button>
-              ) : (
-                <div />
-              )}
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  className="px-4 py-2 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-main)]"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  disabled={saveMutation.isPending || !form.title}
-                  onClick={() => saveMutation.mutate()}
-                  className="bg-[var(--accent)] text-[var(--accent-invert)] px-5 py-2 rounded-xl text-xs font-bold hover:opacity-90 transition-all disabled:opacity-40"
-                >
-                  {saveMutation.isPending ? "Saving..." : editingEvent ? "Save Changes" : "Create"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

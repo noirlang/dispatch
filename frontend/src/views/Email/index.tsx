@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query"
 import { api } from "../../lib/api"
 import { useAuth } from "../../store/auth"
 import { useT } from "../../store/themeAndLocale"
+import { motion, AnimatePresence } from "framer-motion"
 import { Inbox, Send, FileText, Trash2, Clock, Plus, Mail } from "lucide-react"
 import EmailList from "./EmailList"
 import EmailReader from "./EmailReader"
@@ -76,17 +77,28 @@ export default function EmailView() {
     { id: "trash" as const,     label: t("trash"),     icon: <Trash2 size={15} />, badge: 0 },
   ]
 
-  // If composing fullscreen, replace the entire email panel with ComposeView
+  // If composing fullscreen, replace the entire email panel with animated ComposeView
   if (composing) {
     return (
-      <ComposeView
-        initialTo={composeConfig.to}
-        initialSubject={composeConfig.subject}
-        initialBody={composeConfig.body}
-        isReply={composeConfig.isReply}
-        replyEmailId={composeConfig.replyEmailId}
-        onClose={() => setComposing(false)}
-      />
+      <AnimatePresence mode="wait">
+        <motion.div
+          key="compose-fullscreen"
+          initial={{ opacity: 0, scale: 0.97, y: 15 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.97, y: 15 }}
+          transition={{ type: "spring", damping: 26, stiffness: 280 }}
+          className="h-full w-full"
+        >
+          <ComposeView
+            initialTo={composeConfig.to}
+            initialSubject={composeConfig.subject}
+            initialBody={composeConfig.body}
+            isReply={composeConfig.isReply}
+            replyEmailId={composeConfig.replyEmailId}
+            onClose={() => setComposing(false)}
+          />
+        </motion.div>
+      </AnimatePresence>
     )
   }
 
@@ -94,19 +106,23 @@ export default function EmailView() {
     <div className="h-full flex bg-[var(--bg-primary)] overflow-hidden">
       {/* Sidebar Folders */}
       <aside className="w-56 border-r border-[var(--border-color)] bg-[var(--bg-secondary)] flex flex-col p-3 gap-1 shrink-0">
-        <button
+        <motion.button
+          whileTap={{ scale: 0.96 }}
+          whileHover={{ scale: 1.02 }}
           onClick={startCompose}
           className="mb-4 w-full bg-[var(--accent)] text-[var(--accent-invert)] text-xs font-bold py-3 px-4 rounded-xl hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-sm"
         >
           <Plus size={16} />
           <span>{t("compose")}</span>
-        </button>
+        </motion.button>
 
         {folders.map((f) => {
           const isActive = folder === f.id
           return (
-            <button
+            <motion.button
               key={f.id}
+              whileTap={{ scale: 0.97 }}
+              whileHover={{ x: 2 }}
               onClick={() => {
                 setFolder(f.id)
                 setSelectedId(null)
@@ -126,7 +142,7 @@ export default function EmailView() {
                   {f.badge}
                 </span>
               )}
-            </button>
+            </motion.button>
           )
         })}
       </aside>
@@ -136,21 +152,38 @@ export default function EmailView() {
         <EmailList folder={folder} selectedId={selectedId} onSelect={setSelectedId} />
       </div>
 
-      {/* Email Reader View */}
-      <div className="flex-1 overflow-hidden">
-        {selectedId ? (
-          <EmailReader
-            id={selectedId}
-            folder={folder}
-            onReply={handleReply}
-            onForward={handleForward}
-          />
-        ) : (
-          <div className="h-full flex flex-col items-center justify-center text-[var(--text-dim)] gap-3">
-            <Mail size={38} className="opacity-40" />
-            <span className="text-xs font-medium">{t("select_email")}</span>
-          </div>
-        )}
+      {/* Email Reader View with Fluid Slide/Fade Transitions */}
+      <div className="flex-1 overflow-hidden relative">
+        <AnimatePresence mode="wait">
+          {selectedId ? (
+            <motion.div
+              key={`reader-${selectedId}`}
+              initial={{ opacity: 0, x: 25, filter: "blur(4px)" }}
+              animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+              exit={{ opacity: 0, x: -25, filter: "blur(4px)" }}
+              transition={{ type: "spring", damping: 25, stiffness: 280 }}
+              className="h-full w-full"
+            >
+              <EmailReader
+                id={selectedId}
+                folder={folder}
+                onReply={handleReply}
+                onForward={handleForward}
+              />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="empty-email"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="h-full flex flex-col items-center justify-center text-[var(--text-dim)] gap-3"
+            >
+              <Mail size={42} className="opacity-30" />
+              <span className="text-xs font-medium">{t("select_email")}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   )
