@@ -1,12 +1,11 @@
 import { useState, useEffect, useRef } from "react"
-import { Calendar, Mail, Rss, Settings, LayoutDashboard, Sun, Moon, Laptop, X, Bell, Menu, Inbox, Clock, Send, FileText, Trash2, Users, LogOut, ShieldCheck } from "lucide-react"
+import { Calendar, Mail, Rss, Settings, LayoutDashboard, Sun, Moon, Laptop, X, Bell, Menu, Inbox, Clock, Send, FileText, Trash2, Users, LogOut } from "lucide-react"
 import { useAppStore, useT, applyThemeToDOM, type EmailFolder } from "../../store/themeAndLocale"
 import { requestNotificationPermission, sendBrowserNotification } from "../../lib/notifications"
 import { useAuth } from "../../store/auth"
 import { useQuery } from "@tanstack/react-query"
 import { api } from "../../lib/api"
 import { motion, AnimatePresence } from "framer-motion"
-import { Link } from "react-router-dom"
 import SenderAvatar from "../ui/SenderAvatar"
 
 export type Panel = "email" | "calendar" | "feed" | "dashboard" | "settings"
@@ -491,16 +490,6 @@ export default function AppLayout({
                     </button>
                   </div>
                 </div>
-
-                {/* Admin Link */}
-                <Link
-                  to="/admin"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-primary)] transition-colors"
-                >
-                  <ShieldCheck size={15} />
-                  <span>{lang === "tr" ? "Yönetici Paneli (/admin)" : "Admin Panel (/admin)"}</span>
-                </Link>
 
                 {/* Logout Button */}
                 <button

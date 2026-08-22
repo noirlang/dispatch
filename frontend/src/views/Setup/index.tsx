@@ -132,23 +132,17 @@ export default function SetupWizard() {
             </h1>
             <p className="text-xs text-[var(--text-muted)] mt-1.5 leading-relaxed">
               {lang === "tr"
-                ? "Bu sunucunun ilk kurulumu başarıyla yapılmıştır. Güvenlik nedeniyle kurulum sihirbazı kilitlenmiştir. Ayarları yönetmek için Yönetici Paneline giriş yapın."
-                : "This system has already been configured. The setup wizard is locked for security. Please log into the Admin Panel to manage settings."}
+                ? "Bu sunucunun ilk kurulumu başarıyla yapılmıştır. Güvenlik nedeniyle kurulum sihirbazı kilitlenmiştir."
+                : "This system has already been configured. The setup wizard is locked for security."}
             </p>
           </div>
 
           <div className="flex flex-col gap-2 w-full mt-2">
             <Link
-              to="/admin"
-              className="w-full bg-[var(--accent)] text-[var(--accent-invert)] py-3 rounded-xl text-xs font-bold hover:opacity-90 transition-all shadow-sm"
-            >
-              {lang === "tr" ? "Yönetici Paneline Git (/admin)" : "Go to Admin Panel (/admin)"}
-            </Link>
-            <Link
               to="/login"
-              className="w-full py-2.5 rounded-xl text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text-main)] border border-[var(--border-color)] bg-[var(--bg-primary)] hover:bg-[var(--bg-card)] transition-colors"
+              className="w-full bg-[var(--accent)] text-[var(--accent-invert)] py-3 rounded-xl text-xs font-bold hover:opacity-90 transition-all shadow-sm text-center"
             >
-              {lang === "tr" ? "Giriş Yap Sayfası" : "Sign In"}
+              {lang === "tr" ? "Giriş Yap Sayfası →" : "Go to Sign In →"}
             </Link>
           </div>
         </div>
