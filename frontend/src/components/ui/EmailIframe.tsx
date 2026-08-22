@@ -46,9 +46,14 @@ export default function EmailIframe({ html, allowRemoteImages = true, className 
 
   let processedHtml = html || ""
 
-  if (!allowRemoteImages) {
+  if (allowRemoteImages) {
+    // When allowed, ensure original src is restored if it was proxied with data-original-src
+    processedHtml = processedHtml.replace(/<img\s+([^>]*?)data-original-src=["']([^"']+)["']([^>]*?)>/gi, (_match, p1, originalSrc, p2) => {
+      return `<img ${p1}src="${originalSrc}" ${p2}>`
+    })
+  } else {
     // Replace remote images with a subtle blocked placeholder
-    processedHtml = processedHtml.replace(/<img\s+([^>]*?)src=["'](https?:\/\/[^"']+)["']([^>]*?)>/gi, () => {
+    processedHtml = processedHtml.replace(/<img\s+([^>]*?)src=["'](https?:\/\/[^"']+|\/api\/v1\/image_proxy[^"']*)["']([^>]*?)>/gi, () => {
       return `<div style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:#18181b;border:1px dashed #3f3f46;border-radius:6px;font-size:11px;color:#a1a1aa;margin:4px 0;font-family:sans-serif;"><span>🖼️</span><span>Harici Görsel Engellendi (Gizlilik Koruması)</span></div>`
     })
   }

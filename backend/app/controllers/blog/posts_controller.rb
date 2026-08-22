@@ -3,16 +3,18 @@ class Blog::PostsController < ActionController::API
   # GET /blog/posts/@handle     - posts by author
   # GET /blog/posts/@handle/:slug - single post
   def index
-    if params[:handle]
-      posts = BlogPost.published.by_handle(params[:handle])
-    else
-      posts = BlogPost.published
+    handle = params[:handle].to_s.delete_prefix("@").downcase.strip
+    if handle.blank?
+      return render json: { error: "Lütfen bir yazar profili belirtin (örn: /blog/@kullanici_adi)" }, status: :bad_request
     end
+
+    posts = BlogPost.published.by_handle(handle)
     render json: posts.map { |p| post_summary(p) }
   end
 
   def show
-    post = BlogPost.find_by!(slug: params[:slug], author_handle: params[:handle])
+    handle = params[:handle].to_s.delete_prefix("@").downcase.strip
+    post = BlogPost.find_by!(slug: params[:slug], author_handle: handle)
     render json: post_full(post)
   rescue ActiveRecord::RecordNotFound
     render json: { error: "Post not found" }, status: :not_found
