@@ -2,18 +2,28 @@ class Email::EmailMdService
   def self.to_html(raw_markdown)
     return "" if raw_markdown.blank?
 
-    # 1. Try official EmailMD engine via Node renderer
-    script_path = Rails.root.join("bin/emailmd_renderer.js")
-    if File.exist?(script_path)
-      require "open3"
-      stdout, stderr, status = Open3.capture3("node", script_path.to_s, stdin_data: raw_markdown.to_s)
-      if status.success? && stdout.strip.present?
-        return stdout
+    html = begin
+      # 1. Try official EmailMD engine via Node renderer
+      script_path = Rails.root.join("bin/emailmd_renderer.js")
+      if File.exist?(script_path)
+        require "open3"
+        stdout, stderr, status = Open3.capture3("node", script_path.to_s, stdin_data: raw_markdown.to_s)
+        if status.success? && stdout.strip.present?
+          stdout
+        else
+          render_markdown(raw_markdown)
+        end
+      else
+        render_markdown(raw_markdown)
       end
+    rescue
+      render_markdown(raw_markdown)
     end
 
-    # 2. Fallback to standard Markdown with hard wrap preservation
-    render_markdown(raw_markdown)
+    # Strip dangerous script tags, svg exploits, and inline event handlers
+    require "action_view"
+    sanitizer = ActionView::Base.sanitizer_vendor.safe_list_sanitizer.new
+    sanitizer.sanitize(html.to_s)
   end
 
   def self.render_markdown(text)

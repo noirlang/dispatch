@@ -205,23 +205,26 @@ class Email::SendService
 
   def self.parse_addresses(raw, user, server_domain)
     return [] if raw.blank?
+    sanitized_raw = raw.to_s.gsub(/[\r\n\0]/, ", ")
     addresses = []
-    raw.to_s.split(/[,;]/).map(&:strip).reject(&:blank?).each do |target|
-      if target.start_with?("@")
-        group_name = target.delete_prefix("@").downcase.strip
+    sanitized_raw.split(/[,;]/).map(&:strip).reject(&:blank?).each do |target|
+      clean_target = target.gsub(/[\r\n\0\t]/, "").strip
+      next if clean_target.blank?
+      if clean_target.start_with?("@")
+        group_name = clean_target.delete_prefix("@").downcase.strip
         group = user.contact_groups.find_by("lower(name) = ?", group_name)
         if group && group.member_list.any?
           addresses.concat(group.member_list)
         else
           addresses << "#{group_name}@#{server_domain}"
         end
-      elsif target.include?("@")
-        addresses << target.downcase.strip
+      elsif clean_target.include?("@")
+        addresses << clean_target.downcase.strip
       else
-        addresses << "#{target.downcase.strip}@#{server_domain}"
+        addresses << "#{clean_target.downcase.strip}@#{server_domain}"
       end
     end
-    addresses.map { |a| a.downcase.strip }.uniq
+    addresses.map { |a| a.gsub(/[\r\n\0]/, "").downcase.strip }.reject(&:blank?).uniq
   end
 
   def self.markdown_to_html(md)
