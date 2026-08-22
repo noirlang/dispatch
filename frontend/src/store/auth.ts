@@ -6,8 +6,10 @@ interface User {
   name: string
   email: string
   avatar_path: string | null
+  default_signature?: string | null
   ai_configured: boolean
   ai_provider: string | null
+  ai_model?: string | null
   approval_system_enabled: boolean
   spy_pixel_blocking: boolean
 }

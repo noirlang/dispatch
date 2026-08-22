@@ -41,8 +41,10 @@ class Api::V1::AuthController < ActionController::API
       name: user.name,
       email: user.email,
       avatar_path: user.avatar_path,
+      default_signature: user.default_signature,
       ai_configured: user.ai_configured?,
       ai_provider: user.ai_provider,
+      ai_model: user.ai_model,
       approval_system_enabled: user.approval_system_enabled,
       spy_pixel_blocking: user.spy_pixel_blocking
     }

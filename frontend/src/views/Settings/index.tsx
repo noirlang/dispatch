@@ -22,6 +22,8 @@ import {
   Laptop,
   Search,
   CheckCircle2,
+  Camera,
+  Upload
 } from "lucide-react"
 
 type Tab = "profile" | "appearance" | "contacts" | "speakeasy" | "ai" | "rss" | "security"
@@ -97,13 +99,14 @@ function TabBtn({ id, icon, label, active, setTab }: {
 }
 
 /* =========================================================================
-   1. PROFILE TAB
+   1. PROFILE TAB (WITH AVATAR UPLOAD)
    ========================================================================= */
 function ProfileTab({ user, onUpdate }: { user: any; onUpdate: () => void }) {
   const t = useT()
   const [name, setName] = useState(user?.name || "")
   const [signature, setSignature] = useState(user?.default_signature || "")
   const [saved, setSaved] = useState(false)
+  const [uploading, setUploading] = useState(false)
 
   const update = useMutation({
     mutationFn: () => api.patch("/settings", { name, default_signature: signature }),
@@ -114,14 +117,68 @@ function ProfileTab({ user, onUpdate }: { user: any; onUpdate: () => void }) {
     }
   })
 
+  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const formData = new FormData()
+    formData.append("file", file)
+
+    setUploading(true)
+    try {
+      const token = localStorage.getItem("dispatch_token")
+      const res = await fetch("http://localhost:3000/api/v1/settings/upload_avatar", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        body: formData
+      })
+      if (res.ok) {
+        onUpdate()
+      }
+    } catch {
+      alert("Failed to upload avatar.")
+    } finally {
+      setUploading(false)
+    }
+  }
+
   return (
-    <div className="flex flex-col gap-6 animate-fadeIn">
+    <div className="flex flex-col gap-8 animate-fadeIn max-w-lg">
       <div>
         <h2 className="text-xl font-bold text-[var(--text-main)]">{t("profile")}</h2>
-        <p className="text-xs text-[var(--text-muted)] mt-1">Manage your identity and signature</p>
+        <p className="text-xs text-[var(--text-muted)] mt-1">Manage your identity, profile picture, and signature</p>
       </div>
 
-      <div className="flex flex-col gap-4 max-w-lg">
+      {/* Avatar Section */}
+      <div className="flex items-center gap-5 p-5 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)]">
+        <div className="relative group">
+          <div className="w-16 h-16 rounded-full bg-[var(--accent)] text-[var(--accent-invert)] flex items-center justify-center font-bold text-xl overflow-hidden shadow-md">
+            {user?.avatar_path ? (
+              <img src={user.avatar_path} alt={user.name} className="w-full h-full object-cover" />
+            ) : (
+              <span>{user?.name?.[0]?.toUpperCase() || "U"}</span>
+            )}
+          </div>
+          <label className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
+            <Camera size={18} />
+            <input type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
+          </label>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <span className="text-sm font-bold text-[var(--text-main)]">{user?.name || "User"}</span>
+          <span className="text-xs font-mono text-[var(--text-muted)]">{user?.email}</span>
+          <label className="mt-1 inline-flex items-center gap-1.5 text-xs text-[var(--text-main)] underline font-medium cursor-pointer hover:opacity-80">
+            <Upload size={12} />
+            <span>{uploading ? "Uploading..." : "Change Profile Photo"}</span>
+            <input type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
+          </label>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-4">
         <div>
           <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">{t("full_name")}</label>
           <input
@@ -147,9 +204,12 @@ function ProfileTab({ user, onUpdate }: { user: any; onUpdate: () => void }) {
           <textarea
             value={signature}
             onChange={e => setSignature(e.target.value)}
-            placeholder="e.g. Best regards,&#10;Melih"
-            className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-main)] text-sm p-4 rounded-xl h-28 resize-none focus:outline-none focus:border-[var(--text-main)]"
+            placeholder="e.g. Best regards,&#10;Melih Emik"
+            className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-main)] text-sm p-4 rounded-xl h-28 resize-none focus:outline-none focus:border-[var(--text-main)] font-sans"
           />
+          <span className="text-[11px] text-[var(--text-dim)] mt-1 block">
+            This signature is automatically appended when writing a new email.
+          </span>
         </div>
 
         <div className="pt-2">
@@ -254,7 +314,7 @@ function AppearanceTab() {
 }
 
 /* =========================================================================
-   3. CONTACT RULES TAB (WITH SEARCH FILTER)
+   3. CONTACT RULES TAB (WITH SEARCH FILTER & AVATAR EDIT)
    ========================================================================= */
 function ContactsTab() {
   const t = useT()
@@ -296,7 +356,7 @@ function ContactsTab() {
     <div className="flex flex-col gap-6 animate-fadeIn">
       <div>
         <h2 className="text-xl font-bold text-[var(--text-main)]">{t("contact_rules")}</h2>
-        <p className="text-xs text-[var(--text-muted)] mt-1">Control sender bypass permissions and blocks</p>
+        <p className="text-xs text-[var(--text-muted)] mt-1">Control sender permissions, statuses, and blocks</p>
       </div>
 
       {/* Add New Rule */}
@@ -327,7 +387,7 @@ function ContactsTab() {
       </div>
 
       {/* Search Input for Rules */}
-      <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs">
+      <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs">
         <Search size={14} className="text-[var(--text-dim)]" />
         <input
           type="text"
@@ -341,14 +401,20 @@ function ContactsTab() {
       {/* Rules list */}
       <div className="flex flex-col gap-2">
         {filteredRules.length === 0 && (
-          <div className="text-xs text-[var(--text-dim)] py-6 text-center">No sender rules match your search.</div>
+          <div className="text-xs text-[var(--text-dim)] py-6 text-center">No sender rules found.</div>
         )}
         {filteredRules.map(r => (
           <div
             key={r.id}
-            className="flex items-center justify-between p-3.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs shadow-xs"
+            className="flex items-center justify-between p-4 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs shadow-xs"
           >
-            <span className="font-mono text-[var(--text-main)] font-medium">{r.email_address}</span>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-[var(--bg-primary)] border border-[var(--border-color)] flex items-center justify-center font-bold text-xs">
+                {r.email_address[0]?.toUpperCase()}
+              </div>
+              <span className="font-mono text-[var(--text-main)] font-semibold">{r.email_address}</span>
+            </div>
+
             <div className="flex items-center gap-3">
               <select
                 value={r.status}
@@ -361,7 +427,7 @@ function ContactsTab() {
               </select>
               <button
                 onClick={() => deleteRule.mutate(r.id)}
-                className="text-[var(--text-dim)] hover:text-[#ef4444] p-1 transition-colors"
+                className="text-[var(--text-dim)] hover:text-[#ef4444] p-1.5 transition-colors"
                 title="Delete rule"
               >
                 <Trash2 size={14} />

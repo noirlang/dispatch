@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { api } from "../../lib/api"
+import { useAuth } from "../../store/auth"
 import { useT } from "../../store/themeAndLocale"
 import { Inbox, Send, FileText, Trash2, Clock, Plus, Mail } from "lucide-react"
 import EmailList from "./EmailList"
@@ -11,6 +12,7 @@ export type Folder = "inbox" | "approvals" | "sent" | "drafts" | "trash"
 
 export default function EmailView() {
   const t = useT()
+  const { user } = useAuth()
   const [folder, setFolder] = useState<Folder>("inbox")
   const [selectedId, setSelectedId] = useState<number | null>(null)
 
@@ -32,15 +34,24 @@ export default function EmailView() {
   })
 
   function startCompose() {
-    setComposeConfig({})
+    const signature = user?.default_signature ? `\n\n--\n${user.default_signature}` : ""
+    setComposeConfig({
+      to: "",
+      subject: "",
+      body: signature,
+      isReply: false
+    })
     setComposing(true)
   }
 
-  function handleReply(email: any) {
+  function handleReply(email: any, customBody?: string) {
+    const signature = user?.default_signature ? `\n\n--\n${user.default_signature}` : ""
+    const defaultQuoted = `\n\n> On ${new Date(email.created_at).toLocaleString()}, ${email.from} wrote:\n> ${email.body?.replace(/\n/g, "\n> ")}`
+    
     setComposeConfig({
       to: email.from,
       subject: email.subject?.startsWith("Re:") ? email.subject : `Re: ${email.subject}`,
-      body: `\n\n> On ${new Date(email.created_at).toLocaleString()}, ${email.from} wrote:\n> ${email.body?.replace(/\n/g, "\n> ")}`,
+      body: (customBody ? `${customBody}${signature}` : "") + defaultQuoted,
       isReply: true,
       replyEmailId: email.id,
     })
@@ -82,12 +93,12 @@ export default function EmailView() {
   return (
     <div className="h-full flex bg-[var(--bg-primary)] overflow-hidden">
       {/* Sidebar Folders */}
-      <aside className="w-52 border-r border-[var(--border-color)] bg-[var(--bg-secondary)] flex flex-col p-3 gap-1 shrink-0">
+      <aside className="w-56 border-r border-[var(--border-color)] bg-[var(--bg-secondary)] flex flex-col p-3 gap-1 shrink-0">
         <button
           onClick={startCompose}
-          className="mb-4 w-full bg-[var(--accent)] text-[var(--accent-invert)] text-xs font-semibold py-2.5 px-3 rounded-lg hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-sm"
+          className="mb-4 w-full bg-[var(--accent)] text-[var(--accent-invert)] text-xs font-bold py-3 px-4 rounded-xl hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-sm"
         >
-          <Plus size={15} />
+          <Plus size={16} />
           <span>{t("compose")}</span>
         </button>
 
@@ -100,9 +111,9 @@ export default function EmailView() {
                 setFolder(f.id)
                 setSelectedId(null)
               }}
-              className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors text-left ${
+              className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all text-left ${
                 isActive
-                  ? "bg-[var(--bg-card)] text-[var(--text-main)] shadow-sm font-semibold"
+                  ? "bg-[var(--bg-card)] text-[var(--text-main)] shadow-xs font-bold border border-[var(--border-color)]"
                   : "text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-card)]"
               }`}
             >
@@ -111,7 +122,7 @@ export default function EmailView() {
                 <span>{f.label}</span>
               </div>
               {f.badge > 0 && (
-                <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-[#ffaa0025] text-[#ffaa00] border border-[#ffaa0040]">
+                <span className="px-2 py-0.5 text-[10px] font-extrabold rounded-full bg-[#f59e0b20] text-[#f59e0b] border border-[#f59e0b40]">
                   {f.badge}
                 </span>
               )}
@@ -136,8 +147,8 @@ export default function EmailView() {
           />
         ) : (
           <div className="h-full flex flex-col items-center justify-center text-[var(--text-dim)] gap-3">
-            <Mail size={36} className="opacity-40" />
-            <span className="text-xs">{t("select_email")}</span>
+            <Mail size={38} className="opacity-40" />
+            <span className="text-xs font-medium">{t("select_email")}</span>
           </div>
         )}
       </div>
