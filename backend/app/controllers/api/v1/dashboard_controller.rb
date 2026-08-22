@@ -29,14 +29,25 @@ class Api::V1::DashboardController < Api::V1::BaseController
     suggestion = card.calendar_suggestion
     return render json: { error: "No calendar suggestion" }, status: :bad_request unless suggestion
 
-    event = current_user.calendar_events.create!(
+    start_time = begin
+      Time.parse("#{suggestion["date"]} #{suggestion["time"] || "00:00"}")
+    rescue
+      Time.current
+    end
+
+    event = current_user.calendar_events.find_or_create_by!(
       title: suggestion["title"],
-      description: suggestion["description"],
-      starts_at: Time.parse("#{suggestion["date"]} #{suggestion["time"] || "00:00"}"),
-      all_day: suggestion["all_day"] || false,
-      source: "manual",
-      email_id: card.email_id
-    )
-    render json: event, status: :created
+      starts_at: start_time
+    ) do |ev|
+      ev.description = suggestion["description"]
+      ev.all_day = suggestion["all_day"] || false
+      ev.source = "ai_extracted"
+      ev.email_id = card.email_id
+    end
+
+    # Remove card from active dashboard immediately
+    card.update!(dismissed: true)
+
+    render json: { event: event, dismissed: true, card_id: card.id }, status: :created
   end
 end

@@ -3,6 +3,7 @@ set -e
 
 # =============================================================
 # 🚀 DISPATCH — 1-KOMUT HIZLI SUNUCU KURUCUSU & BAŞLATICISI
+# Debian 11/12 & Ubuntu 20.04/22.04/24.04 Optimize
 # =============================================================
 
 # Root yetkisi kontrolü
@@ -18,20 +19,20 @@ echo -e "\n\033[36m=============================================================
 echo -e "\033[36m⚡ DISPATCH E-POSTA & WEBMAIL SUNUCUSU KURULUYOR...\033[0m"
 echo -e "\033[36m=============================================================\033[0m\n"
 
-# 1. Sunucu IP adresi ve Swap (RAM Güvencesi)
+# 1. Sunucu IP adresi ve Swap (RAM Güvencesi - 2GB RAM için)
 echo -e "▶ 1. Sunucu IP adresi tespit ediliyor..."
 SERVER_IP=$(curl -s -m 5 https://api.ipify.org 2>/dev/null || curl -s -m 5 https://ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
 [ -z "$SERVER_IP" ] && SERVER_IP="127.0.0.1"
 echo -e "✔ Sunucu IP: \033[32m$SERVER_IP\033[0m\n"
 
-# Swap kontrolü (2GB RAM sunucuların derleme sırasında kilitlenmemesi için)
-if [ $(free -m 2>/dev/null | awk '/Swap:/ {print $2}' || echo 0) -lt 1000 ]; then
+# Swap kontrolü (2GB RAM sunucuların derleme sırasında kilitlenmemesi için - hata verirse sessizce atlar)
+if [ "$(free -m 2>/dev/null | awk '/Swap:/ {print $2}' || echo 0)" -lt 1000 ]; then
   echo "▶ RAM güvencesi için 2GB Swap oluşturuluyor..."
-  fallocate -l 2G /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=2048
-  chmod 600 /swapfile
-  mkswap /swapfile >/dev/null 2>&1
-  swapon /swapfile >/dev/null 2>&1 || true
-  grep -q "/swapfile" /etc/fstab || echo "/swapfile none swap sw 0 0" >> /etc/fstab
+  (fallocate -l 2G /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=2048 2>/dev/null || true)
+  chmod 600 /swapfile 2>/dev/null || true
+  mkswap /swapfile 2>/dev/null || true
+  swapon /swapfile 2>/dev/null || true
+  grep -q "/swapfile" /etc/fstab 2>/dev/null || echo "/swapfile none swap sw 0 0" >> /etc/fstab || true
 fi
 
 # 2. Gerekli sistem paketlerini kur
@@ -55,29 +56,34 @@ fi
 
 # 3. Güvenlik Duvarı Portlarını Aç
 echo -e "\n▶ 3. Portlar açılıyor (80, 443, 3000, 25, 587, 993)..."
-for port in 80 443 3000 5173 25 587 993; do
-  ufw allow "$port" >/dev/null 2>&1 || true
-done
+if command -v ufw >/dev/null 2>&1; then
+  for port in 80 443 3000 5173 25 587 993; do
+    ufw allow "$port" >/dev/null 2>&1 || true
+  done
+fi
 
 # 4. PostgreSQL Veritabanı ve Kullanıcısını Hazırla
 echo -e "▶ 4. Veritabanı yapılandırılıyor..."
-systemctl start postgresql redis-server
-sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='dispatch'" | grep -q 1 || \
+systemctl start postgresql redis-server 2>/dev/null || true
+sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='dispatch'" 2>/dev/null | grep -q 1 || \
   sudo -u postgres psql -c "CREATE USER dispatch WITH PASSWORD 'dispatch_secret' SUPERUSER CREATEDB;"
-sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='dispatch_prod'" | grep -q 1 || \
+sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='dispatch_prod'" 2>/dev/null | grep -q 1 || \
   sudo -u postgres psql -c "CREATE DATABASE dispatch_prod OWNER dispatch;"
 
 # 5. Backend Bağımlılıkları ve Migrasyonlar
-echo -e "\n▶ 5. Backend derleniyor ve hazırlanıyor..."
+echo -e "\n▶ 5. Backend derleniyor ve optimize ediliyor..."
 cd "$DISPATCH_DIR/backend"
 
-# .env yapılandırması
+# .env yapılandırması (Düşük RAM & Yüksek Hız Optimizasyonları)
 cat << ENVEOF > "$DISPATCH_DIR/backend/.env"
 DATABASE_URL=postgresql://dispatch:dispatch_secret@localhost:5432/dispatch_prod
 REDIS_URL=redis://localhost:6379
 SECRET_KEY_BASE=dispatch_prod_master_secret_key_$(openssl rand -hex 16)
 SERVER_IPV4=$SERVER_IP
 RAILS_ENV=production
+RAILS_MAX_THREADS=5
+WEB_CONCURRENCY=1
+MALLOC_ARENA_MAX=2
 ENVEOF
 
 bundle install --quiet || bundle install

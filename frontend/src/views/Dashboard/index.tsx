@@ -53,8 +53,10 @@ export default function DashboardView() {
   const t = useT()
   const dateLocale = useDateLocale()
   const lang = useAppStore((s) => s.lang)
+  const { addToast } = useAppStore()
   const qc = useQueryClient()
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
+  const [pendingCardId, setPendingCardId] = useState<number | null>(null)
 
   const { data: cards = [], isLoading } = useQuery({
     queryKey: ["dashboard-cards"],
@@ -68,10 +70,20 @@ export default function DashboardView() {
   })
 
   const addToCalendar = useMutation({
-    mutationFn: (id: number) => api.post(`/dashboard/${id}/add_to_calendar`),
+    mutationFn: (id: number) => {
+      setPendingCardId(id)
+      return api.post(`/dashboard/${id}/add_to_calendar`)
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["calendar"] })
       qc.invalidateQueries({ queryKey: ["dashboard-cards"] })
+      addToast({
+        from: "📅 Takvim",
+        subject: lang === "tr" ? "Etkinlik takvime eklendi ve panodan kaldırıldı." : "Event added to calendar."
+      })
+    },
+    onSettled: () => {
+      setPendingCardId(null)
     }
   })
 
@@ -233,11 +245,12 @@ export default function DashboardView() {
 
                 {card.calendar_suggestion && (
                   <button
+                    disabled={pendingCardId === card.id || addToCalendar.isPending}
                     onClick={() => addToCalendar.mutate(card.id)}
-                    className="flex items-center gap-1 text-[#22c55e] hover:underline transition-colors font-semibold"
+                    className="flex items-center gap-1.5 text-[#22c55e] hover:underline transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Calendar size={12} />
-                    <span>{t("add_to_calendar")}</span>
+                    <Calendar size={12} className={pendingCardId === card.id ? "animate-spin" : ""} />
+                    <span>{pendingCardId === card.id ? "Ekleniyor..." : t("add_to_calendar")}</span>
                   </button>
                 )}
               </div>
