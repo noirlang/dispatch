@@ -24,7 +24,7 @@ import {
   Globe2
 } from "lucide-react"
 import DOMPurify from "dompurify"
-import ReactMarkdown from "react-markdown"
+import EmailMdView from "../../components/ui/EmailMdView"
 import SenderAvatar from "../../components/ui/SenderAvatar"
 import { format } from "date-fns"
 
@@ -558,18 +558,7 @@ export default function EmailReader({ id, folder, onReply, onForward }: Props) {
       <div className="flex-1 p-10 overflow-y-auto max-w-4xl">
         {translation && !showOriginal ? (
           <div className="text-sm leading-relaxed font-sans text-[var(--text-main)]">
-            <ReactMarkdown
-              components={{
-                blockquote: ({ children }) => (
-                  <blockquote className="border-l-2 border-[var(--border-color)] pl-4 my-3 text-[var(--text-muted)] not-italic space-y-1">
-                    {children}
-                  </blockquote>
-                ),
-                p: ({ children }) => <p className="mb-2.5 last:mb-0 leading-relaxed">{children}</p>
-              }}
-            >
-              {translation.translated_body}
-            </ReactMarkdown>
+            <EmailMdView content={translation.translated_body} />
           </div>
         ) : isHtml ? (
           <div
@@ -578,18 +567,7 @@ export default function EmailReader({ id, folder, onReply, onForward }: Props) {
           />
         ) : (
           <div className="text-sm leading-relaxed font-sans text-[var(--text-main)]">
-            <ReactMarkdown
-              components={{
-                blockquote: ({ children }) => (
-                  <blockquote className="border-l-2 border-[var(--border-color)] pl-4 my-3 text-[var(--text-muted)] not-italic space-y-1">
-                    {children}
-                  </blockquote>
-                ),
-                p: ({ children }) => <p className="mb-2.5 last:mb-0 leading-relaxed">{children}</p>
-              }}
-            >
-              {email.body_text || email.body || ""}
-            </ReactMarkdown>
+            <EmailMdView content={email.body_text || email.body || ""} />
           </div>
         )}
       </div>

@@ -2,7 +2,7 @@ import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "../../lib/api"
 import { useT } from "../../store/themeAndLocale"
-import ReactMarkdown from "react-markdown"
+import EmailMdView from "../../components/ui/EmailMdView"
 import { Send, X, Eye, Edit3, ExternalLink } from "lucide-react"
 
 interface Props {
@@ -95,13 +95,13 @@ export default function ComposeView({
             {isReply ? `${t("reply")}: ${initialSubject}` : t("new_message")}
           </span>
           <a
-            href="https://markdownlivepreview.com/"
+            href="https://www.emailmd.dev/builder"
             target="_blank"
             rel="noopener noreferrer"
-            title="Markdown Canlı Önizleme & Rehberi Aç"
+            title="Email.md Canlı Oluşturucu & Rehberi Aç"
             className="text-[11px] text-[var(--text-dim)] hover:text-[var(--text-main)] hover:border-[var(--text-muted)] font-mono px-2 py-0.5 rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] transition-colors flex items-center gap-1 cursor-pointer"
           >
-            <span>Markdown enabled</span>
+            <span>Email.md enabled</span>
             <ExternalLink size={10} className="opacity-60" />
           </a>
         </div>
@@ -237,18 +237,7 @@ export default function ComposeView({
         ) : (
           <div className="flex-1 p-6 overflow-y-auto max-w-none text-sm leading-relaxed text-[var(--text-main)] font-sans">
             {body.trim() ? (
-              <ReactMarkdown
-                components={{
-                  blockquote: ({ children }) => (
-                    <blockquote className="border-l-2 border-[var(--border-color)] pl-4 my-3 text-[var(--text-muted)] not-italic space-y-1">
-                      {children}
-                    </blockquote>
-                  ),
-                  p: ({ children }) => <p className="mb-2.5 last:mb-0 leading-relaxed">{children}</p>
-                }}
-              >
-                {body}
-              </ReactMarkdown>
+              <EmailMdView content={body} />
             ) : (
               <span className="text-[var(--text-dim)] italic">No content to preview...</span>
             )}

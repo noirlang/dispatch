@@ -153,14 +153,6 @@ class Email::SendService
   end
 
   def self.markdown_to_html(md)
-    require "kramdown"
-    Kramdown::Document.new(md).to_html
-  rescue LoadError, StandardError
-    escaped = ERB::Util.html_escape(md)
-    escaped.gsub!(/\*\*(.+?)\*\*/, '<strong>\1</strong>')
-    escaped.gsub!(/\*(.+?)\*/, '<em>\1</em>')
-    escaped.gsub!(/\[(.+?)\]\((.+?)\)/, '<a href="\2">\1</a>')
-    escaped.gsub!(/\n/, '<br>')
-    "<p>#{escaped}</p>"
+    Email::EmailMdService.to_html(md)
   end
 end
