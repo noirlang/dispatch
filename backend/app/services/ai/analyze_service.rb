@@ -43,12 +43,6 @@ class Ai::AnalyzeService
       "tags": ["tag1"],
       "expires_at": "ISO8601" or null
     }
-
-    Rules:
-    - Never include passwords, CVV, or national IDs
-    - Detect language from email content
-    - Set priority=high for travel (same day) or urgent deliveries
-    - Use type=general if nothing specific matches
   PROMPT
 
   def self.models_for(provider)
@@ -56,6 +50,8 @@ class Ai::AnalyzeService
   end
 
   def self.call(user, email)
+    return Result.new(false, nil, "AI not configured") unless user.ai_configured?
+
     prompt = PROMPT % {
       from: email.from_address,
       subject: email.subject,
@@ -63,30 +59,81 @@ class Ai::AnalyzeService
       body: email.body_text&.first(3000)
     }
 
-    model = user.ai_model.presence
-    response = case user.ai_provider
-               when "gemini"
-                 model ||= "gemini-1.5-flash"
-                 call_gemini(user.gemini_key, model, prompt)
-               when "claude"
-                 model ||= "claude-3-5-haiku-latest"
-                 call_claude(user.claude_key, model, prompt)
-               when "openai"
-                 model ||= "gpt-4o-mini"
-                 call_openai(user.openai_key, model, prompt)
-               else
-                 return Result.new(false, nil, "No AI provider configured")
-               end
-
-    data = JSON.parse(response)
+    raw = execute_ai(user, prompt, json_mode: true)
+    data = JSON.parse(raw)
     Result.new(true, data, nil)
   rescue JSON::ParserError => e
-    Result.new(false, nil, "Invalid JSON response: #{e.message}")
+    Result.new(false, nil, "Invalid JSON: #{e.message}")
+  rescue => e
+    Result.new(false, nil, e.message)
+  end
+
+  def self.summarize(user, email)
+    return Result.new(false, nil, "AI not configured") unless user.ai_configured?
+
+    prompt = <<~SUM
+      You are an expert executive email assistant. Summarize the following email in 2-3 concise bullet points in the same language as the email.
+
+      FROM: #{email.from_address}
+      SUBJECT: #{email.subject}
+      BODY: #{email.body_text&.first(2500)}
+    SUM
+
+    res = execute_ai(user, prompt, json_mode: false)
+    Result.new(true, res.strip, nil)
+  rescue => e
+    Result.new(false, nil, e.message)
+  end
+
+  def self.generate_reply(user, email, user_instructions, tone = "friendly")
+    return Result.new(false, nil, "AI not configured") unless user.ai_configured?
+
+    custom_notes = user_instructions.presence || "Draft an appropriate, polite response."
+    prompt = <<~REP
+      You are drafting an email reply on behalf of #{user.name || "the recipient"}.
+      
+      ORIGINAL EMAIL:
+      From: #{email.from_address}
+      Subject: #{email.subject}
+      Content: #{email.body_text&.first(2500)}
+
+      INSTRUCTIONS / USER INTENT:
+      #{custom_notes}
+
+      TONE: #{tone}
+
+      RULES:
+      - Reply in the same language as the original email.
+      - Sound natural, authentic, and clear.
+      - Output ONLY the email response text without greetings metadata or markdown codeblocks.
+    REP
+
+    res = execute_ai(user, prompt, json_mode: false)
+    # Clean output
+    reply_text = res.gsub(/\A```.*?\n/, "").gsub(/```\z/, "").strip
+    Result.new(true, reply_text, nil)
   rescue => e
     Result.new(false, nil, e.message)
   end
 
   private
+
+  def self.execute_ai(user, prompt, json_mode: false)
+    model = user.ai_model.presence
+    case user.ai_provider
+    when "gemini"
+      model ||= "gemini-1.5-flash"
+      call_gemini(user.gemini_key, model, prompt)
+    when "claude"
+      model ||= "claude-3-5-haiku-latest"
+      call_claude(user.claude_key, model, prompt)
+    when "openai"
+      model ||= "gpt-4o-mini"
+      call_openai(user.openai_key, model, prompt, json_mode: json_mode)
+    else
+      raise "No AI provider configured"
+    end
+  end
 
   def self.call_gemini(api_key, model, prompt)
     conn = Faraday.new("https://generativelanguage.googleapis.com") do |f|
@@ -108,21 +155,21 @@ class Ai::AnalyzeService
     res = conn.post("/v1/messages") do |req|
       req.headers["x-api-key"] = api_key
       req.headers["anthropic-version"] = "2023-06-01"
-      req.body = { model: model, max_tokens: 1024,
-                   messages: [{ role: "user", content: prompt }] }
+      req.body = { model: model, max_tokens: 1500, messages: [{ role: "user", content: prompt }] }
     end
     res.body.dig("content", 0, "text")
   end
 
-  def self.call_openai(api_key, model, prompt)
+  def self.call_openai(api_key, model, prompt, json_mode: false)
     conn = Faraday.new("https://api.openai.com") do |f|
       f.request :json
       f.response :json
     end
+    body = { model: model, messages: [{ role: "user", content: prompt }] }
+    body[:response_format] = { type: "json_object" } if json_mode
     res = conn.post("/v1/chat/completions") do |req|
       req.headers["Authorization"] = "Bearer #{api_key}"
-      req.body = { model: model, messages: [{ role: "user", content: prompt }],
-                   response_format: { type: "json_object" } }
+      req.body = body
     end
     res.body.dig("choices", 0, "message", "content")
   end

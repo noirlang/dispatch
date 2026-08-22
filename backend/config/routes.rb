@@ -22,6 +22,9 @@ Rails.application.routes.draw do
           post :forward
           post :approve
           post :reject
+          post :block_sender
+          post :ai_summary
+          post :ai_reply
         end
         collection do
           post :merge_threads

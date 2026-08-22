@@ -1,10 +1,10 @@
 class Api::V1::EmailsController < Api::V1::BaseController
-  before_action :set_email, only: [:show, :destroy, :reply, :forward, :approve, :reject]
+  before_action :set_email, only: [:show, :destroy, :reply, :forward, :approve, :reject, :block_sender, :ai_summary, :ai_reply]
 
   def index
     folder = params[:folder] || "inbox"
     emails = current_user.emails.where(folder: folder).order(created_at: :desc)
-    render json: emails
+    render json: emails.map { |e| email_list_json(e) }
   end
 
   def show
@@ -13,7 +13,6 @@ class Api::V1::EmailsController < Api::V1::BaseController
   end
 
   def create
-    # Send via SMTP
     result = Email::SendService.call(current_user, email_params)
     if result.success?
       render json: result.email, status: :created
@@ -29,7 +28,6 @@ class Api::V1::EmailsController < Api::V1::BaseController
 
   def reply
     result = Email::SendService.call(current_user, reply_params(@email))
-    # Auto-approve sender if replying from approvals
     if @email.folder == "approvals"
       SenderRule.find_or_create_by(user: current_user, email_address: @email.from_address) do |r|
         r.status = "approved"
@@ -57,6 +55,43 @@ class Api::V1::EmailsController < Api::V1::BaseController
     end
     @email.update!(folder: "trash")
     render json: { message: "Sender blocked" }
+  end
+
+  def block_sender
+    rule = SenderRule.find_or_initialize_by(user: current_user, email_address: @email.from_address)
+    rule.update!(status: "blocked")
+    # Move all messages from this sender to trash
+    current_user.emails.where(from_address: @email.from_address).update_all(folder: "trash")
+    render json: { message: "Sender blocked and moved to trash" }
+  end
+
+  def ai_summary
+    return render json: { error: "AI not configured" }, status: :bad_request unless current_user.ai_configured?
+
+    res = Ai::AnalyzeService.summarize(current_user, @email)
+    if res.success?
+      render json: { summary: res.data }
+    else
+      render json: { error: res.error }, status: :unprocessable_entity
+    end
+  end
+
+  def ai_reply
+    return render json: { error: "AI not configured" }, status: :bad_request unless current_user.ai_configured?
+
+    instructions = params[:instructions].to_s
+    tone = params[:tone].presence || "friendly"
+    res = Ai::AnalyzeService.generate_reply(current_user, @email, instructions, tone)
+
+    if res.success?
+      render json: {
+        reply_body: res.data,
+        subject: @email.subject.start_with?("Re:") ? @email.subject : "Re: #{@email.subject}",
+        to: @email.from_address
+      }
+    else
+      render json: { error: res.error }, status: :unprocessable_entity
+    end
   end
 
   def merge_threads
@@ -89,6 +124,7 @@ class Api::V1::EmailsController < Api::V1::BaseController
   def email_json(email)
     body = email.body_html.presence || email.body_text
     body = Email::ImageProxyService.rewrite_html(body) if email.body_html.present? && current_user.spy_pixel_blocking
+    profile = Email::SenderAvatarService.for(email.from_address)
     {
       id: email.id,
       from: email.from_address,
@@ -97,33 +133,27 @@ class Api::V1::EmailsController < Api::V1::BaseController
       body: body,
       folder: email.folder,
       is_read: email.is_read,
-      created_at: email.created_at
+      created_at: email.created_at,
+      sender_name: profile[:name],
+      avatar_url: profile[:avatar_url],
+      avatar_initials: profile[:initials],
+      is_known_company: profile[:is_known_company]
     }
   end
-end
 
-# Override index to include sender avatars
-alias_method :original_index, :index
-def index
-  folder = params[:folder] || "inbox"
-  emails = current_user.emails.where(folder: folder).order(created_at: :desc)
-  render json: emails.map { |e| email_list_json(e) }
-end
-
-private
-
-def email_list_json(email)
-  profile = Email::SenderAvatarService.for(email.from_address)
-  {
-    id:           email.id,
-    from:         email.from_address,
-    subject:      email.subject,
-    is_read:      email.is_read,
-    folder:       email.folder,
-    created_at:   email.created_at,
-    sender_name:  profile[:name],
-    avatar_url:   profile[:avatar_url],
-    avatar_initials: profile[:initials],
-    is_known_company: profile[:is_known_company]
-  }
+  def email_list_json(email)
+    profile = Email::SenderAvatarService.for(email.from_address)
+    {
+      id:           email.id,
+      from:         email.from_address,
+      subject:      email.subject,
+      is_read:      email.is_read,
+      folder:       email.folder,
+      created_at:   email.created_at,
+      sender_name:  profile[:name],
+      avatar_url:   profile[:avatar_url],
+      avatar_initials: profile[:initials],
+      is_known_company: profile[:is_known_company]
+    }
+  end
 end
