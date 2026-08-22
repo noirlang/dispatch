@@ -112,22 +112,16 @@ export default function DashboardView() {
       {/* Dashboard Header */}
       <div className="flex items-center justify-between mb-8 pb-6 border-b border-[var(--border-color)]">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)]">
+          <div className="p-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-center">
             <Sparkles size={18} className="text-[var(--text-main)]" />
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-[var(--text-main)]">{t("dashboard")}</h1>
-            <p className="text-xs text-[var(--text-muted)] mt-0.5">
-              {lang === "tr"
-                ? "Panoya eklenen notlar, seyahat kartları, kargo takipleri ve önemli bildirimler"
-                : "Extracted flight codes, OTPs, tracking numbers, and saved notes"}
-            </p>
-          </div>
+          <h1 className="text-xl font-bold text-[var(--text-main)] leading-none">{t("dashboard")}</h1>
         </div>
         <span className="text-xs font-mono font-semibold text-[var(--text-muted)] px-3 py-1.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] shadow-xs">
           {cards.length} {t("active_notes")}
         </span>
       </div>
+
 
       {isLoading && <div className="text-[var(--text-dim)] text-xs py-8 text-center">Loading board...</div>}
 

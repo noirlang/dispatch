@@ -149,16 +149,12 @@ export default function FeedView() {
       {/* Feed Header */}
       <div className="flex items-center justify-between pb-4 mb-3 border-b border-[var(--border-color)]">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)]">
+          <div className="p-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-center">
             <Rss size={18} className="text-[#f59e0b]" />
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-[var(--text-main)]">{t("feed")}</h1>
-            <p className="text-xs text-[var(--text-muted)] mt-0.5">
-              Canlı haberler, bloglar ve bültenler okuyucusu
-            </p>
-          </div>
+          <h1 className="text-xl font-bold text-[var(--text-main)] leading-none">{t("feed")}</h1>
         </div>
+
 
         <div className="flex items-center gap-2.5">
           <motion.button

@@ -170,16 +170,12 @@ export default function CalendarView() {
       {/* Top Header & Week Navigation */}
       <div className="flex items-center justify-between pb-6 mb-4 border-b border-[var(--border-color)]">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)]">
+          <div className="p-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-center">
             <CalIcon size={18} className="text-[var(--text-main)]" />
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-[var(--text-main)]">{t("calendar")}</h1>
-            <p className="text-xs text-[var(--text-muted)] mt-0.5">
-              Vertical scrollable agenda with smart email auto-extraction
-            </p>
-          </div>
+          <h1 className="text-xl font-bold text-[var(--text-main)] leading-none">{t("calendar")}</h1>
         </div>
+
 
         <div className="flex items-center gap-3">
           {/* Week Selector */}
