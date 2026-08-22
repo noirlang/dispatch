@@ -190,17 +190,14 @@ function ProfileTab({ user, onUpdate }: { user: any; onUpdate: () => void }) {
     setUploadingAvatar(true)
     try {
       const formData = new FormData()
+      formData.append("file", file)
       formData.append("avatar", file)
-      const token = localStorage.getItem("dispatch_token")
-      await fetch("http://localhost:3000/api/v1/settings/upload_avatar", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData
-      })
-      onUpdate()
+      await api.upload<{ avatar_path: string }>("/settings/upload_avatar", formData)
+      await onUpdate()
       qc.invalidateQueries({ queryKey: ["settings"] })
-    } catch {
-      alert("Avatar yüklenemedi.")
+      qc.invalidateQueries({ queryKey: ["me"] })
+    } catch (err: any) {
+      alert(err.message || "Avatar yüklenemedi.")
     } finally {
       setUploadingAvatar(false)
     }

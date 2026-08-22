@@ -70,12 +70,12 @@ class Api::V1::SettingsController < Api::V1::BaseController
   end
 
   def upload_avatar
-    file = params[:file]
-    return render json: { error: "No file" }, status: :bad_request unless file
+    file = params[:file] || params[:avatar] || params[:image]
+    return render json: { error: "Lütfen bir resim dosyası seçin" }, status: :bad_request unless file
 
     result = Email::AvatarUploadService.call(current_user, file)
     if result.success?
-      render json: { avatar_path: result.path }
+      render json: { avatar_path: result.path, user: { avatar_path: result.path } }
     else
       render json: { error: result.error }, status: :unprocessable_entity
     end

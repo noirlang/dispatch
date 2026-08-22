@@ -249,12 +249,7 @@ export default function EmailReader({ id, folder, onReply, onForward }: Props) {
         const formData = new FormData()
         formData.append("email", email.from)
         formData.append("file", file)
-        const token = localStorage.getItem("dispatch_token")
-        await fetch("http://localhost:3000/api/v1/sender_profiles/update_avatar", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          body: formData
-        })
+        await api.upload("/sender_profiles/update_avatar", formData)
       } else if (avatarUrlInput) {
         await api.post("/sender_profiles/update_avatar", {
           email: email.from,
