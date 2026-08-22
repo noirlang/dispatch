@@ -6,7 +6,8 @@ class Api::V1::BaseController < ActionController::API
   def authenticate!
     token = request.headers["Authorization"]&.split(" ")&.last
     payload = JwtHelper.decode(token)
-    @current_user = User.find_by(id: payload&.dig("user_id"))
+    user_id = payload&.dig("user_id") || payload&.dig(:user_id)
+    @current_user = User.find_by(id: user_id)
     render json: { error: "Unauthorized" }, status: :unauthorized unless @current_user
   end
 

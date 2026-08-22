@@ -14,15 +14,18 @@ export interface ToastItem {
 }
 
 export type EmailFolder = "inbox" | "approvals" | "sent" | "drafts" | "trash" | "contacts"
+export type SettingsTab = "profile" | "appearance" | "contacts" | "speakeasy" | "ai" | "rss" | "security" | "updates"
 
 interface State {
   theme: Theme
   lang: Lang
   activeEmailFolder: EmailFolder
+  activeSettingsTab: SettingsTab
   toasts: ToastItem[]
   setTheme: (t: Theme) => void
   setLang: (l: Lang) => void
   setActiveEmailFolder: (f: EmailFolder) => void
+  setActiveSettingsTab: (t: SettingsTab) => void
   addToast: (t: Omit<ToastItem, "id">) => void
   removeToast: (id: string) => void
 }
@@ -184,6 +187,7 @@ export const useAppStore = create<State>((set) => ({
   theme: (localStorage.getItem("dispatch_theme") as Theme) || "system",
   lang: (localStorage.getItem("dispatch_lang") as Lang) || "tr",
   activeEmailFolder: "inbox",
+  activeSettingsTab: "profile",
   toasts: [],
 
   setTheme: (theme) => {
@@ -199,6 +203,10 @@ export const useAppStore = create<State>((set) => ({
 
   setActiveEmailFolder: (activeEmailFolder) => {
     set({ activeEmailFolder })
+  },
+
+  setActiveSettingsTab: (activeSettingsTab) => {
+    set({ activeSettingsTab })
   },
 
   addToast: (item) => {

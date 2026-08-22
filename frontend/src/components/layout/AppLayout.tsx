@@ -1,6 +1,31 @@
 import { useState, useEffect, useRef } from "react"
-import { Calendar, Mail, Rss, Settings, LayoutDashboard, Sun, Moon, Laptop, X, Bell, Menu, Inbox, Clock, Send, FileText, Trash2, Users, LogOut } from "lucide-react"
-import { useAppStore, useT, applyThemeToDOM, type EmailFolder } from "../../store/themeAndLocale"
+import {
+  Calendar,
+  Mail,
+  Rss,
+  Settings,
+  LayoutDashboard,
+  Sun,
+  Moon,
+  Laptop,
+  X,
+  Bell,
+  Menu,
+  Inbox,
+  Clock,
+  Send,
+  FileText,
+  Trash2,
+  Users,
+  LogOut,
+  User,
+  Palette,
+  Key,
+  Bot,
+  Shield,
+  DownloadCloud
+} from "lucide-react"
+import { useAppStore, useT, applyThemeToDOM, type EmailFolder, type SettingsTab } from "../../store/themeAndLocale"
 import { requestNotificationPermission, sendBrowserNotification } from "../../lib/notifications"
 import { useAuth } from "../../store/auth"
 import { useQuery } from "@tanstack/react-query"
@@ -29,7 +54,20 @@ export default function AppLayout({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const t = useT()
   const { user, logout } = useAuth()
-  const { theme, setTheme, lang, setLang, activeEmailFolder, setActiveEmailFolder, toasts, addToast, removeToast } = useAppStore()
+  const {
+    theme,
+    setTheme,
+    lang,
+    setLang,
+    activeEmailFolder,
+    setActiveEmailFolder,
+    activeSettingsTab,
+    setActiveSettingsTab,
+    toasts,
+    addToast,
+    removeToast
+  } = useAppStore()
+
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">(
     typeof window !== "undefined" && "Notification" in window ? Notification.permission : "unsupported"
   )
@@ -110,9 +148,26 @@ export default function AppLayout({
     { id: "contacts" as const,  label: lang === "tr" ? "Kişiler & Gruplar" : "Contacts & Groups", icon: <Users size={16} />, badge: groups.length },
   ]
 
+  const settingsTabsList = [
+    { id: "profile" as const,    label: t("profile"),          icon: <User size={16} /> },
+    { id: "appearance" as const, label: t("appearance"),       icon: <Palette size={16} /> },
+    { id: "contacts" as const,   label: t("contact_rules"),    icon: <Users size={16} /> },
+    { id: "speakeasy" as const,  label: t("speakeasy_codes"),  icon: <Key size={16} /> },
+    { id: "ai" as const,         label: t("ai_settings"),      icon: <Bot size={16} /> },
+    { id: "rss" as const,        label: t("rss_settings"),     icon: <Rss size={16} /> },
+    { id: "security" as const,   label: t("privacy_security"), icon: <Shield size={16} /> },
+    { id: "updates" as const,    label: lang === "tr" ? "Sistem Güncelleme" : "System Updates", icon: <DownloadCloud size={16} /> },
+  ]
+
   function selectFolderOnMobile(folderId: EmailFolder) {
     setActiveEmailFolder(folderId)
     setActive("email")
+    setMobileMenuOpen(false)
+  }
+
+  function selectSettingsTabOnMobile(tabId: SettingsTab) {
+    setActiveSettingsTab(tabId)
+    setActive("settings")
     setMobileMenuOpen(false)
   }
 
@@ -406,36 +461,65 @@ export default function AppLayout({
                 </div>
               )}
 
-              {/* Mail Folders List */}
-              <div className="flex flex-col gap-1 my-2">
-                <span className="text-[10px] font-bold text-[var(--text-dim)] uppercase tracking-wider px-3 mb-1">
-                  {lang === "tr" ? "E-Posta Klasörleri" : "Mail Folders"}
-                </span>
-                {folderList.map((f) => {
-                  const isSelected = active === "email" && activeEmailFolder === f.id
-                  return (
-                    <button
-                      key={f.id}
-                      onClick={() => selectFolderOnMobile(f.id)}
-                      className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                        isSelected
-                          ? "bg-[var(--bg-card)] text-[var(--text-main)] border border-[var(--border-color)] shadow-xs"
-                          : "text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-card)]"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        {f.icon}
-                        <span>{f.label}</span>
-                      </div>
-                      {f.badge > 0 && (
-                        <span className="px-2 py-0.5 text-[10px] font-extrabold rounded-full bg-[#f59e0b20] text-[#f59e0b] border border-[#f59e0b40]">
-                          {f.badge}
-                        </span>
-                      )}
-                    </button>
-                  )
-                })}
-              </div>
+              {/* Contextual Menu Content based on active panel */}
+              {active === "settings" ? (
+                /* Settings Tabs in Drawer */
+                <div className="flex flex-col gap-1 my-2">
+                  <span className="text-[10px] font-bold text-[var(--text-dim)] uppercase tracking-wider px-3 mb-1">
+                    {lang === "tr" ? "Ayar Sekmeleri" : "Settings Tabs"}
+                  </span>
+                  {settingsTabsList.map((st) => {
+                    const isSelected = activeSettingsTab === st.id
+                    return (
+                      <button
+                        key={st.id}
+                        onClick={() => selectSettingsTabOnMobile(st.id)}
+                        className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                          isSelected
+                            ? "bg-[var(--bg-card)] text-[var(--text-main)] border border-[var(--border-color)] shadow-xs"
+                            : "text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-card)]"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          {st.icon}
+                          <span>{st.label}</span>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              ) : (
+                /* Mail Folders in Drawer */
+                <div className="flex flex-col gap-1 my-2">
+                  <span className="text-[10px] font-bold text-[var(--text-dim)] uppercase tracking-wider px-3 mb-1">
+                    {lang === "tr" ? "E-Posta Klasörleri" : "Mail Folders"}
+                  </span>
+                  {folderList.map((f) => {
+                    const isSelected = active === "email" && activeEmailFolder === f.id
+                    return (
+                      <button
+                        key={f.id}
+                        onClick={() => selectFolderOnMobile(f.id)}
+                        className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                          isSelected
+                            ? "bg-[var(--bg-card)] text-[var(--text-main)] border border-[var(--border-color)] shadow-xs"
+                            : "text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-card)]"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          {f.icon}
+                          <span>{f.label}</span>
+                        </div>
+                        {f.badge > 0 && (
+                          <span className="px-2 py-0.5 text-[10px] font-extrabold rounded-full bg-[#f59e0b20] text-[#f59e0b] border border-[#f59e0b40]">
+                            {f.badge}
+                          </span>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
 
               {/* Language & Theme Controls */}
               <div className="mt-auto pt-4 border-t border-[var(--border-color)] flex flex-col gap-3">

@@ -37,9 +37,10 @@ import {
 type Tab = "profile" | "appearance" | "contacts" | "speakeasy" | "ai" | "rss" | "security" | "updates"
 
 export default function SettingsView() {
-  const [tab, setTab] = useState<Tab>("profile")
+  const { lang, activeSettingsTab, setActiveSettingsTab } = useAppStore()
+  const tab = activeSettingsTab
+  const setTab = setActiveSettingsTab
   const { user, logout, fetchMe } = useAuth()
-  const { lang } = useAppStore()
   const t = useT()
 
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
@@ -51,8 +52,8 @@ export default function SettingsView() {
 
   return (
     <div className="h-full flex bg-[var(--bg-primary)] text-[var(--text-main)] overflow-hidden">
-      {/* Sidebar Nav */}
-      <aside className="w-64 border-r border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 flex flex-col justify-between shrink-0">
+      {/* Sidebar Nav (Desktop only, mobile accesses via top-right hamburger drawer) */}
+      <aside className="hidden md:flex w-64 border-r border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 flex-col justify-between shrink-0">
         <div className="flex flex-col gap-1">
           <div className="px-3 py-2 text-[11px] font-bold text-[var(--text-dim)] uppercase tracking-wider">
             {t("settings")}
@@ -80,7 +81,7 @@ export default function SettingsView() {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto p-10 max-w-4xl bg-[var(--bg-primary)]">
+      <main className="flex-1 overflow-y-auto p-4 sm:p-8 max-w-4xl bg-[var(--bg-primary)]">
         <AnimatePresence mode="wait">
           {tab === "profile"    && <ProfileTab key="profile" user={user} onUpdate={fetchMe} />}
           {tab === "appearance" && <AppearanceTab key="appearance" />}
@@ -321,7 +322,7 @@ function ProfileTab({ user, onUpdate }: { user: any; onUpdate: () => void }) {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="text-[11px] font-semibold text-[var(--text-muted)] block mb-1">{t("new_password")}</label>
               <input
