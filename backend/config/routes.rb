@@ -35,6 +35,7 @@ Rails.application.routes.draw do
         end
         collection do
           post :merge_threads
+          post :bulk_action
           get  :contacts
         end
       end

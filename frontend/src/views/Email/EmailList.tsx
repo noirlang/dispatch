@@ -5,7 +5,7 @@ import { useT, useDateLocale } from "../../store/themeAndLocale"
 import { motion, AnimatePresence } from "framer-motion"
 import { formatDistanceToNow } from "date-fns"
 import SenderAvatar from "../../components/ui/SenderAvatar"
-import { Search, GitMerge, CheckSquare, Square, Flag, Star } from "lucide-react"
+import { Search, GitMerge, CheckSquare, Square, Flag, Star, Trash2 } from "lucide-react"
 
 interface Email {
   id: number
@@ -58,11 +58,28 @@ export default function EmailList({ folder, selectedId, onSelect }: Props) {
     }
   })
 
+  const bulkAction = useMutation({
+    mutationFn: ({ actionType, folderTarget }: { actionType: string; folderTarget?: string }) =>
+      api.post("/emails/bulk_action", { ids: selectedIds, action_type: actionType, folder: folderTarget }),
+    onSuccess: () => {
+      setSelectedIds([])
+      qc.invalidateQueries({ queryKey: ["emails"] })
+    }
+  })
+
   function toggleSelect(id: number, e: React.MouseEvent) {
     e.stopPropagation()
     setSelectedIds(prev =>
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
     )
+  }
+
+  function handleSelectAll() {
+    if (selectedIds.length === filtered.length && filtered.length > 0) {
+      setSelectedIds([])
+    } else {
+      setSelectedIds(filtered.map(e => e.id))
+    }
   }
 
   const filtered = data.filter(e => {
@@ -73,6 +90,8 @@ export default function EmailList({ folder, selectedId, onSelect }: Props) {
       e.sender_name?.toLowerCase().includes(q)
     )
   })
+
+  const isAllSelected = filtered.length > 0 && selectedIds.length === filtered.length
 
   return (
     <div className="flex flex-col h-full bg-[var(--bg-primary)]">
@@ -89,32 +108,114 @@ export default function EmailList({ folder, selectedId, onSelect }: Props) {
           />
         </div>
 
-        <div className="flex items-center justify-between px-1">
-          <button
-            onClick={() => {
-              setMultiSelectMode(m => !m)
-              setSelectedIds([])
-            }}
-            className={`text-xs flex items-center gap-1.5 transition-colors font-medium ${
-              multiSelectMode ? "text-[var(--text-main)] font-bold" : "text-[var(--text-dim)] hover:text-[var(--text-main)]"
-            }`}
-          >
-            {multiSelectMode ? <CheckSquare size={13} /> : <Square size={13} />}
-            <span>{t("select")}</span>
-          </button>
-
-          {multiSelectMode && selectedIds.length >= 2 && (
+        <div className="flex items-center justify-between px-1 gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => mergeThreads.mutate()}
-              disabled={mergeThreads.isPending}
-              className="text-xs text-[#22c55e] hover:underline flex items-center gap-1 font-bold"
+              onClick={() => {
+                const nextMode = !multiSelectMode
+                setMultiSelectMode(nextMode)
+                if (!nextMode) setSelectedIds([])
+              }}
+              className={`text-xs flex items-center gap-1.5 transition-colors font-medium cursor-pointer ${
+                multiSelectMode ? "text-[var(--text-main)] font-bold" : "text-[var(--text-dim)] hover:text-[var(--text-main)]"
+              }`}
             >
-              <GitMerge size={12} />
-              <span>{t("merge")} ({selectedIds.length})</span>
+              {multiSelectMode ? <CheckSquare size={13} /> : <Square size={13} />}
+              <span>{t("select")}</span>
             </button>
+
+            {multiSelectMode && (
+              <button
+                onClick={handleSelectAll}
+                className="text-[11px] text-[var(--text-dim)] hover:text-[var(--text-main)] cursor-pointer underline ml-1"
+              >
+                {isAllSelected ? "Seçimi Kaldır" : "Tümünü Seç"}
+              </button>
+            )}
+
+            {multiSelectMode && selectedIds.length > 0 && (
+              <span className="text-[11px] text-[var(--text-dim)] font-mono">
+                ({selectedIds.length})
+              </span>
+            )}
+          </div>
+
+          {/* Action Toolbar on the right of Select */}
+          {multiSelectMode && selectedIds.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, x: 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="flex items-center gap-1 bg-[var(--bg-primary)] border border-[var(--border-color)] px-1.5 py-0.5 rounded-lg shadow-xs"
+            >
+              {/* Mark as Read */}
+              <button
+                onClick={() => bulkAction.mutate({ actionType: "mark_read" })}
+                disabled={bulkAction.isPending}
+                title="Okundu İşaretle"
+                className="p-1 rounded hover:bg-[var(--bg-secondary)] text-[var(--text-dim)] hover:text-[var(--text-main)] transition-colors cursor-pointer"
+              >
+                <CheckSquare size={12} />
+              </button>
+
+              {/* Mark as Unread */}
+              <button
+                onClick={() => bulkAction.mutate({ actionType: "mark_unread" })}
+                disabled={bulkAction.isPending}
+                title="Okunmadı İşaretle"
+                className="p-1 rounded hover:bg-[var(--bg-secondary)] text-[var(--text-dim)] hover:text-[var(--text-main)] transition-colors cursor-pointer"
+              >
+                <Square size={12} />
+              </button>
+
+              {/* Move to Inbox (e.g. from Approvals without approving) */}
+              {folder !== "inbox" && (
+                <button
+                  onClick={() => bulkAction.mutate({ actionType: "move_inbox" })}
+                  disabled={bulkAction.isPending}
+                  title="Gelen Kutusuna Taşı"
+                  className="px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] text-[11px] font-medium text-[#3b82f6] transition-colors cursor-pointer flex items-center gap-0.5"
+                >
+                  Gelen Kutusuna Taşı
+                </button>
+              )}
+
+              {/* Toggle Flag */}
+              <button
+                onClick={() => bulkAction.mutate({ actionType: "toggle_flag" })}
+                disabled={bulkAction.isPending}
+                title="Bayrak Ekle / Kaldır"
+                className="p-1 rounded hover:bg-[var(--bg-secondary)] text-[var(--text-dim)] hover:text-[#eab308] transition-colors cursor-pointer"
+              >
+                <Flag size={12} />
+              </button>
+
+              {/* Delete / Move to Trash */}
+              <button
+                onClick={() => bulkAction.mutate({ actionType: "move_trash" })}
+                disabled={bulkAction.isPending}
+                title="Çöp Kutusuna Taşı"
+                className="p-1 rounded hover:bg-[var(--bg-secondary)] text-[var(--text-dim)] hover:text-[#ef4444] transition-colors cursor-pointer"
+              >
+                <Trash2 size={12} />
+              </button>
+
+              {/* Merge Threads (if >= 2 selected) */}
+              {selectedIds.length >= 2 && (
+                <button
+                  onClick={() => mergeThreads.mutate()}
+                  disabled={mergeThreads.isPending}
+                  title="Seçilenleri Birleştir"
+                  className="px-1.5 py-0.5 rounded hover:bg-[var(--bg-secondary)] text-[11px] font-bold text-[#22c55e] transition-colors cursor-pointer flex items-center gap-0.5 ml-0.5"
+                >
+                  <GitMerge size={11} />
+                  <span>Birleştir</span>
+                </button>
+              )}
+            </motion.div>
           )}
         </div>
       </div>
+
 
       {/* Email List Items */}
       <div className="flex-1 overflow-y-auto">

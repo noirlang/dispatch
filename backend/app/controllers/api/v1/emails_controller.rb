@@ -180,6 +180,38 @@ class Api::V1::EmailsController < Api::V1::BaseController
     render json: { message: "Threads merged", primary_thread_id: primary.id }
   end
 
+  def bulk_action
+    ids = Array(params[:ids]).map(&:to_i).reject(&:zero?)
+    action_type = params[:action_type].to_s.strip
+
+    return render json: { error: "Hiçbir e-posta seçilmedi." }, status: :bad_request if ids.empty?
+
+    emails = current_user.emails.where(id: ids)
+    count = emails.count
+
+    case action_type
+    when "mark_read"
+      emails.update_all(is_read: true)
+      render json: { message: "#{count} e-posta okundu olarak işaretlendi.", count: count }
+    when "mark_unread"
+      emails.update_all(is_read: false)
+      render json: { message: "#{count} e-posta okunmadı olarak işaretlendi.", count: count }
+    when "move_inbox"
+      emails.update_all(folder: "inbox")
+      render json: { message: "#{count} e-posta Gelen Kutusuna taşındı.", count: count }
+    when "move_trash", "delete"
+      emails.update_all(folder: "trash")
+      render json: { message: "#{count} e-posta Çöp Kutusuna taşındı.", count: count }
+    when "toggle_flag"
+      # If any is unflagged, flag all; otherwise unflag all
+      has_unflagged = emails.where(is_flagged: [false, nil]).exists?
+      emails.update_all(is_flagged: has_unflagged)
+      render json: { message: "#{count} e-postanın bayrak durumu güncellendi.", is_flagged: has_unflagged, count: count }
+    else
+      render json: { error: "Geçersiz toplu işlem türü." }, status: :unprocessable_entity
+    end
+  end
+
   private
 
   def set_email
