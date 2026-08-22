@@ -27,7 +27,6 @@ import {
   Camera,
   Upload,
   LogOut,
-  Eye,
   Lock
 } from "lucide-react"
 
@@ -252,34 +251,58 @@ function ProfileTab({ user, onUpdate }: { user: any; onUpdate: () => void }) {
           />
         </div>
 
-        {/* Signature with Markdown Toggle */}
+        {/* Signature with Segmented Switch */}
         <div>
-          <div className="flex items-center justify-between mb-1.5">
+          <div className="flex items-center justify-between mb-2">
             <label className="text-xs font-semibold text-[var(--text-muted)]">{t("signature")}</label>
-            <button
-              type="button"
-              onClick={() => setPreviewSig(p => !p)}
-              className="text-[11px] text-[var(--text-dim)] hover:text-[var(--text-main)] flex items-center gap-1 font-semibold"
-            >
-              <Eye size={12} />
-              <span>{previewSig ? "Edit Raw" : t("signature_preview")}</span>
-            </button>
+            
+            {/* Segmented Button */}
+            <div className="flex p-0.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)]">
+              <button
+                type="button"
+                onClick={() => setPreviewSig(false)}
+                className={`px-3 py-1 rounded-md text-[11px] font-semibold transition-all ${
+                  !previewSig
+                    ? "bg-[var(--bg-card)] text-[var(--text-main)] shadow-xs border border-[var(--border-color)]"
+                    : "text-[var(--text-dim)] hover:text-[var(--text-main)]"
+                }`}
+              >
+                {t("edit")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setPreviewSig(true)}
+                className={`px-3 py-1 rounded-md text-[11px] font-semibold transition-all ${
+                  previewSig
+                    ? "bg-[var(--bg-card)] text-[var(--text-main)] shadow-xs border border-[var(--border-color)]"
+                    : "text-[var(--text-dim)] hover:text-[var(--text-main)]"
+                }`}
+              >
+                {t("preview")}
+              </button>
+            </div>
           </div>
 
-          {previewSig ? (
-            <div className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] p-4 rounded-xl min-h-[100px] text-xs text-[var(--text-main)] prose prose-neutral dark:prose-invert">
-              <ReactMarkdown>{signature || "*(Boş imza)*"}</ReactMarkdown>
-            </div>
-          ) : (
+          {!previewSig ? (
             <textarea
               value={signature}
               onChange={e => setSignature(e.target.value)}
               placeholder="e.g. Best regards,&#10;**Melih Emik**&#10;Founder & CEO"
-              className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs p-4 rounded-xl h-24 resize-none focus:outline-none focus:border-[var(--text-main)] font-mono"
+              className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs p-4 rounded-xl h-28 resize-none focus:outline-none focus:border-[var(--text-main)] font-mono leading-relaxed"
             />
+          ) : (
+            <div className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] p-4 rounded-xl min-h-[112px] text-xs text-[var(--text-main)] flex flex-col justify-center">
+              {signature.trim() ? (
+                <div className="prose prose-neutral dark:prose-invert max-w-none text-xs leading-relaxed whitespace-pre-wrap font-sans">
+                  <ReactMarkdown>{signature}</ReactMarkdown>
+                </div>
+              ) : (
+                <span className="text-[var(--text-dim)] italic text-xs">Henüz bir imza yazılmadı...</span>
+              )}
+            </div>
           )}
-          <span className="text-[11px] text-[var(--text-dim)] mt-1 block">
-            This signature is automatically appended to the bottom when writing a new email.
+          <span className="text-[11px] text-[var(--text-dim)] mt-1.5 block">
+            Bu imza yeni bir e-posta yazarken iletinin en altına otomatik olarak eklenir.
           </span>
         </div>
 
