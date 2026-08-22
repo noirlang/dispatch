@@ -82,12 +82,9 @@ export default function App() {
 
           {/* Public blog routes */}
           <Route path="/blog" element={<BlogIndex />} />
-          <Route path="/blog/@:handle" element={<BlogIndex />} />
-          <Route path="/blog/@:handle/:slug" element={<BlogPost />} />
           <Route path="/blog/:handle" element={<BlogIndex />} />
           <Route path="/blog/:handle/:slug" element={<BlogPost />} />
-          <Route path="/@:handle" element={<BlogIndex />} />
-          <Route path="/@:handle/:slug" element={<BlogPost />} />
+          <Route path="/:handle/:slug" element={<BlogPost />} />
 
           {/* Main Dispatch App */}
           <Route path="/app/*" element={<ProtectedApp />} />

@@ -108,7 +108,7 @@ export function BlogIndex() {
                   key={post.slug}
                   className="group border-b border-[var(--border-color)] pb-8 flex flex-col gap-2.5"
                 >
-                  <Link to={`/@${post.author_handle}/${post.slug}`}>
+                  <Link to={`/blog/${post.author_handle}/${post.slug}`}>
                     <h2 className="text-2xl font-bold text-[var(--text-main)] group-hover:underline transition-all">
                       {post.title}
                     </h2>
@@ -120,7 +120,7 @@ export function BlogIndex() {
 
                   <div className="flex items-center gap-3 mt-1 text-xs text-[var(--text-dim)]">
                     <Link
-                      to={`/@${post.author_handle}`}
+                      to={`/blog/${post.author_handle}`}
                       className="flex items-center gap-1.5 text-[var(--text-main)] hover:underline font-medium"
                     >
                       <SenderAvatar
@@ -178,7 +178,7 @@ export function BlogPost() {
         </div>
         <span className="text-sm font-bold text-[var(--text-main)]">Yazı bulunamadı</span>
         <Link
-          to={`/@${cleanHandle}`}
+          to={`/blog/${cleanHandle}`}
           className="px-4 py-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs text-[var(--text-main)] hover:bg-[var(--bg-card)] transition-colors"
         >
           ← @{cleanHandle} tüm yazılarına dön
@@ -191,7 +191,7 @@ export function BlogPost() {
     <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-main)] flex flex-col">
       <header className="border-b border-[var(--border-color)] bg-[var(--bg-secondary)] px-8 py-3.5 flex items-center justify-between">
         <Link
-          to={`/@${cleanHandle}`}
+          to={`/blog/${cleanHandle}`}
           className="text-xs text-[var(--text-muted)] hover:text-[var(--text-main)] flex items-center gap-1.5 transition-colors"
         >
           <ArrowLeft size={13} />
@@ -217,7 +217,7 @@ export function BlogPost() {
             size={40}
           />
           <div>
-            <Link to={`/@${cleanHandle}`} className="text-sm font-semibold text-[var(--text-main)] hover:underline">
+            <Link to={`/blog/${cleanHandle}`} className="text-sm font-semibold text-[var(--text-main)] hover:underline">
               {post.author_name || `@${post.author_handle}`}
             </Link>
             <div className="text-xs text-[var(--text-dim)]">
