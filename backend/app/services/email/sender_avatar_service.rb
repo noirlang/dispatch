@@ -3,7 +3,7 @@ class Email::SenderAvatarService
     YAML.load_file(Rails.root.join("config/known_sender_logos.yml")) rescue {}
   end
 
-  # Returns { name, avatar_url, is_known_company, initials }
+  # Returns { name, avatar_url, is_known_company, is_dispatch_user, initials }
   def self.for(email_address)
     return default(email_address) if email_address.blank?
 
@@ -11,24 +11,27 @@ class Email::SenderAvatarService
     user = User.find_by(email: email_clean)
     profile = SenderProfile.find_by(email: email_clean)
 
-    # 1. If custom SenderProfile has an avatar, use it directly (highest priority)
+    # 1. Registered Dispatch User on this server
+    if user.present?
+      avatar = user.avatar_path.presence || profile&.avatar_url
+      return {
+        name:             user.name,
+        avatar_url:       avatar,
+        is_known_company: false,
+        is_dispatch_user: true,
+        initials:         initials(user.name)
+      }
+    end
+
+    # 2. Custom external contact profile
     if profile&.avatar_url.present?
-      display_name = profile.display_name.presence || user&.name || email_address
+      display_name = profile.display_name.presence || email_address
       return {
         name:             display_name,
         avatar_url:       profile.avatar_url,
         is_known_company: profile.is_known_company,
+        is_dispatch_user: false,
         initials:         initials(display_name)
-      }
-    end
-
-    # 2. Check if sender is a registered Dispatch user with an avatar
-    if user&.avatar_path.present?
-      return {
-        name:             user.name,
-        avatar_url:       user.avatar_path,
-        is_known_company: false,
-        initials:         initials(user.name)
       }
     end
 
@@ -36,15 +39,11 @@ class Email::SenderAvatarService
     domain = email_clean.split("@").last&.downcase
     company = KNOWN_LOGOS[domain]
     if company
-      SenderProfile.find_or_create_by(email: email_clean) do |p|
-        p.display_name     = company["name"]
-        p.avatar_url       = company["logo_url"]
-        p.is_known_company = true
-      end
       return {
         name:             company["name"],
         avatar_url:       company["logo_url"],
         is_known_company: true,
+        is_dispatch_user: false,
         initials:         company["name"][0..1].upcase
       }
     end
@@ -58,17 +57,22 @@ class Email::SenderAvatarService
           name:             company["name"],
           avatar_url:       company["logo_url"],
           is_known_company: true,
+          is_dispatch_user: false,
           initials:         company["name"][0..1].upcase
         }
       end
     end
 
-    # 5. Fallback: User or Sender name with initials
-    resolved_name = user&.name.presence || profile&.display_name.presence || email_address
+    # 5. Gravatar fallback (Gmail / universal email avatars)
+    gravatar_hash = Digest::MD5.hexdigest(email_clean)
+    gravatar_url = "https://www.gravatar.com/avatar/#{gravatar_hash}?d=404"
+
+    resolved_name = profile&.display_name.presence || email_address
     {
       name:             resolved_name,
-      avatar_url:       nil,
+      avatar_url:       gravatar_url,
       is_known_company: false,
+      is_dispatch_user: false,
       initials:         initials(resolved_name)
     }
   end
@@ -78,6 +82,6 @@ class Email::SenderAvatarService
   end
 
   def self.default(email)
-    { name: email, avatar_url: nil, is_known_company: false, initials: "?" }
+    { name: email, avatar_url: nil, is_known_company: false, is_dispatch_user: false, initials: "?" }
   end
 end

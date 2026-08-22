@@ -45,6 +45,7 @@ interface EmailDetail {
   avatar_url?: string | null
   avatar_initials?: string
   is_known_company?: boolean
+  is_dispatch_user?: boolean
 }
 
 interface Props {
@@ -466,26 +467,55 @@ export default function EmailReader({ id, folder, onReply, onForward }: Props) {
       {/* Sender info bar with Clickable Avatar to assign Custom Photo */}
       <div className="px-8 py-4 border-b border-[var(--border-color)] flex items-center justify-between bg-[var(--bg-secondary)] shrink-0">
         <div className="flex items-center gap-3.5">
-          <div
-            onClick={() => setAvatarModalOpen(true)}
-            className="relative group cursor-pointer"
-            title="Kişi fotoğrafını ayarla / değiştir"
-          >
-            <SenderAvatar
-              avatarUrl={email.avatar_url}
-              initials={email.avatar_initials || email.from[0]?.toUpperCase()}
-              name={email.sender_name || email.from}
-              size={40}
-              isKnownCompany={email.is_known_company}
-            />
-            <div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
-              <Camera size={14} />
-            </div>
-          </div>
+          {(() => {
+            const isOtherDispatchUser = Boolean(
+              email.is_dispatch_user &&
+              user?.email &&
+              user.email.toLowerCase().trim() !== email.from.toLowerCase().trim()
+            )
+            return (
+              <div
+                onClick={() => {
+                  if (isOtherDispatchUser) {
+                    alert("Bu kullanıcı kayıtlı bir Dispatch kullanıcısıdır. Profil fotoğrafı yalnızca hesap sahibi tarafından değiştirilebilir.")
+                    return
+                  }
+                  setAvatarModalOpen(true)
+                }}
+                className={`relative group ${isOtherDispatchUser ? "cursor-default" : "cursor-pointer"}`}
+                title={
+                  isOtherDispatchUser
+                    ? "Dispatch Kullanıcısı — Profil fotoğrafı hesap sahibi tarafından yönetilmektedir."
+                    : "Kişi fotoğrafını ayarla / değiştir"
+                }
+              >
+                <SenderAvatar
+                  avatarUrl={email.avatar_url}
+                  initials={email.avatar_initials || email.from[0]?.toUpperCase()}
+                  name={email.sender_name || email.from}
+                  size={40}
+                  isKnownCompany={email.is_known_company}
+                />
+                {!isOtherDispatchUser && (
+                  <div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Camera size={14} />
+                  </div>
+                )}
+              </div>
+            )
+          })()}
 
           <div>
-            <div className="text-xs font-bold text-[var(--text-main)]">
-              {email.sender_name || email.from}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-[var(--text-main)]">
+                {email.sender_name || email.from}
+              </span>
+              {email.is_dispatch_user && (
+                <span title="Resmi Dispatch Kullanıcısı" className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-[var(--bg-primary)] border border-[var(--border-color)] text-[10px] font-bold text-[var(--text-main)] shadow-2xs select-none">
+                  <img src="/dispatch.png" alt="" className="h-3 w-auto object-contain" />
+                  <span>Dispatch</span>
+                </span>
+              )}
             </div>
             <div className="text-[11px] text-[var(--text-dim)] font-mono">{email.from} · Kime: {email.to}</div>
           </div>

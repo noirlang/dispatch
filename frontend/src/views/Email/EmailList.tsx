@@ -19,6 +19,7 @@ interface Email {
   avatar_url?: string | null
   avatar_initials?: string
   is_known_company?: boolean
+  is_dispatch_user?: boolean
 }
 
 interface Props {
@@ -176,8 +177,14 @@ export default function EmailList({ folder, selectedId, onSelect }: Props) {
                 {/* Content */}
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-start gap-1">
-                    <span className={`text-xs truncate flex items-center gap-1 ${email.is_read ? "text-[var(--text-muted)] font-normal" : "text-[var(--text-main)] font-bold"}`}>
-                      <span>{email.sender_name || email.from}</span>
+                    <span className={`text-xs truncate flex items-center gap-1.5 ${email.is_read ? "text-[var(--text-muted)] font-normal" : "text-[var(--text-main)] font-bold"}`}>
+                      <span className="truncate">{email.sender_name || email.from}</span>
+                      {email.is_dispatch_user && (
+                        <span title="Dispatch Kullanıcısı" className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded bg-[var(--bg-primary)] border border-[var(--border-color)] text-[9px] font-bold text-[var(--text-main)] shrink-0 select-none">
+                          <img src="/dispatch.png" alt="" className="h-2.5 w-auto object-contain" />
+                          <span>Dispatch</span>
+                        </span>
+                      )}
                       {email.is_important_sender && (
                         <span title="Önemli Kişi" className="shrink-0 flex items-center">
                           <Star size={11} className="fill-[#f59e0b] text-[#f59e0b]" />

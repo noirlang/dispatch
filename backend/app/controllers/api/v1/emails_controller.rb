@@ -219,7 +219,8 @@ class Api::V1::EmailsController < Api::V1::BaseController
       sender_name: profile[:name],
       avatar_url: profile[:avatar_url],
       avatar_initials: profile[:initials],
-      is_known_company: profile[:is_known_company]
+      is_known_company: profile[:is_known_company],
+      is_dispatch_user: profile[:is_dispatch_user] || false
     }
   end
 
@@ -239,7 +240,8 @@ class Api::V1::EmailsController < Api::V1::BaseController
       sender_name:  profile[:name],
       avatar_url:   profile[:avatar_url],
       avatar_initials: profile[:initials],
-      is_known_company: profile[:is_known_company]
+      is_known_company: profile[:is_known_company],
+      is_dispatch_user: profile[:is_dispatch_user] || false
     }
   end
 end

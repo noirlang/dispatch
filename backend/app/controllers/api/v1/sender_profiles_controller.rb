@@ -12,6 +12,13 @@ class Api::V1::SenderProfilesController < Api::V1::BaseController
     email = params[:email].to_s.downcase.strip
     return render json: { error: "E-posta adresi zorunludur." }, status: :bad_request if email.blank?
 
+    # Check if target email belongs to a registered Dispatch user other than current_user
+    if User.exists?(email: email) && current_user&.email&.downcase&.strip != email
+      return render json: {
+        error: "Bu kullanıcı kayıtlı bir Dispatch kullanıcısıdır. Profil fotoğrafı yalnızca hesap sahibi tarafından değiştirilebilir."
+      }, status: :forbidden
+    end
+
     file = params[:file] || params[:avatar] || params[:image]
     avatar_url = params[:avatar_url].to_s.strip
 
