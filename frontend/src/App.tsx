@@ -1,5 +1,5 @@
 import { useEffect } from "react"
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { useAuth } from "./store/auth"
 import LandingView from "./views/Landing"
@@ -16,6 +16,31 @@ import AdminView from "./views/Admin"
 import { BlogIndex, BlogPost } from "./views/Blog"
 
 const qc = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 30_000 } } })
+
+function TitleManager() {
+  const location = useLocation()
+
+  useEffect(() => {
+    const path = location.pathname
+    if (path.startsWith("/admin")) {
+      document.title = "Dispatch — Yönetici Paneli"
+    } else if (path.startsWith("/login")) {
+      document.title = "Dispatch — Giriş Yap"
+    } else if (path.startsWith("/register")) {
+      document.title = "Dispatch — Kayıt Ol"
+    } else if (path.startsWith("/setup")) {
+      document.title = "Dispatch — Kurulum Sihirbazı"
+    } else if (path.startsWith("/app")) {
+      document.title = "Dispatch — E-Posta"
+    } else if (path.startsWith("/blog")) {
+      document.title = "Dispatch — Blog"
+    } else {
+      document.title = "Dispatch — Akıllı E-Posta İstemcisi"
+    }
+  }, [location.pathname])
+
+  return null
+}
 
 function ProtectedApp() {
   const { user, token, fetchMe } = useAuth()
@@ -41,6 +66,7 @@ export default function App() {
   return (
     <QueryClientProvider client={qc}>
       <BrowserRouter>
+        <TitleManager />
         <Routes>
           {/* Landing / Welcome Screen */}
           <Route path="/"         element={<LandingView />} />
