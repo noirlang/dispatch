@@ -222,22 +222,21 @@ export default function EmailView() {
           />
         </div>
       ) : (
-        <>
-          {/* Email List column (Full width on mobile when no email selected, 80 width on desktop) */}
-          <div className={`${selectedId ? "hidden md:flex" : "flex"} w-full md:w-80 border-r border-[var(--border-color)] bg-[var(--bg-primary)] shrink-0 overflow-hidden flex-col`}>
+        <div className="flex-1 flex overflow-hidden relative">
+          {/* Desktop Dual-Pane Layout */}
+          <div className="hidden md:flex h-full w-80 border-r border-[var(--border-color)] bg-[var(--bg-primary)] shrink-0 overflow-hidden flex-col">
             <EmailList folder={folder} selectedId={selectedId} onSelect={setSelectedId} />
           </div>
 
-          {/* Email Reader View (Full width on mobile when email selected, flex-1 on desktop) */}
-          <main className={`${selectedId ? "flex" : "hidden md:flex"} flex-1 bg-[var(--bg-primary)] overflow-hidden flex-col`}>
+          <main className="hidden md:flex flex-1 bg-[var(--bg-primary)] overflow-hidden flex-col h-full">
             <AnimatePresence mode="wait">
               {selectedId ? (
                 <motion.div
                   key={selectedId}
-                  initial={{ opacity: 0, x: 20 }}
+                  initial={{ opacity: 0, x: 15 }}
                   animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
-                  transition={{ duration: 0.2, ease: "easeInOut" }}
+                  exit={{ opacity: 0, x: 15 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
                   className="h-full w-full flex flex-col"
                 >
                   <div className="flex-1 overflow-hidden">
@@ -267,7 +266,44 @@ export default function EmailView() {
               )}
             </AnimatePresence>
           </main>
-        </>
+
+          {/* Mobile Fluid Slide-Transition Navigation */}
+          <div className="flex md:hidden flex-1 overflow-hidden relative h-full w-full">
+            <AnimatePresence mode="wait" initial={false}>
+              {selectedId ? (
+                <motion.div
+                  key={`mobile-reader-${selectedId}`}
+                  initial={{ opacity: 0, x: 50 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 50 }}
+                  transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
+                  className="absolute inset-0 h-full w-full bg-[var(--bg-primary)] flex flex-col z-20"
+                >
+                  <div className="flex-1 overflow-hidden">
+                    <EmailReader
+                      id={selectedId}
+                      folder={folder}
+                      onReply={handleReply}
+                      onForward={handleForward}
+                      onClose={() => setSelectedId(null)}
+                    />
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="mobile-list"
+                  initial={{ opacity: 0, x: -40 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -40 }}
+                  transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
+                  className="absolute inset-0 h-full w-full bg-[var(--bg-primary)] flex flex-col z-10"
+                >
+                  <EmailList folder={folder} selectedId={selectedId} onSelect={setSelectedId} />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
       )}
 
       {/* Floating Action Button for Mobile Quick Compose */}
