@@ -138,6 +138,7 @@ function ProfileTab({ user, onUpdate }: { user: any; onUpdate: () => void }) {
   const t = useT()
   const [name, setName] = useState(user?.name || "")
   const [signature, setSignature] = useState(user?.default_signature || "")
+  const [bio, setBio] = useState(user?.bio || "")
   const [sigMode, setSigMode] = useState<"edit" | "preview">("edit")
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
@@ -152,7 +153,10 @@ function ProfileTab({ user, onUpdate }: { user: any; onUpdate: () => void }) {
     if (user?.default_signature !== undefined) {
       setSignature(user.default_signature || "")
     }
-  }, [user?.default_signature])
+    if (user?.bio !== undefined) {
+      setBio(user.bio || "")
+    }
+  }, [user?.default_signature, user?.bio])
 
   const updateProfile = useMutation({
     mutationFn: () => {
@@ -164,6 +168,7 @@ function ProfileTab({ user, onUpdate }: { user: any; onUpdate: () => void }) {
       return api.patch("/settings", {
         name,
         default_signature: signature,
+        bio,
         current_password: currentPassword.trim() ? currentPassword.trim() : undefined,
         new_password: newPassword.trim() ? newPassword.trim() : undefined,
       })
@@ -297,6 +302,23 @@ function ProfileTab({ user, onUpdate }: { user: any; onUpdate: () => void }) {
           )}
           <span className="text-[11px] text-[var(--text-dim)] mt-1.5 block">
             Bu imza yeni bir e-posta yazarken iletinin en altına otomatik olarak eklenir.
+          </span>
+        </div>
+
+        {/* Blog Bio Box */}
+        <div>
+          <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">
+            Blog Biyografisi
+          </label>
+          <textarea
+            rows={3}
+            value={bio}
+            onChange={e => setBio(e.target.value)}
+            placeholder="Yazarlık profilinizde, hakkınızda görünecek kısa düz metin biyografi..."
+            className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs p-3 rounded-xl focus:outline-none leading-relaxed"
+          />
+          <span className="text-[11px] text-[var(--text-dim)] mt-1.5 block">
+            Bu biyografi blog sayfanızda (örn: /blog/kullanici_adi) profilinizin altında görüntülenir (Düz metindir, Markdown içermez).
           </span>
         </div>
 

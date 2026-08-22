@@ -12,6 +12,7 @@ interface Post {
   author_handle: string
   author_name: string
   author_avatar: string | null
+  author_bio?: string | null
   published_at: string
   url: string
 }
@@ -86,9 +87,11 @@ export function BlogIndex() {
                   <div className="text-xs font-mono text-[var(--text-muted)] mt-0.5">
                     @{author.author_handle}
                   </div>
-                  <p className="text-xs text-[var(--text-dim)] mt-2">
-                    Bu yazar yazılarını doğrudan <code className="text-[var(--text-main)]">blog@dispatch.local</code> adresine e-posta göndererek yayınlar.
-                  </p>
+                  {author.author_bio && (
+                    <p className="text-xs text-[var(--text-muted)] mt-2 leading-relaxed whitespace-pre-wrap">
+                      {author.author_bio}
+                    </p>
+                  )}
                 </div>
               </div>
             )}

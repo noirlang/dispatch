@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_22_175100) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_22_195450) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -213,6 +213,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_22_175100) do
     t.string "ai_provider"
     t.boolean "approval_system_enabled", default: true, null: false
     t.string "avatar_path"
+    t.text "bio"
     t.datetime "created_at", null: false
     t.text "default_signature"
     t.string "email", null: false

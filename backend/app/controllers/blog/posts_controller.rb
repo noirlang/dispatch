@@ -23,15 +23,17 @@ class Blog::PostsController < ActionController::API
   private
 
   def post_summary(post)
+    user = User.find_by("lower(email) = ?", post.author_email.to_s.downcase.strip)
     {
       slug:          post.slug,
       title:         post.title,
       excerpt:       post.content.first(200).strip,
       author_handle: post.author_handle,
       author_name:   post.author_name,
-      author_avatar: post.author_avatar,
+      author_avatar: user&.avatar_path || post.author_avatar,
+      author_bio:    user&.bio.presence,
       published_at:  post.published_at,
-      url:           "/@#{post.author_handle}/#{post.slug}"
+      url:           "/blog/#{post.author_handle}/#{post.slug}"
     }
   end
 

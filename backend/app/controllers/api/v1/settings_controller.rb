@@ -84,7 +84,7 @@ class Api::V1::SettingsController < Api::V1::BaseController
   private
 
   def settings_params
-    params.permit(:approval_system_enabled, :spy_pixel_blocking, :default_signature, :ai_provider, :ai_model, :name)
+    params.permit(:approval_system_enabled, :spy_pixel_blocking, :default_signature, :bio, :ai_provider, :ai_model, :name)
   end
 
   def settings_json
@@ -92,6 +92,7 @@ class Api::V1::SettingsController < Api::V1::BaseController
       name: current_user.name,
       email: current_user.email,
       avatar_path: current_user.avatar_path,
+      bio: current_user.bio,
       approval_system_enabled: current_user.approval_system_enabled,
       spy_pixel_blocking: current_user.spy_pixel_blocking,
       default_signature: current_user.default_signature,
