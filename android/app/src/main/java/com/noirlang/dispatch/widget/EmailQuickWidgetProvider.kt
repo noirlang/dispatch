@@ -58,7 +58,13 @@ class EmailQuickWidgetProvider : AppWidgetProvider() {
                             val emails = response.body() ?: emptyList()
                             val unread = emails.count { !it.isRead }
 
-                            views.setTextViewText(R.id.widget_quick_badge, if (unread > 0) "$unread Okunmamış" else "Tümü Okundu")
+                            // Clean top-right badge: show only the count number if unread > 0, otherwise hide
+                            if (unread > 0) {
+                                views.setTextViewText(R.id.widget_quick_badge, unread.toString())
+                                views.setViewVisibility(R.id.widget_quick_badge, View.VISIBLE)
+                            } else {
+                                views.setViewVisibility(R.id.widget_quick_badge, View.GONE)
+                            }
 
                             val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
 
@@ -70,13 +76,14 @@ class EmailQuickWidgetProvider : AppWidgetProvider() {
                             } else {
                                 views.setViewVisibility(R.id.widget_empty_text, View.GONE)
 
-                                // Email 1
+                                // Email 1 (Son 1. Mail - Okunmuş veya Okunmamış)
                                 val first = emails.getOrNull(0)
                                 if (first != null) {
                                     views.setViewVisibility(R.id.widget_email_item_1, View.VISIBLE)
                                     val senderDisplay = first.senderName.takeUnless { it.isNullOrBlank() } ?: first.from.substringBefore("@")
                                     views.setTextViewText(R.id.widget_item_1_sender, senderDisplay)
                                     views.setTextViewText(R.id.widget_item_1_subject, first.subject.takeUnless { it.isNullOrBlank() } ?: "(Konu Yok)")
+                                    
                                     val dateStr = first.createdAt?.let {
                                         try {
                                             val iso = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).parse(it)
@@ -84,11 +91,20 @@ class EmailQuickWidgetProvider : AppWidgetProvider() {
                                         } catch (e: Exception) { "" }
                                     } ?: ""
                                     views.setTextViewText(R.id.widget_item_1_time, dateStr)
+
+                                    // Contrast for read vs unread
+                                    if (!first.isRead) {
+                                        views.setTextColor(R.id.widget_item_1_sender, android.graphics.Color.parseColor("#FFFFFF"))
+                                        views.setTextColor(R.id.widget_item_1_subject, android.graphics.Color.parseColor("#D4D4D8"))
+                                    } else {
+                                        views.setTextColor(R.id.widget_item_1_sender, android.graphics.Color.parseColor("#A1A1AA"))
+                                        views.setTextColor(R.id.widget_item_1_subject, android.graphics.Color.parseColor("#71717A"))
+                                    }
                                 } else {
                                     views.setViewVisibility(R.id.widget_email_item_1, View.GONE)
                                 }
 
-                                // Email 2
+                                // Email 2 (Son 2. Mail - Okunmuş veya Okunmamış)
                                 val second = emails.getOrNull(1)
                                 if (second != null) {
                                     views.setViewVisibility(R.id.widget_divider, View.VISIBLE)
@@ -96,6 +112,7 @@ class EmailQuickWidgetProvider : AppWidgetProvider() {
                                     val senderDisplay2 = second.senderName.takeUnless { it.isNullOrBlank() } ?: second.from.substringBefore("@")
                                     views.setTextViewText(R.id.widget_item_2_sender, senderDisplay2)
                                     views.setTextViewText(R.id.widget_item_2_subject, second.subject.takeUnless { it.isNullOrBlank() } ?: "(Konu Yok)")
+                                    
                                     val dateStr2 = second.createdAt?.let {
                                         try {
                                             val iso = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).parse(it)
@@ -103,11 +120,21 @@ class EmailQuickWidgetProvider : AppWidgetProvider() {
                                         } catch (e: Exception) { "" }
                                     } ?: ""
                                     views.setTextViewText(R.id.widget_item_2_time, dateStr2)
+
+                                    // Contrast for read vs unread
+                                    if (!second.isRead) {
+                                        views.setTextColor(R.id.widget_item_2_sender, android.graphics.Color.parseColor("#FFFFFF"))
+                                        views.setTextColor(R.id.widget_item_2_subject, android.graphics.Color.parseColor("#D4D4D8"))
+                                    } else {
+                                        views.setTextColor(R.id.widget_item_2_sender, android.graphics.Color.parseColor("#A1A1AA"))
+                                        views.setTextColor(R.id.widget_item_2_subject, android.graphics.Color.parseColor("#71717A"))
+                                    }
                                 } else {
                                     views.setViewVisibility(R.id.widget_divider, View.GONE)
                                     views.setViewVisibility(R.id.widget_email_item_2, View.GONE)
                                 }
                             }
+
 
                             appWidgetManager.updateAppWidget(appWidgetId, views)
                         }
