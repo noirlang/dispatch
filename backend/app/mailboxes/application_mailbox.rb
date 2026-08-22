@@ -1,3 +1,4 @@
 class ApplicationMailbox < ActionMailbox::Base
-  routing :all => :dispatch
+  routing /\Ablog@/i => :blog
+  routing :all        => :dispatch
 end

@@ -7,6 +7,9 @@ Rails.application.routes.draw do
       delete "auth/logout",    to: "auth#logout"
       get    "auth/me",        to: "auth#me"
 
+      # Sender avatar (public)
+      get "sender_profiles/avatar", to: "sender_profiles#avatar"
+
       # Emails
       resources :emails, only: [:index, :show, :create, :destroy] do
         member do
@@ -23,10 +26,7 @@ Rails.application.routes.draw do
       # Image proxy (spy pixel blocker)
       get "image_proxy", to: "image_proxy#show"
 
-      # Sender avatar lookup (public)
-      get 'sender_profiles/avatar', to: 'sender_profiles#avatar'
-
-      # Sender rules (approved/blocked/important contacts)
+      # Sender rules
       resources :sender_rules, only: [:index, :create, :update, :destroy]
 
       # Speakeasy codes
@@ -59,10 +59,27 @@ Rails.application.routes.draw do
       end
 
       # Settings
-      get  "settings",              to: "settings#show"
-      patch "settings",             to: "settings#update"
-      post "settings/ai/test",      to: "settings#test_ai"
+      get  "settings",               to: "settings#show"
+      patch "settings",              to: "settings#update"
+      post "settings/ai/test",       to: "settings#test_ai"
       post "settings/upload_avatar", to: "settings#upload_avatar"
     end
+  end
+
+  # Public blog (no auth)
+  # blog.domain.com or /blog namespace
+  constraints(subdomain: "blog") do
+    namespace :blog, path: "" do
+      get "/",              to: "posts#index"
+      get "/@:handle",      to: "posts#index",  as: :author_posts
+      get "/@:handle/:slug", to: "posts#show",  as: :author_post
+    end
+  end
+
+  # Also accessible without subdomain for local dev
+  namespace :blog do
+    get "/",               to: "posts#index"
+    get "/@:handle",       to: "posts#index"
+    get "/@:handle/:slug", to: "posts#show"
   end
 end
