@@ -3,13 +3,27 @@ class Email::SenderAvatarService
     YAML.load_file(Rails.root.join("config/known_sender_logos.yml")) rescue {}
   end
 
-  # Returns { name, avatar_url, is_known_company }
+  # Returns { name, avatar_url, is_known_company, initials }
   def self.for(email_address)
     return default(email_address) if email_address.blank?
 
-    # 1. Check if sender is a registered Dispatch user
-    user = User.find_by(email: email_address.downcase)
-    if user
+    email_clean = email_address.downcase.strip
+    user = User.find_by(email: email_clean)
+    profile = SenderProfile.find_by(email: email_clean)
+
+    # 1. If custom SenderProfile has an avatar, use it directly (highest priority)
+    if profile&.avatar_url.present?
+      display_name = profile.display_name.presence || user&.name || email_address
+      return {
+        name:             display_name,
+        avatar_url:       profile.avatar_url,
+        is_known_company: profile.is_known_company,
+        initials:         initials(display_name)
+      }
+    end
+
+    # 2. Check if sender is a registered Dispatch user with an avatar
+    if user&.avatar_path.present?
       return {
         name:             user.name,
         avatar_url:       user.avatar_path,
@@ -18,23 +32,11 @@ class Email::SenderAvatarService
       }
     end
 
-    # 2. Check if sender has a custom profile
-    profile = SenderProfile.find_by(email: email_address.downcase)
-    if profile
-      return {
-        name:             profile.display_name || email_address,
-        avatar_url:       profile.avatar_url,
-        is_known_company: profile.is_known_company,
-        initials:         initials(profile.display_name || email_address)
-      }
-    end
-
     # 3. Check known company logos by domain
-    domain = email_address.split("@").last&.downcase
+    domain = email_clean.split("@").last&.downcase
     company = KNOWN_LOGOS[domain]
     if company
-      # Auto-create profile for future use
-      SenderProfile.find_or_create_by(email: email_address.downcase) do |p|
+      SenderProfile.find_or_create_by(email: email_clean) do |p|
         p.display_name     = company["name"]
         p.avatar_url       = company["logo_url"]
         p.is_known_company = true
@@ -61,12 +63,13 @@ class Email::SenderAvatarService
       end
     end
 
-    # 5. Fallback: DuckDuckGo favicon service
+    # 5. Fallback: User or Sender name with initials
+    resolved_name = user&.name.presence || profile&.display_name.presence || email_address
     {
-      name:             email_address,
-      avatar_url:       "https://icons.duckduckgo.com/ip3/#{domain}.ico",
+      name:             resolved_name,
+      avatar_url:       nil,
       is_known_company: false,
-      initials:         initials(email_address)
+      initials:         initials(resolved_name)
     }
   end
 

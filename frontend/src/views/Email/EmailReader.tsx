@@ -251,13 +251,14 @@ export default function EmailReader({ id, folder, onReply, onForward }: Props) {
     setUploadingAvatar(true)
 
     try {
+      let res: any
       if (file) {
         const formData = new FormData()
         formData.append("email", email.from)
         formData.append("file", file)
-        await api.upload("/sender_profiles/update_avatar", formData)
+        res = await api.upload<{ avatar_url: string }>("/sender_profiles/update_avatar", formData)
       } else if (avatarUrlInput.trim()) {
-        await api.post("/sender_profiles/update_avatar", {
+        res = await api.post<{ avatar_url: string }>("/sender_profiles/update_avatar", {
           email: email.from,
           avatar_url: avatarUrlInput.trim()
         })
@@ -269,8 +270,10 @@ export default function EmailReader({ id, folder, onReply, onForward }: Props) {
       await qc.invalidateQueries({ queryKey: ["sender-profiles"] })
       await qc.invalidateQueries({ queryKey: ["me"] })
       addToast({
-        from: "Kişi Profili",
-        subject: "Fotoğraf başarıyla güncellendi!"
+        from: email.sender_name || email.from,
+        subject: "Fotoğraf başarıyla güncellendi!",
+        avatar_url: res?.avatar_url,
+        initials: email.sender_name?.[0]?.toUpperCase() || email.from[0]?.toUpperCase()
       })
     } catch (err: any) {
       alert(err.message || "Fotoğraf kaydedilemedi! Lütfen geçerli bir resim dosyası seçin.")

@@ -43,6 +43,12 @@ class Email::AvatarUploadService
 
     avatar_url = "/avatars/#{filename}"
     user.update!(avatar_path: avatar_url)
+
+    profile = SenderProfile.find_or_initialize_by(email: user.email.downcase.strip)
+    profile.avatar_url = avatar_url
+    profile.display_name = user.name if profile.display_name.blank?
+    profile.save!
+
     Result.new(true, avatar_url, nil)
   rescue => e
     Result.new(false, nil, "Fotoğraf kaydedilirken hata oluştu: #{e.message}")

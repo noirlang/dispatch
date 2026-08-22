@@ -41,10 +41,9 @@ class Api::V1::SenderProfilesController < Api::V1::BaseController
     profile.display_name = params[:display_name] if params[:display_name].present?
     profile.save!
 
-    # If this matches current user's email, sync user account avatar
-    if current_user && current_user.email.downcase.strip == email
-      current_user.update!(avatar_path: profile.avatar_url)
-    end
+    # If any registered user has this email, sync their user account avatar too
+    matching_user = User.find_by(email: email)
+    matching_user&.update!(avatar_path: profile.avatar_url)
 
     render json: {
       email: profile.email,
