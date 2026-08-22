@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "../../lib/api"
 import { useT } from "../../store/themeAndLocale"
 import ReactMarkdown from "react-markdown"
-import { Send, X, Eye, Edit3, Users, ExternalLink } from "lucide-react"
+import { Send, X, Eye, Edit3, ExternalLink } from "lucide-react"
 
 interface Props {
   initialTo?: string
@@ -49,6 +49,29 @@ export default function ComposeView({
       onClose()
     }
   })
+
+  const [toFocus, setToFocus] = useState(false)
+
+  // Autocomplete matching groups
+  const lastSegment = to.split(/[,;]/).pop()?.trim() || ""
+  const showGroupDropdown = toFocus && lastSegment.startsWith("@") && groups.length > 0
+  const matchingGroups = showGroupDropdown
+    ? groups.filter((g: any) =>
+        g.alias?.toLowerCase().includes(lastSegment.toLowerCase()) ||
+        g.name?.toLowerCase().includes(lastSegment.replace("@", "").toLowerCase())
+      )
+    : []
+
+  function selectGroup(alias: string) {
+    const rawSegments = to.split(/[,;]/).map(s => s.trim()).filter(Boolean)
+    if (rawSegments.length > 0 && rawSegments[rawSegments.length - 1].startsWith("@")) {
+      rawSegments[rawSegments.length - 1] = alias
+    } else {
+      rawSegments.push(alias)
+    }
+    setTo(rawSegments.join(", ") + ", ")
+    setToFocus(false)
+  }
 
   function handleKeyDown(e: React.KeyboardEvent) {
     if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
@@ -124,51 +147,56 @@ export default function ComposeView({
 
       {/* Inputs */}
       <div className="flex flex-col gap-3 mb-4">
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-medium text-[var(--text-muted)] w-14 shrink-0">{t("to")}:</span>
-          <input
-            type="text"
-            value={to}
-            onChange={(e) => setTo(e.target.value)}
-            placeholder="kullanici@dispatch.local veya @grup_adi"
-            disabled={isReply}
-            className="flex-1 bg-transparent text-[var(--text-main)] text-sm border-b border-[var(--border-color)] pb-1.5 focus:outline-none focus:border-[var(--text-main)] transition-colors font-mono"
-          />
-          {!isReply && (
-            <button
-              type="button"
-              onClick={() => setShowCc((s) => !s)}
-              className="text-xs text-[var(--text-dim)] hover:text-[var(--text-main)] px-2 py-0.5 rounded"
-            >
-              {showCc ? "- Cc" : "+ Cc"}
-            </button>
+        <div className="relative">
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-medium text-[var(--text-muted)] w-14 shrink-0">{t("to")}:</span>
+            <input
+              type="text"
+              value={to}
+              onFocus={() => setToFocus(true)}
+              onBlur={() => setTimeout(() => setToFocus(false), 200)}
+              onChange={(e) => setTo(e.target.value)}
+              placeholder="kullanici@dispatch.local, diger@dispatch.local veya @ekip"
+              disabled={isReply}
+              className="flex-1 bg-transparent text-[var(--text-main)] text-sm border-b border-[var(--border-color)] pb-1.5 focus:outline-none focus:border-[var(--text-main)] transition-colors font-mono"
+            />
+            {!isReply && (
+              <button
+                type="button"
+                onClick={() => setShowCc((s) => !s)}
+                className="text-xs text-[var(--text-dim)] hover:text-[var(--text-main)] px-2 py-0.5 rounded"
+              >
+                {showCc ? "- Cc" : "+ Cc"}
+              </button>
+            )}
+          </div>
+
+          {/* Autocomplete floating dropdown for @group */}
+          {matchingGroups.length > 0 && (
+            <div className="absolute left-17 top-full mt-1 z-30 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl shadow-2xl overflow-hidden min-w-[220px] max-h-48 overflow-y-auto">
+              <div className="px-3 py-1.5 text-[10px] font-bold text-[var(--text-dim)] border-b border-[var(--border-color)] uppercase tracking-wider">
+                E-posta Grupları
+              </div>
+              {matchingGroups.map((g: any) => (
+                <button
+                  key={g.id}
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault()
+                    selectGroup(g.alias)
+                  }}
+                  className="w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-[var(--bg-card)] transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-bold text-[#3b82f6]">{g.alias}</span>
+                    {g.description && <span className="text-[11px] text-[var(--text-muted)] truncate max-w-[120px]">{g.description}</span>}
+                  </div>
+                  <span className="text-[10px] font-mono text-[var(--text-dim)]">{g.member_count || g.members?.length || 0} üye</span>
+                </button>
+              ))}
+            </div>
           )}
         </div>
-
-        {/* Quick Group Selector Chips */}
-        {groups.length > 0 && !isReply && (
-          <div className="flex items-center gap-1.5 pl-17 overflow-x-auto py-0.5">
-            <span className="text-[10px] text-[var(--text-dim)] font-semibold flex items-center gap-1">
-              <Users size={10} />
-              <span>Gruplar:</span>
-            </span>
-            {groups.map((g: any) => (
-              <button
-                key={g.id}
-                type="button"
-                onClick={() => {
-                  if (to.includes(g.alias)) return
-                  setTo(prev => prev ? `${prev}, ${g.alias}` : g.alias)
-                }}
-                className="px-2 py-0.5 rounded-md bg-[#3b82f615] text-[#3b82f6] border border-[#3b82f630] font-mono text-[10px] font-bold hover:bg-[#3b82f625] transition-colors shrink-0 flex items-center gap-1"
-                title={`${g.description || g.alias} (${g.member_count} üye)`}
-              >
-                <span>{g.alias}</span>
-                <span className="text-[9px] opacity-60">({g.member_count})</span>
-              </button>
-            ))}
-          </div>
-        )}
 
         {showCc && !isReply && (
           <div className="flex items-center gap-3">
