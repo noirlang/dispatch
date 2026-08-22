@@ -12,9 +12,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.CheckSquare
-import androidx.compose.material.icons.outlined.Square
 import androidx.compose.material3.*
+
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -231,11 +230,12 @@ fun EmailListScreen(
                     }
                 ) {
                     Icon(
-                        imageVector = if (multiSelectMode) Icons.Filled.CheckBox else Icons.Outlined.Square,
+                        imageVector = if (multiSelectMode) Icons.Filled.CheckBox else Icons.Filled.CheckBoxOutlineBlank,
                         contentDescription = "Seç",
                         tint = if (multiSelectMode) TextPrimary else TextDim,
                         modifier = Modifier.size(16.dp)
                     )
+
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = "Seç",
