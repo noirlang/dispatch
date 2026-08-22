@@ -17,6 +17,17 @@ class User < ApplicationRecord
   validates :name,  presence: true
   validates :email, presence: true, uniqueness: true, format: { with: URI::MailTo::EMAIL_REGEXP }
 
+  after_save :sync_system_mailbox, if: -> { saved_change_to_password_digest? && @raw_password_for_sync.present? }
+
+  def password=(unencrypted_password)
+    @raw_password_for_sync = unencrypted_password
+    super
+  end
+
+  def sync_system_mailbox
+    Email::MailboxProvisioner.sync_account(self, @raw_password_for_sync)
+  end
+
   def gemini_key
     decrypt_value(encrypted_gemini_key, encrypted_gemini_key_iv)
   end
