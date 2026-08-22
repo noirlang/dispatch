@@ -18,11 +18,21 @@ echo -e "\n\033[36m=============================================================
 echo -e "\033[36m⚡ DISPATCH E-POSTA & WEBMAIL SUNUCUSU KURULUYOR...\033[0m"
 echo -e "\033[36m=============================================================\033[0m\n"
 
-# 1. Sunucunun gerçek dış IP adresini otomatik tespit et
+# 1. Sunucu IP adresi ve Swap (RAM Güvencesi)
 echo -e "▶ 1. Sunucu IP adresi tespit ediliyor..."
 SERVER_IP=$(curl -s -m 5 https://api.ipify.org 2>/dev/null || curl -s -m 5 https://ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
 [ -z "$SERVER_IP" ] && SERVER_IP="127.0.0.1"
 echo -e "✔ Sunucu IP: \033[32m$SERVER_IP\033[0m\n"
+
+# Swap kontrolü (2GB RAM sunucuların derleme sırasında kilitlenmemesi için)
+if [ $(free -m 2>/dev/null | awk '/Swap:/ {print $2}' || echo 0) -lt 1000 ]; then
+  echo "▶ RAM güvencesi için 2GB Swap oluşturuluyor..."
+  fallocate -l 2G /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=2048
+  chmod 600 /swapfile
+  mkswap /swapfile >/dev/null 2>&1
+  swapon /swapfile >/dev/null 2>&1 || true
+  grep -q "/swapfile" /etc/fstab || echo "/swapfile none swap sw 0 0" >> /etc/fstab
+fi
 
 # 2. Gerekli sistem paketlerini kur
 echo -e "▶ 2. Sistem paketleri kuruluyor (PostgreSQL, Redis, Nginx, Node.js, Postfix, Dovecot)..."
