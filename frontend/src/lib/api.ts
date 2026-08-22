@@ -15,8 +15,9 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     },
   })
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: "Request failed" }))
-    throw new Error(err.error || "Request failed")
+    const err = await res.json().catch(() => ({ error: `HTTP ${res.status}: ${res.statusText}` }))
+    const msg = err.error || (Array.isArray(err.errors) ? err.errors.join(", ") : err.message) || `İstek başarısız oldu (${res.status})`
+    throw new Error(msg)
   }
   return res.json()
 }
