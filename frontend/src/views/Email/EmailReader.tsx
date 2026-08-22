@@ -2,7 +2,7 @@ import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "../../lib/api"
 import { useAuth } from "../../store/auth"
-import { useT, useAppStore } from "../../store/themeAndLocale"
+import { useT, useAppStore, useDateLocale } from "../../store/themeAndLocale"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Reply,
@@ -50,6 +50,7 @@ interface Props {
 
 export default function EmailReader({ id, folder, onReply, onForward }: Props) {
   const t = useT()
+  const dateLocale = useDateLocale()
   const { user } = useAuth()
   const { addToast } = useAppStore()
   const qc = useQueryClient()
@@ -393,7 +394,7 @@ export default function EmailReader({ id, folder, onReply, onForward }: Props) {
         </div>
 
         <span className="text-xs text-[var(--text-muted)] font-mono">
-          {format(new Date(email.created_at), "PPP p")}
+          {format(new Date(email.created_at), "PPP p", { locale: dateLocale })}
         </span>
       </div>
 

@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "../../lib/api"
-import { useT } from "../../store/themeAndLocale"
+import { useT, useDateLocale } from "../../store/themeAndLocale"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   format,
@@ -37,6 +37,7 @@ interface CalEvent {
 
 export default function CalendarView() {
   const t = useT()
+  const dateLocale = useDateLocale()
   const qc = useQueryClient()
 
   const [weekStart, setWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }))
@@ -223,10 +224,10 @@ export default function CalendarView() {
                       today ? "text-[var(--text-main)]" : "text-[var(--text-dim)]"
                     }`}
                   >
-                    {format(day, "EEEE")}
+                    {format(day, "EEEE", { locale: dateLocale })}
                   </span>
                   <span className="text-sm font-extrabold text-[var(--text-main)]">
-                    {format(day, "d MMMM yyyy")}
+                    {format(day, "d MMMM yyyy", { locale: dateLocale })}
                   </span>
                   {today && (
                     <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-[#22c55e15] text-[#22c55e] border border-[#22c55e30]">

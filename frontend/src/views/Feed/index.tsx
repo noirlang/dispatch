@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "../../lib/api"
-import { useT } from "../../store/themeAndLocale"
+import { useT, useDateLocale } from "../../store/themeAndLocale"
 import { motion, AnimatePresence } from "framer-motion"
 import { formatDistanceToNow, format } from "date-fns"
 import { Plus, ExternalLink, Rss, BookOpen, Clock, X } from "lucide-react"
@@ -21,6 +21,7 @@ interface RssItem {
 
 export default function FeedView() {
   const t = useT()
+  const dateLocale = useDateLocale()
   const qc = useQueryClient()
   const [addUrl, setAddUrl] = useState("")
   const [showAdd, setShowAdd] = useState(false)
@@ -183,7 +184,7 @@ export default function FeedView() {
                   <span>·</span>
                   <span className="flex items-center gap-1">
                     <Clock size={11} />
-                    <span>{item.published_at ? formatDistanceToNow(new Date(item.published_at), { addSuffix: true }) : ""}</span>
+                    <span>{item.published_at ? formatDistanceToNow(new Date(item.published_at), { addSuffix: true, locale: dateLocale }) : ""}</span>
                   </span>
                   {!item.is_read && (
                     <span className="ml-auto w-2 h-2 rounded-full bg-[#3b82f6]" title="Unread" />
@@ -244,7 +245,7 @@ export default function FeedView() {
                   </span>
                 )}
                 {selectedArticle.published_at && (
-                  <span>{format(new Date(selectedArticle.published_at), "PPP p")}</span>
+                  <span>{format(new Date(selectedArticle.published_at), "PPP p", { locale: dateLocale })}</span>
                 )}
               </div>
 

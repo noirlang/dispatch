@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "../../lib/api"
-import { useT } from "../../store/themeAndLocale"
+import { useT, useDateLocale } from "../../store/themeAndLocale"
 import { motion, AnimatePresence } from "framer-motion"
 import { formatDistanceToNow } from "date-fns"
 import SenderAvatar from "../../components/ui/SenderAvatar"
@@ -27,6 +27,7 @@ interface Props {
 
 export default function EmailList({ folder, selectedId, onSelect }: Props) {
   const t = useT()
+  const dateLocale = useDateLocale()
   const qc = useQueryClient()
   const [search, setSearch] = useState("")
   const [multiSelectMode, setMultiSelectMode] = useState(false)
@@ -163,7 +164,7 @@ export default function EmailList({ folder, selectedId, onSelect }: Props) {
                       {email.sender_name || email.from}
                     </span>
                     <span className="text-[var(--text-dim)] text-[10px] shrink-0 font-mono">
-                      {formatDistanceToNow(new Date(email.created_at), { addSuffix: true })}
+                      {formatDistanceToNow(new Date(email.created_at), { addSuffix: true, locale: dateLocale })}
                     </span>
                   </div>
                   <div className={`text-xs mt-1 truncate ${email.is_read ? "text-[var(--text-dim)]" : "text-[var(--text-main)] font-medium"}`}>

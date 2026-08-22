@@ -1,4 +1,5 @@
 import { create } from "zustand"
+import { tr, enGB } from "date-fns/locale"
 
 export type Theme = "system" | "dark" | "light"
 export type Lang = "tr" | "en"
@@ -206,6 +207,11 @@ export const useAppStore = create<State>((set) => ({
 export function useT() {
   const lang = useAppStore((s) => s.lang)
   return (key: keyof typeof translations.en) => translations[lang][key] || translations.en[key] || key
+}
+
+export function useDateLocale() {
+  const lang = useAppStore((s) => s.lang)
+  return lang === "tr" ? tr : enGB
 }
 
 export function applyThemeToDOM(theme: Theme) {

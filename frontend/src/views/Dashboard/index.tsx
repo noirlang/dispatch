@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "../../lib/api"
-import { useT, useAppStore } from "../../store/themeAndLocale"
+import { useT, useAppStore, useDateLocale } from "../../store/themeAndLocale"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Plane,
@@ -51,6 +51,7 @@ interface DashboardCard {
 
 export default function DashboardView() {
   const t = useT()
+  const dateLocale = useDateLocale()
   const lang = useAppStore((s) => s.lang)
   const qc = useQueryClient()
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
@@ -227,7 +228,7 @@ export default function DashboardView() {
               <div className="pt-3 border-t border-[var(--border-color)] flex items-center justify-between text-[11px] text-[var(--text-dim)]">
                 <div className="flex items-center gap-1.5 font-mono">
                   <Clock size={11} />
-                  <span>{formatDistanceToNow(new Date(card.created_at), { addSuffix: true })}</span>
+                  <span>{formatDistanceToNow(new Date(card.created_at), { addSuffix: true, locale: dateLocale })}</span>
                 </div>
 
                 {card.calendar_suggestion && (
