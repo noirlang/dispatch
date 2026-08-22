@@ -209,8 +209,8 @@ export default function EmailReader({ id, folder, onReply, onForward, onClose }:
     try {
       const res = await api.post<{ summary: string }>(`/emails/${id}/ai_summary`)
       setSummary(res.summary)
-    } catch {
-      setSummary("Yapay zeka özeti oluşturulamadı. Ayarlardan API anahtarınızı kontrol edin.")
+    } catch (err: any) {
+      setSummary(err.message || "Yapay zeka özeti oluşturulamadı. Ayarlardan API anahtarınızı ve seçili AI modelinizi kontrol edin.")
     } finally {
       setLoadingSummary(false)
     }
@@ -229,12 +229,13 @@ export default function EmailReader({ id, folder, onReply, onForward, onClose }:
       if (email) {
         onReply(email, res.reply_body)
       }
-    } catch {
-      alert("Yapay zeka yanıtı oluşturulamadı.")
+    } catch (err: any) {
+      alert(err.message || "Yapay zeka yanıtı oluşturulamadı.")
     } finally {
       setGeneratingReply(false)
     }
   }
+
 
   const languageOptions = [
     { code: "tr", name: "Türkçe", flag: "🇹🇷" },

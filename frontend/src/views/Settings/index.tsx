@@ -966,12 +966,31 @@ function SpeakeasyTab({ copyText, copiedKey }: { copyText: (v: string, k: string
 /* =========================================================================
    5. AI TAB
    ========================================================================= */
+const DEFAULT_MODELS: Record<string, Array<{ id: string; name: string }>> = {
+
+  gemini: [
+    { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash (Önerilen & Çok Hızlı)" },
+    { id: "gemini-1.5-flash", name: "Gemini 1.5 Flash" },
+    { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro (Gelişmiş)" },
+  ],
+  openai: [
+    { id: "gpt-4o-mini", name: "GPT-4o Mini (Hızlı & Ekonomik)" },
+    { id: "gpt-4o", name: "GPT-4o (Gelişmiş)" },
+    { id: "o3-mini", name: "o3-mini (Akıl Yürütme)" },
+  ],
+  claude: [
+    { id: "claude-3-5-sonnet-latest", name: "Claude 3.5 Sonnet (En Yetenekli)" },
+    { id: "claude-3-5-haiku-latest", name: "Claude 3.5 Haiku (Ultra Hızlı)" },
+  ]
+}
+
 function AiTab() {
   const t = useT()
-  const { data: settings } = useQuery({
+  const { data: settings } = useQuery<any>({
     queryKey: ["settings"],
-    queryFn: () => api.get<any>("/settings"),
+    queryFn: () => api.get("/settings"),
   })
+
   const qc = useQueryClient()
 
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null)
@@ -980,11 +999,27 @@ function AiTab() {
   const [fetchedModels, setFetchedModels] = useState<any[]>([])
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<{ success: boolean; msg: string } | null>(null)
+  const [modelSavedNotice, setModelSavedNotice] = useState(false)
 
   const activeProvider = selectedProvider || settings?.ai_provider || "gemini"
   const currentKey = activeProvider === "gemini" ? settings?.has_gemini_key : activeProvider === "claude" ? settings?.has_claude_key : settings?.has_openai_key
 
-  const modelsList = fetchedModels
+  const modelsList = fetchedModels.length > 0 ? fetchedModels : (DEFAULT_MODELS[activeProvider] || [])
+
+  async function handleModelChange(newModel: string) {
+    setSelectedModel(newModel)
+    try {
+      await api.patch("/settings", {
+        ai_provider: activeProvider,
+        ai_model: newModel
+      })
+      qc.invalidateQueries({ queryKey: ["settings"] })
+      setModelSavedNotice(true)
+      setTimeout(() => setModelSavedNotice(false), 2500)
+    } catch {
+      // Ignored
+    }
+  }
 
   async function testConnectionAndFetchModels() {
     setTesting(true)
@@ -998,8 +1033,9 @@ function AiTab() {
       setTestResult({ success: true, msg: res.message || "Bağlantı başarılı!" })
       if (res.models && Array.isArray(res.models)) {
         setFetchedModels(res.models)
-        if (res.models[0]?.id && !selectedModel) {
-          setSelectedModel(res.models[0].id)
+        const chosen = res.model || res.models[0]?.id
+        if (chosen) {
+          setSelectedModel(chosen)
         }
       }
       qc.invalidateQueries({ queryKey: ["settings"] })
@@ -1146,13 +1182,20 @@ function AiTab() {
         {/* Dynamic Model ComboBox Selector */}
         {modelsList.length > 0 && (
           <div>
-            <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">
-              Varsayılan AI Modeli (API'den Canlı Çekilen)
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-semibold text-[var(--text-muted)]">
+                Varsayılan AI Modeli
+              </label>
+              {modelSavedNotice && (
+                <span className="text-[10px] font-bold text-[#22c55e] bg-[#22c55e15] px-2 py-0.5 rounded-full border border-[#22c55e30] animate-fadeIn">
+                  Otomatik Kaydedildi ✓
+                </span>
+              )}
+            </div>
             <select
               value={selectedModel || settings?.ai_model || modelsList[0]?.id || ""}
-              onChange={e => setSelectedModel(e.target.value)}
-              className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-4 py-3 rounded-xl focus:outline-none focus:border-[var(--text-main)] font-semibold"
+              onChange={e => handleModelChange(e.target.value)}
+              className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-4 py-3 rounded-xl focus:outline-none focus:border-[var(--text-main)] font-semibold cursor-pointer"
             >
               {modelsList.map((m: any) => (
                 <option key={m.id} value={m.id}>
@@ -1161,10 +1204,11 @@ function AiTab() {
               ))}
             </select>
             <span className="text-[11px] text-[var(--text-dim)] mt-1 block">
-              Gelen e-postalardan seyahat, kargo, OTP ve faturaları otomatik ayıklamak ve yanıt taslağı oluşturmak için bu model kullanılır.
+              Gelen e-postalardan seyahat, kargo, OTP ve faturaları otomatik ayıklamak ve özet çıkarmak için bu model kullanılır.
             </span>
           </div>
         )}
+
 
         {testResult && (
           <div
