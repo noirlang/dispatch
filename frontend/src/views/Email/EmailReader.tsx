@@ -321,9 +321,11 @@ export default function EmailReader({ id, folder, onReply, onForward, onClose }:
   const isHtml = Boolean(email.body_html || email.body?.trim().startsWith("<"))
   const rawHtml = email.body_html || (email.body?.trim().startsWith("<") ? email.body : "")
   const safeHtml = isHtml ? DOMPurify.sanitize(rawHtml, {
+    WHOLE_DOCUMENT: true,
     ADD_TAGS: ["style", "meta", "link"],
     ADD_ATTR: ["target", "bgcolor", "align", "valign", "border", "cellpadding", "cellspacing"]
   }) : ""
+
   const hasRemoteImages = /<img[^>]+src=["']https?:\/\//i.test(rawHtml || email.body_text || "")
 
   return (

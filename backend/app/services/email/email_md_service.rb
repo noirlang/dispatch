@@ -20,11 +20,20 @@ class Email::EmailMdService
       render_markdown(raw_markdown)
     end
 
-    # Strip dangerous script tags, svg exploits, and inline event handlers
-    require "action_view"
-    sanitizer = ActionView::Base.sanitizer_vendor.safe_list_sanitizer.new
-    sanitizer.sanitize(html.to_s)
+    # Strip dangerous script tags, svg exploits, and inline event handlers while preserving <style>
+    doc = Nokogiri::HTML(html.to_s)
+    doc.xpath('//script|//object|//embed|//applet|//form|//iframe').remove
+    doc.traverse do |node|
+      if node.is_a?(Nokogiri::XML::Element)
+        node.attributes.each do |name, _|
+          node.remove_attribute(name) if name.downcase.start_with?("on")
+        end
+      end
+    end
+    doc.to_html
   end
+
+
 
   def self.render_markdown(text)
     require "kramdown"
