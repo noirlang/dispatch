@@ -23,6 +23,9 @@ Rails.application.routes.draw do
       # Image proxy (spy pixel blocker)
       get "image_proxy", to: "image_proxy#show"
 
+      # Sender avatar lookup (public)
+      get 'sender_profiles/avatar', to: 'sender_profiles#avatar'
+
       # Sender rules (approved/blocked/important contacts)
       resources :sender_rules, only: [:index, :create, :update, :destroy]
 

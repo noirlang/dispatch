@@ -101,3 +101,29 @@ class Api::V1::EmailsController < Api::V1::BaseController
     }
   end
 end
+
+# Override index to include sender avatars
+alias_method :original_index, :index
+def index
+  folder = params[:folder] || "inbox"
+  emails = current_user.emails.where(folder: folder).order(created_at: :desc)
+  render json: emails.map { |e| email_list_json(e) }
+end
+
+private
+
+def email_list_json(email)
+  profile = Email::SenderAvatarService.for(email.from_address)
+  {
+    id:           email.id,
+    from:         email.from_address,
+    subject:      email.subject,
+    is_read:      email.is_read,
+    folder:       email.folder,
+    created_at:   email.created_at,
+    sender_name:  profile[:name],
+    avatar_url:   profile[:avatar_url],
+    avatar_initials: profile[:initials],
+    is_known_company: profile[:is_known_company]
+  }
+end

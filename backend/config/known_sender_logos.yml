@@ -1,0 +1,131 @@
+# domain: { name, logo_url }
+# Using DuckDuckGo's favicon service as fallback, but listing known ones directly
+
+microsoft.com:
+  name: Microsoft
+  logo_url: https://img.icons8.com/color/48/microsoft.png
+outlook.com:
+  name: Microsoft Outlook
+  logo_url: https://img.icons8.com/color/48/microsoft-outlook-2019.png
+hotmail.com:
+  name: Microsoft Hotmail
+  logo_url: https://img.icons8.com/color/48/microsoft-outlook-2019.png
+live.com:
+  name: Microsoft Live
+  logo_url: https://img.icons8.com/color/48/microsoft-outlook-2019.png
+
+apple.com:
+  name: Apple
+  logo_url: https://img.icons8.com/ios-filled/50/mac-os.png
+icloud.com:
+  name: iCloud
+  logo_url: https://img.icons8.com/color/48/icloud.png
+
+google.com:
+  name: Google
+  logo_url: https://img.icons8.com/color/48/google-logo.png
+gmail.com:
+  name: Gmail
+  logo_url: https://img.icons8.com/color/48/gmail-new.png
+youtube.com:
+  name: YouTube
+  logo_url: https://img.icons8.com/color/48/youtube-play.png
+
+github.com:
+  name: GitHub
+  logo_url: https://img.icons8.com/ios-glyphs/48/ffffff/github.png
+gitlab.com:
+  name: GitLab
+  logo_url: https://img.icons8.com/color/48/gitlab.png
+
+amazon.com:
+  name: Amazon
+  logo_url: https://img.icons8.com/color/48/amazon.png
+aws.amazon.com:
+  name: AWS
+  logo_url: https://img.icons8.com/color/48/amazon-web-services.png
+
+twitter.com:
+  name: Twitter/X
+  logo_url: https://img.icons8.com/ios-filled/48/twitterx.png
+x.com:
+  name: X
+  logo_url: https://img.icons8.com/ios-filled/48/twitterx.png
+
+linkedin.com:
+  name: LinkedIn
+  logo_url: https://img.icons8.com/color/48/linkedin.png
+
+facebook.com:
+  name: Facebook
+  logo_url: https://img.icons8.com/color/48/facebook.png
+meta.com:
+  name: Meta
+  logo_url: https://img.icons8.com/color/48/meta.png
+
+netflix.com:
+  name: Netflix
+  logo_url: https://img.icons8.com/color/48/netflix.png
+
+spotify.com:
+  name: Spotify
+  logo_url: https://img.icons8.com/color/48/spotify.png
+
+slack.com:
+  name: Slack
+  logo_url: https://img.icons8.com/color/48/slack-new.png
+
+notion.so:
+  name: Notion
+  logo_url: https://img.icons8.com/ios-filled/48/ffffff/notion.png
+
+figma.com:
+  name: Figma
+  logo_url: https://img.icons8.com/color/48/figma.png
+
+stripe.com:
+  name: Stripe
+  logo_url: https://img.icons8.com/color/48/stripe.png
+
+paypal.com:
+  name: PayPal
+  logo_url: https://img.icons8.com/color/48/paypal.png
+
+dropbox.com:
+  name: Dropbox
+  logo_url: https://img.icons8.com/color/48/dropbox.png
+
+zoom.us:
+  name: Zoom
+  logo_url: https://img.icons8.com/color/48/zoom.png
+
+shopify.com:
+  name: Shopify
+  logo_url: https://img.icons8.com/color/48/shopify.png
+
+twilio.com:
+  name: Twilio
+  logo_url: https://img.icons8.com/color/48/twilio.png
+
+sendgrid.com:
+  name: SendGrid
+  logo_url: https://img.icons8.com/color/48/sendgrid.png
+
+mailchimp.com:
+  name: Mailchimp
+  logo_url: https://img.icons8.com/color/48/mailchimp.png
+
+hubspot.com:
+  name: HubSpot
+  logo_url: https://img.icons8.com/color/48/hubspot.png
+
+salesforce.com:
+  name: Salesforce
+  logo_url: https://img.icons8.com/color/48/salesforce.png
+
+jira.atlassian.com:
+  name: Jira
+  logo_url: https://img.icons8.com/color/48/jira.png
+atlassian.com:
+  name: Atlassian
+  logo_url: https://img.icons8.com/color/48/atlassian.png
