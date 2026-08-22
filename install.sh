@@ -138,7 +138,9 @@ ln -sf /etc/nginx/sites-available/dispatch /etc/nginx/sites-enabled/dispatch
 nginx -t && systemctl reload nginx
 
 # 8. Systemd Servislerini Kur ve Başlat
-echo -e "▶ 8. Dispatch servisleri başlatılıyor..."
+echo -e "▶ 8. Dispatch servisleri (Rails API & Sidekiq) başlatılıyor..."
+
+# Rails API Servisi
 cat << SVCEOF > /etc/systemd/system/dispatch-backend.service
 [Unit]
 Description=Dispatch Rails Backend Server
@@ -150,7 +152,27 @@ User=root
 WorkingDirectory=$DISPATCH_DIR/backend
 EnvironmentFile=$DISPATCH_DIR/backend/.env
 Environment=RAILS_ENV=production
-ExecStart=/usr/bin/bundle exec rails server -b 0.0.0.0 -p 3000
+ExecStart=/bin/bash -lc "bundle exec bin/rails server -b 127.0.0.1 -p 3000"
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+SVCEOF
+
+# Sidekiq Arka Plan Görev Servisi (RSS & AI)
+cat << SVCEOF > /etc/systemd/system/dispatch-sidekiq.service
+[Unit]
+Description=Dispatch Sidekiq Background Worker
+After=network.target postgresql.service redis-server.service dispatch-backend.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=$DISPATCH_DIR/backend
+EnvironmentFile=$DISPATCH_DIR/backend/.env
+Environment=RAILS_ENV=production
+ExecStart=/bin/bash -lc "bundle exec sidekiq"
 Restart=always
 RestartSec=5
 
@@ -159,8 +181,9 @@ WantedBy=multi-user.target
 SVCEOF
 
 systemctl daemon-reload
-systemctl enable --now dispatch-backend
-systemctl restart dispatch-backend
+systemctl enable --now dispatch-backend dispatch-sidekiq
+systemctl restart dispatch-backend dispatch-sidekiq
+
 
 # Kurulum Tamamlandı Banner
 echo -e "\n\033[32m=============================================================\033[0m"
