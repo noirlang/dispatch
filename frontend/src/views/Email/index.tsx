@@ -36,7 +36,7 @@ export default function EmailView() {
   const { data: approvals = [] } = useQuery({
     queryKey: ["emails", "approvals"],
     queryFn: () => api.get<any[]>("/emails?folder=approvals"),
-    refetchInterval: 15_000,
+    refetchInterval: 3000,
   })
 
   function startCompose() {

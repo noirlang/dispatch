@@ -1,7 +1,10 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Calendar, Mail, Rss, Settings, LayoutDashboard, Sun, Moon, Laptop, X } from "lucide-react"
 import { useAppStore, useT, applyThemeToDOM } from "../../store/themeAndLocale"
+import { useQuery } from "@tanstack/react-query"
+import { api } from "../../lib/api"
 import { motion, AnimatePresence } from "framer-motion"
+import SenderAvatar from "../ui/SenderAvatar"
 
 export type Panel = "email" | "calendar" | "feed" | "dashboard" | "settings"
 
@@ -22,11 +25,41 @@ export default function AppLayout({
 }: Props) {
   const [active, setActive] = useState<Panel>("email")
   const t = useT()
-  const { theme, setTheme, lang, setLang, toasts, removeToast } = useAppStore()
+  const { theme, setTheme, lang, setLang, toasts, addToast, removeToast } = useAppStore()
 
   useEffect(() => {
     applyThemeToDOM(theme)
   }, [theme])
+
+  // Live real-time incoming email watcher & toast notifier
+  const knownEmailIds = useRef<Set<number>>(new Set())
+  const initialLoaded = useRef(false)
+
+  useQuery({
+    queryKey: ["inbox-live-watcher"],
+    queryFn: async () => {
+      const list = await api.get<any[]>("/emails?folder=inbox")
+      if (!initialLoaded.current) {
+        list.forEach(e => knownEmailIds.current.add(e.id))
+        initialLoaded.current = true
+        return list
+      }
+
+      list.forEach(e => {
+        if (!knownEmailIds.current.has(e.id)) {
+          knownEmailIds.current.add(e.id)
+          addToast({
+            from: e.sender_name || e.from,
+            subject: e.subject || "(No Subject)",
+            avatar_url: e.avatar_url,
+            initials: e.avatar_initials
+          })
+        }
+      })
+      return list
+    },
+    refetchInterval: 3000,
+  })
 
   const nextTheme = theme === "dark" ? "light" : theme === "light" ? "system" : "dark"
 
@@ -73,75 +106,73 @@ export default function AppLayout({
             active={active === "dashboard"}
             onClick={() => setActive("dashboard")}
           />
-          <DockBtn
-            icon={<Settings size={16} />}
-            label={t("settings")}
-            active={active === "settings"}
-            onClick={() => setActive("settings")}
-          />
         </nav>
 
-        {/* Right: Circular Flag Language & Theme Switchers */}
-        <div className="flex items-center gap-2.5">
-          {/* Circular Flags Side-by-Side */}
+        {/* Right: Flag Buttons, Theme Toggle, Settings Button */}
+        <div className="flex items-center gap-2">
+          {/* Circular Flags */}
           <div className="flex items-center gap-1.5 p-1 rounded-full bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-xs">
-            {/* Turkish Flag Circle */}
             <motion.button
-              whileTap={{ scale: 0.88 }}
-              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
               onClick={() => setLang("tr")}
-              className={`w-7 h-7 rounded-full flex items-center justify-center text-sm transition-all select-none overflow-hidden ${
-                lang === "tr"
-                  ? "ring-2 ring-[var(--text-main)] shadow-md bg-[var(--bg-card)]"
-                  : "opacity-40 hover:opacity-100"
+              className={`w-7 h-7 rounded-full flex items-center justify-center text-sm transition-all select-none ${
+                lang === "tr" ? "ring-2 ring-[var(--text-main)] bg-[var(--bg-card)] shadow-xs" : "opacity-40 hover:opacity-100"
               }`}
               title="Türkçe"
             >
-              <span className="leading-none select-none pointer-events-none">🇹🇷</span>
+              🇹🇷
             </motion.button>
-
-            {/* UK Flag Circle */}
             <motion.button
-              whileTap={{ scale: 0.88 }}
-              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
               onClick={() => setLang("en")}
-              className={`w-7 h-7 rounded-full flex items-center justify-center text-sm transition-all select-none overflow-hidden ${
-                lang === "en"
-                  ? "ring-2 ring-[var(--text-main)] shadow-md bg-[var(--bg-card)]"
-                  : "opacity-40 hover:opacity-100"
+              className={`w-7 h-7 rounded-full flex items-center justify-center text-sm transition-all select-none ${
+                lang === "en" ? "ring-2 ring-[var(--text-main)] bg-[var(--bg-card)] shadow-xs" : "opacity-40 hover:opacity-100"
               }`}
               title="English (UK)"
             >
-              <span className="leading-none select-none pointer-events-none">🇬🇧</span>
+              🇬🇧
             </motion.button>
           </div>
 
-          {/* Theme toggle */}
+          {/* Theme Toggle */}
           <motion.button
-            whileTap={{ scale: 0.88, rotate: 30 }}
-            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.9 }}
             onClick={() => setTheme(nextTheme)}
-            className="w-8 h-8 rounded-full flex items-center justify-center border border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-card)] transition-colors shadow-xs"
-            title={`Current Theme: ${theme}`}
+            className="w-8 h-8 rounded-full flex items-center justify-center border border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors shadow-xs"
+            title={`Tema: ${theme}`}
           >
             {theme === "dark" && <Moon size={14} />}
             {theme === "light" && <Sun size={14} />}
             {theme === "system" && <Laptop size={14} />}
           </motion.button>
+
+          {/* Settings Button */}
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={() => setActive("settings")}
+            className={`w-8 h-8 rounded-full flex items-center justify-center border transition-all shadow-xs ${
+              active === "settings"
+                ? "bg-[var(--accent)] text-[var(--accent-invert)] border-[var(--accent)] font-bold"
+                : "border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-muted)] hover:text-[var(--text-main)]"
+            }`}
+            title={t("settings")}
+          >
+            <Settings size={15} />
+          </motion.button>
         </div>
       </header>
 
-      {/* Main Full-Screen Viewport for Active Panel with Spring Slide */}
-      <main className="flex-1 w-full overflow-hidden relative bg-[var(--bg-primary)]">
+      {/* Main Full-Size Workspace with Fluid AnimatePresence */}
+      <div className="flex-1 overflow-hidden relative">
         <AnimatePresence mode="wait">
           {active === "email" && (
             <motion.div
               key="email"
-              initial={{ opacity: 0, y: 8, filter: "blur(4px)" }}
-              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-              exit={{ opacity: 0, y: -8, filter: "blur(4px)" }}
-              transition={{ type: "spring", damping: 28, stiffness: 280 }}
-              className="h-full w-full"
+              initial={{ opacity: 0, scale: 0.985 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.985 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+              className="w-full h-full"
             >
               {emailPanel}
             </motion.div>
@@ -150,11 +181,11 @@ export default function AppLayout({
           {active === "calendar" && (
             <motion.div
               key="calendar"
-              initial={{ opacity: 0, y: 8, filter: "blur(4px)" }}
-              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-              exit={{ opacity: 0, y: -8, filter: "blur(4px)" }}
-              transition={{ type: "spring", damping: 28, stiffness: 280 }}
-              className="h-full w-full"
+              initial={{ opacity: 0, scale: 0.985 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.985 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+              className="w-full h-full"
             >
               {calendarPanel}
             </motion.div>
@@ -163,11 +194,11 @@ export default function AppLayout({
           {active === "feed" && (
             <motion.div
               key="feed"
-              initial={{ opacity: 0, y: 8, filter: "blur(4px)" }}
-              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-              exit={{ opacity: 0, y: -8, filter: "blur(4px)" }}
-              transition={{ type: "spring", damping: 28, stiffness: 280 }}
-              className="h-full w-full"
+              initial={{ opacity: 0, scale: 0.985 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.985 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+              className="w-full h-full"
             >
               {feedPanel}
             </motion.div>
@@ -176,11 +207,11 @@ export default function AppLayout({
           {active === "dashboard" && (
             <motion.div
               key="dashboard"
-              initial={{ opacity: 0, y: 8, filter: "blur(4px)" }}
-              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-              exit={{ opacity: 0, y: -8, filter: "blur(4px)" }}
-              transition={{ type: "spring", damping: 28, stiffness: 280 }}
-              className="h-full w-full"
+              initial={{ opacity: 0, scale: 0.985 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.985 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+              className="w-full h-full"
             >
               {dashboardPanel}
             </motion.div>
@@ -189,61 +220,64 @@ export default function AppLayout({
           {active === "settings" && (
             <motion.div
               key="settings"
-              initial={{ opacity: 0, y: 8, filter: "blur(4px)" }}
-              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-              exit={{ opacity: 0, y: -8, filter: "blur(4px)" }}
-              transition={{ type: "spring", damping: 28, stiffness: 280 }}
-              className="h-full w-full"
+              initial={{ opacity: 0, scale: 0.985 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.985 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+              className="w-full h-full"
             >
               {settingsPanel}
             </motion.div>
           )}
         </AnimatePresence>
-      </main>
+      </div>
 
-      {/* Bottom-Right Incoming Mail Notification Toasts */}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none">
+      {/* Floating Bottom-Right Toast Notifications for incoming emails */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2.5 max-w-sm pointer-events-none">
         <AnimatePresence>
           {toasts.map((toast) => (
             <motion.div
               key={toast.id}
-              initial={{ opacity: 0, y: 40, scale: 0.9 }}
+              initial={{ opacity: 0, y: 30, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, x: 80, scale: 0.85 }}
-              transition={{ type: "spring", damping: 22, stiffness: 300 }}
-              className="pointer-events-auto p-4 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] shadow-2xl flex items-center justify-between gap-4 max-w-sm backdrop-blur-md"
+              exit={{ opacity: 0, scale: 0.85, transition: { duration: 0.15 } }}
+              transition={{ type: "spring", stiffness: 400, damping: 25 }}
+              className="pointer-events-auto flex items-start gap-3.5 p-4 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-main)] shadow-2xl backdrop-blur-md cursor-pointer hover:border-[var(--text-muted)] transition-colors"
+              onClick={() => {
+                setActive("email")
+                removeToast(toast.id)
+              }}
             >
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-[var(--accent)] text-[var(--accent-invert)] flex items-center justify-center font-bold text-xs shadow-xs">
-                  {toast.initials || "📧"}
+              <div className="mt-0.5 shrink-0">
+                <SenderAvatar
+                  avatarUrl={toast.avatar_url}
+                  initials={toast.initials || toast.from[0]?.toUpperCase()}
+                  name={toast.from}
+                  size={36}
+                />
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--accent)] mb-0.5">
+                  {t("new_mail_notification")}
                 </div>
-                <div>
-                  <div className="text-xs font-bold text-[var(--text-main)] truncate max-w-[200px]">
-                    {toast.from}
-                  </div>
-                  <div className="text-[11px] text-[var(--text-muted)] truncate max-w-[200px]">
-                    {toast.subject}
-                  </div>
+                <div className="text-xs font-bold text-[var(--text-main)] truncate">
+                  {toast.from}
+                </div>
+                <div className="text-xs text-[var(--text-muted)] truncate mt-0.5">
+                  {toast.subject}
                 </div>
               </div>
 
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => {
-                    setActive("email")
-                    removeToast(toast.id)
-                  }}
-                  className="text-xs text-[var(--text-main)] underline font-bold px-2 py-1"
-                >
-                  {t("view_mail")}
-                </button>
-                <button
-                  onClick={() => removeToast(toast.id)}
-                  className="p-1.5 text-[var(--text-dim)] hover:text-[var(--text-main)] rounded-lg hover:bg-[var(--bg-card)]"
-                >
-                  <X size={13} />
-                </button>
-              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  removeToast(toast.id)
+                }}
+                className="text-[var(--text-dim)] hover:text-[var(--text-main)] p-1 -mr-1 -mt-1 rounded-lg"
+              >
+                <X size={14} />
+              </button>
             </motion.div>
           ))}
         </AnimatePresence>
@@ -264,25 +298,21 @@ function DockBtn({
   onClick: () => void
 }) {
   return (
-    <motion.button
-      whileTap={{ scale: 0.94 }}
-      whileHover={{ y: -1 }}
+    <button
       onClick={onClick}
-      className={`relative flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium transition-all ${
-        active
-          ? "bg-[var(--bg-secondary)] text-[var(--text-main)] shadow-sm font-bold border border-[var(--border-color)]"
-          : "text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-secondary)]"
+      className={`relative px-4 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
+        active ? "text-[var(--accent-invert)] font-bold" : "text-[var(--text-muted)] hover:text-[var(--text-main)]"
       }`}
     >
-      {icon}
-      <span>{label}</span>
       {active && (
         <motion.div
-          layoutId="activeDockIndicator"
-          className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-1 bg-[var(--text-main)] rounded-full"
-          transition={{ type: "spring", damping: 25, stiffness: 350 }}
+          layoutId="dock-indicator"
+          className="absolute inset-0 bg-[var(--accent)] rounded-xl shadow-xs"
+          transition={{ type: "spring", stiffness: 450, damping: 30 }}
         />
       )}
-    </motion.button>
+      <span className="relative z-10">{icon}</span>
+      <span className="relative z-10">{label}</span>
+    </button>
   )
 }
