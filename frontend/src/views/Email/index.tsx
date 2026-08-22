@@ -2,7 +2,7 @@ import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { api } from "../../lib/api"
 import { useAuth } from "../../store/auth"
-import { useT } from "../../store/themeAndLocale"
+import { useT, useAppStore } from "../../store/themeAndLocale"
 import { motion, AnimatePresence } from "framer-motion"
 import { Inbox, Send, FileText, Trash2, Clock, Plus, Mail } from "lucide-react"
 import EmailList from "./EmailList"
@@ -13,6 +13,7 @@ export type Folder = "inbox" | "approvals" | "sent" | "drafts" | "trash"
 
 export default function EmailView() {
   const t = useT()
+  const { lang } = useAppStore()
   const { user } = useAuth()
   const [folder, setFolder] = useState<Folder>("inbox")
   const [selectedId, setSelectedId] = useState<number | null>(null)
@@ -68,7 +69,25 @@ export default function EmailView() {
       .replace(/<style>[\s\S]*?<\/style>/gi, "")
       .trim()
 
-    const defaultQuoted = `\n\n> On ${new Date(email.created_at).toLocaleString()}, ${email.from} wrote:\n> ${cleanQuoted.replace(/\n/g, "\n> ")}`
+    const senderHeader = email.sender_name 
+      ? `${email.sender_name} <${email.from}>`
+      : `<${email.from}>`
+
+    const formattedDate = new Date(email.created_at).toLocaleDateString(lang === "tr" ? "tr-TR" : "en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    })
+
+    const quoteHeader = `\n\nOn ${formattedDate}, ${senderHeader} wrote:`
+    const quotedLines = cleanQuoted
+      .split("\n")
+      .map((line: string) => `> ${line}`)
+      .join("\n")
+
+    const defaultQuoted = `${quoteHeader}\n${quotedLines}`
     
     setComposeConfig({
       to: email.from,

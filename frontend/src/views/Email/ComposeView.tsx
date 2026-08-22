@@ -170,9 +170,20 @@ export default function ComposeView({
             className="w-full flex-1 p-5 bg-transparent text-[var(--text-main)] text-sm leading-relaxed font-sans placeholder-[var(--text-dim)] resize-none focus:outline-none"
           />
         ) : (
-          <div className="flex-1 p-6 overflow-y-auto prose prose-neutral dark:prose-invert max-w-none text-sm leading-relaxed">
+          <div className="flex-1 p-6 overflow-y-auto max-w-none text-sm leading-relaxed text-[var(--text-main)] font-sans">
             {body.trim() ? (
-              <ReactMarkdown>{body}</ReactMarkdown>
+              <ReactMarkdown
+                components={{
+                  blockquote: ({ children }) => (
+                    <blockquote className="border-l-2 border-[var(--border-color)] pl-4 my-3 text-[var(--text-muted)] not-italic space-y-1">
+                      {children}
+                    </blockquote>
+                  ),
+                  p: ({ children }) => <p className="mb-2.5 last:mb-0 leading-relaxed">{children}</p>
+                }}
+              >
+                {body}
+              </ReactMarkdown>
             ) : (
               <span className="text-[var(--text-dim)] italic">No content to preview...</span>
             )}

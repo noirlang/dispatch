@@ -412,8 +412,19 @@ export default function EmailReader({ id, folder, onReply, onForward }: Props) {
             dangerouslySetInnerHTML={{ __html: safeHtml }}
           />
         ) : (
-          <div className="prose prose-neutral dark:prose-invert max-w-none text-sm leading-relaxed font-sans">
-            <ReactMarkdown>{email.body || ""}</ReactMarkdown>
+          <div className="text-sm leading-relaxed font-sans text-[var(--text-main)]">
+            <ReactMarkdown
+              components={{
+                blockquote: ({ children }) => (
+                  <blockquote className="border-l-2 border-[var(--border-color)] pl-4 my-3 text-[var(--text-muted)] not-italic space-y-1">
+                    {children}
+                  </blockquote>
+                ),
+                p: ({ children }) => <p className="mb-2.5 last:mb-0 leading-relaxed">{children}</p>
+              }}
+            >
+              {email.body_text || email.body || ""}
+            </ReactMarkdown>
           </div>
         )}
       </div>

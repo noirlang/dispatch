@@ -66,3 +66,15 @@ input, textarea, select, button {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-dim);
 }
+
+blockquote {
+  border-left: 2px solid var(--border-color);
+  padding-left: 14px;
+  margin: 12px 0;
+  color: var(--text-muted);
+  font-style: normal;
+}
+
+blockquote p {
+  margin: 4px 0;
+}
