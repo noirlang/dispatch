@@ -11,9 +11,9 @@ Rails.application.routes.draw do
       get    "auth/me",                  to: "auth#me"
 
       # Setup Wizard & DNS
-      get  "setup/status", to: "setup#status"
-      post "setup",        to: "setup#create"
-      get  "setup/dns",   to: "setup#dns"
+      get  "setup/status",          to: "setup#status"
+      post "setup",                 to: "setup#create"
+      post "setup/cloudflare_sync", to: "setup#cloudflare_sync"
 
       # Sender avatar
       get  "sender_profiles/avatar",        to: "sender_profiles#avatar"

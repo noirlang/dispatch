@@ -439,9 +439,53 @@ export default function SetupWizard() {
                 </button>
               </div>
 
-              {/* Cloudflare Note */}
-              <div className="p-3.5 rounded-lg bg-[#ffaa0015] border border-[#ffaa0030] text-[#ffaa00] text-xs leading-relaxed">
-                <strong>⚠️ Cloudflare Proxy Notice:</strong> For mail to work, make sure the <strong>A</strong> (and AAAA) record for <code>{setupResult.config.mail_subdomain}</code> is set to <strong>DNS Only (Grey Cloud)</strong>, NOT Proxied (Orange Cloud).
+              {/* Cloudflare Note & Auto Sync */}
+              <div className="p-4 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-color)] flex flex-col gap-3 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-[#f59e0b] animate-pulse" />
+                    <span className="text-xs font-bold text-[var(--text-main)]">Cloudflare Otomatik DNS Eşitleme</span>
+                  </div>
+                  <span className="text-[10px] text-[var(--text-dim)]">API Token ile 1 Tıkla Ekle</span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="password"
+                    placeholder="Cloudflare API Token (Zone.DNS Edit izinli)"
+                    id="cf_token_input"
+                    className="flex-1 bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-xl focus:outline-none font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const input = document.getElementById("cf_token_input") as HTMLInputElement
+                      const token = input?.value
+                      if (!token) return alert("Lütfen Cloudflare API Token girin.")
+                      try {
+                        const btn = document.getElementById("cf_sync_btn")
+                        if (btn) btn.innerText = "Aktarılıyor..."
+                        const res = await api.post<any>("/setup/cloudflare_sync", {
+                          api_token: token,
+                          domain: setupResult.config.domain,
+                          mail_subdomain: setupResult.config.mail_subdomain,
+                          web_subdomain: "dispatch",
+                          ipv4: setupResult.config.ipv4
+                        })
+                        alert(res.message || "Tüm DNS kayıtları Cloudflare'a başarıyla aktarıldı!")
+                      } catch (err: any) {
+                        alert(err.message || "Cloudflare aktarımı başarısız oldu.")
+                      } finally {
+                        const btn = document.getElementById("cf_sync_btn")
+                        if (btn) btn.innerText = "Cloudflare'a Aktar"
+                      }
+                    }}
+                    id="cf_sync_btn"
+                    className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs font-bold px-4 py-2.5 rounded-xl hover:opacity-90 transition-all shrink-0 shadow-xs"
+                  >
+                    Cloudflare'a Aktar
+                  </button>
+                </div>
               </div>
 
               {/* Records Table */}
@@ -449,39 +493,45 @@ export default function SetupWizard() {
                 {setupResult.dns_records.map((r, i) => (
                   <div
                     key={i}
-                    className="p-3.5 rounded-lg bg-[#0a0a0a] border border-[#1a1a1a] flex flex-col gap-2 hover:border-[#333] transition-colors"
+                    onClick={() => copyText(r.content, `rec_${i}`)}
+                    className="p-3.5 rounded-xl bg-[var(--bg-card)] border border-[var(--border-color)] flex flex-col gap-2 hover:border-[var(--text-muted)] transition-colors cursor-pointer group"
+                    title="Tıklayarak içeriği kopyalayın"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 rounded bg-[#1f1f1f] text-white text-[11px] font-mono font-semibold">
+                        <span className="px-2 py-0.5 rounded-md bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-[11px] font-mono font-bold">
                           {r.type}
                         </span>
-                        <span className="text-xs font-mono text-[#ccc]">{r.name}</span>
+                        <span className="text-xs font-mono font-bold text-[var(--text-main)]">{r.name}</span>
                         {r.priority !== undefined && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#161616] text-[#888]">
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-primary)] text-[var(--text-dim)]">
                             Priority: {r.priority}
                           </span>
                         )}
                         {r.proxy_status === false && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#222] text-[#888]">
-                            DNS Only (Grey)
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#f59e0b15] text-[#f59e0b] border border-[#f59e0b30] font-semibold">
+                            DNS Only (Grey Cloud)
                           </span>
                         )}
                       </div>
                       <button
-                        onClick={() => copyText(r.content, `rec_${i}`)}
-                        className="text-[#666] hover:text-white text-xs flex items-center gap-1 p-1 rounded hover:bg-[#1a1a1a]"
-                        title="Copy content"
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          copyText(r.content, `rec_${i}`)
+                        }}
+                        className="text-[var(--text-dim)] group-hover:text-[var(--text-main)] text-xs flex items-center gap-1 p-1 rounded hover:bg-[var(--bg-primary)]"
+                        title="Kopyala"
                       >
-                        {copiedKey === `rec_${i}` ? <Check size={12} className="text-[#44ff88]" /> : <Copy size={12} />}
+                        {copiedKey === `rec_${i}` ? <Check size={13} className="text-[#22c55e]" /> : <Copy size={13} />}
                       </button>
                     </div>
 
-                    <div className="bg-[#111] p-2 rounded border border-[#1a1a1a] font-mono text-[11px] text-[#aaa] break-all select-all">
+                    <div className="bg-[var(--bg-primary)] p-2.5 rounded-lg border border-[var(--border-color)] font-mono text-[11px] text-[var(--text-muted)] break-all select-all">
                       {r.content}
                     </div>
 
-                    <span className="text-[10px] text-[#555]">{r.description}</span>
+                    <span className="text-[10px] text-[var(--text-dim)]">{r.description}</span>
                   </div>
                 ))}
               </div>

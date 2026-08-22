@@ -85,23 +85,28 @@ class Api::V1::SetupController < ActionController::API
     }
   end
 
-  # GET /api/v1/setup/dns
-  def dns
+  # POST /api/v1/setup/cloudflare_sync
+  def cloudflare_sync
     config = ServerConfig.current
-    render json: {
-      domain: config.domain,
-      mail_subdomain: config.mail_subdomain,
-      maildomain: config.maildomain,
-      records: config.dns_records,
-      bind_zone: config.bind_zone_export,
-      cloudflare_instructions: [
-        "1. Log into your Cloudflare Dashboard and select your domain: #{config.domain}",
-        "2. Navigate to DNS -> Records",
-        "3. Add the A record (and AAAA if IPv6 enabled). IMPORTANT: Set Proxy status to 'DNS Only' (Grey Cloud, not Orange Cloud).",
-        "4. Add the MX record with priority 10 pointing to #{config.maildomain}",
-        "5. Add the SPF, DKIM, and DMARC TXT records exactly as shown below.",
-        "6. In Cloudflare, make sure TTL is set to Auto."
-      ]
-    }
+    api_token = params[:api_token].to_s.strip
+    domain = params[:domain].presence || config.domain
+    mail_subdomain = params[:mail_subdomain].presence || config.mail_subdomain || "mail"
+    web_subdomain = params[:web_subdomain].presence || "dispatch"
+    ipv4 = params[:ipv4].presence || config.ipv4 || "127.0.0.1"
+
+    res = Cloudflare::DnsSyncService.sync(
+      api_token: api_token,
+      domain: domain,
+      mail_subdomain: mail_subdomain,
+      web_subdomain: web_subdomain,
+      ipv4: ipv4,
+      dkim_public_key: config.dkim_public_key
+    )
+
+    if res[:success]
+      render json: res
+    else
+      render json: res, status: :unprocessable_entity
+    end
   end
 end
