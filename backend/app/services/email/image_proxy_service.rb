@@ -1,10 +1,14 @@
 class Email::ImageProxyService
   BLOCKED_RANGES = [
+    IPAddr.new("127.0.0.0/8"),
     IPAddr.new("10.0.0.0/8"),
     IPAddr.new("172.16.0.0/12"),
     IPAddr.new("192.168.0.0/16"),
-    IPAddr.new("127.0.0.0/8"),
-    IPAddr.new("::1/128")
+    IPAddr.new("169.254.0.0/16"), # Cloud instance metadata (169.254.169.254)
+    IPAddr.new("0.0.0.0/8"),
+    IPAddr.new("::1/128"),
+    IPAddr.new("fc00::/7"),       # IPv6 Unique Local
+    IPAddr.new("fe80::/10")       # IPv6 Link-Local
   ].freeze
 
   # uBlock Origin / Peter Lowe / EasyPrivacy lists

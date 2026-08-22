@@ -12,6 +12,7 @@ class SpeakeasyCode < ApplicationRecord
   def valid_code?
     !expired? && !(single_use && used)
   end
+  alias_method :valid_for_use?, :valid_code?
 
   private
 
