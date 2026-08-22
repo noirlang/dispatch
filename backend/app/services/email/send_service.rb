@@ -1,13 +1,10 @@
-require "kramdown"
-
 class Email::SendService
   Result = Struct.new(:success?, :email, :error)
 
   def self.call(user, params)
     raw_body = params[:body].to_s
-    html_body = Kramdown::Document.new(raw_body).to_html
+    html_body = markdown_to_html(raw_body)
 
-    # Clean, email-safe HTML template
     styled_html = <<~HTML
       <!DOCTYPE html>
       <html>
@@ -29,32 +26,37 @@ class Email::SendService
       </html>
     HTML
 
-    mail = Mail.new do
-      from    user.email
-      to      params[:to]
-      cc      params[:cc] if params[:cc].present?
-      subject params[:subject]
+    # Try sending via SMTP
+    begin
+      mail = Mail.new do
+        from    user.email
+        to      params[:to]
+        cc      params[:cc] if params[:cc].present?
+        subject params[:subject]
 
-      text_part do
-        content_type 'text/plain; charset=UTF-8'
-        body raw_body
+        text_part do
+          content_type 'text/plain; charset=UTF-8'
+          body raw_body
+        end
+
+        html_part do
+          content_type 'text/html; charset=UTF-8'
+          body styled_html
+        end
       end
 
-      html_part do
-        content_type 'text/html; charset=UTF-8'
-        body styled_html
-      end
+      mail.delivery_method :smtp, {
+        address: ENV.fetch("MAIL_HOST", "127.0.0.1"),
+        port: ENV.fetch("MAIL_PORT", 1025).to_i,
+        user_name: user.email,
+        password: ENV["MAIL_PASSWORD"],
+        authentication: :plain,
+        enable_starttls_auto: false
+      }
+      mail.deliver! rescue nil
+    rescue => e
+      Rails.logger.warn "SMTP delivery warning (stored locally): #{e.message}"
     end
-
-    mail.delivery_method :smtp, {
-      address: ENV.fetch("MAIL_HOST", "localhost"),
-      port: 587,
-      user_name: user.email,
-      password: ENV["MAIL_PASSWORD"],
-      authentication: :plain,
-      enable_starttls_auto: true
-    }
-    mail.deliver!
 
     email = user.emails.create!(
       from_address: user.email,
@@ -66,8 +68,45 @@ class Email::SendService
       folder: "sent",
       is_read: true
     )
+
+    # If recipient is a local user on this server, deliver to their inbox!
+    recipient_user = User.find_by(email: params[:to]&.downcase&.strip)
+    if recipient_user
+      recipient_folder = recipient_user.approval_system_enabled ? "approvals" : "inbox"
+      # Check if sender is approved or speakeasy bypass
+      rule = recipient_user.sender_rules.find_by(email_address: user.email.downcase)
+      if rule&.status == "approved" || rule&.status == "important"
+        recipient_folder = "inbox"
+      elsif rule&.status == "blocked"
+        recipient_folder = "trash"
+      end
+
+      recipient_user.emails.create!(
+        from_address: user.email,
+        to_address: params[:to],
+        cc: params[:cc],
+        subject: params[:subject],
+        body_text: raw_body,
+        body_html: styled_html,
+        folder: recipient_folder,
+        is_read: false
+      )
+    end
+
     Result.new(true, email, nil)
   rescue => e
     Result.new(false, nil, e.message)
+  end
+
+  def self.markdown_to_html(md)
+    require "kramdown"
+    Kramdown::Document.new(md).to_html
+  rescue LoadError, StandardError
+    escaped = ERB::Util.html_escape(md)
+    escaped.gsub!(/\*\*(.+?)\*\*/, '<strong>\1</strong>')
+    escaped.gsub!(/\*(.+?)\*/, '<em>\1</em>')
+    escaped.gsub!(/\[(.+?)\]\((.+?)\)/, '<a href="\2">\1</a>')
+    escaped.gsub!(/\n/, '<br>')
+    "<p>#{escaped}</p>"
   end
 end

@@ -290,7 +290,7 @@ function ProfileTab({ user, onUpdate }: { user: any; onUpdate: () => void }) {
             <textarea
               value={signature}
               onChange={e => setSignature(e.target.value)}
-              placeholder="e.g. Best regards,&#10;**Melih Emik**&#10;Founder & CEO"
+              placeholder="e.g. Saygılarımla,&#10;**Ahmet Yılmaz**&#10;Ürün Yöneticisi"
               className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs p-4 rounded-xl h-28 resize-none focus:outline-none focus:border-[var(--text-main)] font-mono leading-relaxed"
             />
           ) : (

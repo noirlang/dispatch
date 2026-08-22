@@ -2,6 +2,7 @@ import { useEffect } from "react"
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { useAuth } from "./store/auth"
+import LandingView from "./views/Landing"
 import Login from "./views/Auth/Login"
 import Register from "./views/Auth/Register"
 import SetupWizard from "./views/Setup"
@@ -40,18 +41,22 @@ export default function App() {
     <QueryClientProvider client={qc}>
       <BrowserRouter>
         <Routes>
+          {/* Landing / Welcome Screen */}
+          <Route path="/"         element={<LandingView />} />
+
           {/* Auth & Setup */}
           <Route path="/login"    element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/setup"    element={<SetupWizard />} />
 
-          {/* Public blog (accessible without login) */}
+          {/* Public blog */}
           <Route path="/blog"                     element={<BlogIndex />} />
           <Route path="/blog/@:handle"             element={<BlogIndex />} />
           <Route path="/blog/@:handle/:slug"       element={<BlogPost />} />
 
-          {/* App */}
-          <Route path="/*" element={<ProtectedApp />} />
+          {/* Main Dispatch App */}
+          <Route path="/app/*"    element={<ProtectedApp />} />
+          <Route path="/*"        element={<ProtectedApp />} />
         </Routes>
       </BrowserRouter>
     </QueryClientProvider>
