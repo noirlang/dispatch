@@ -115,7 +115,7 @@ export function BlogIndex() {
                   key={post.slug}
                   className="group border-b border-[var(--border-color)] pb-8 flex flex-col gap-2.5"
                 >
-                  <Link to={`/blog/@${post.author_handle}/${post.slug}`}>
+                  <Link to={`/@${post.author_handle}/${post.slug}`}>
                     <h2 className="text-2xl font-bold text-[var(--text-main)] group-hover:underline transition-all">
                       {post.title}
                     </h2>
@@ -127,7 +127,7 @@ export function BlogIndex() {
 
                   <div className="flex items-center gap-3 mt-1 text-xs text-[var(--text-dim)]">
                     <Link
-                      to={`/blog/@${post.author_handle}`}
+                      to={`/@${post.author_handle}`}
                       className="flex items-center gap-1.5 text-[var(--text-main)] hover:underline font-medium"
                     >
                       <SenderAvatar
@@ -163,8 +163,12 @@ export function BlogPost() {
     queryKey: ["blog-post", cleanHandle, slug],
     enabled: Boolean(cleanHandle && slug),
     queryFn: async () => {
-      const res = await fetch(`/blog/@${cleanHandle}/${slug}`)
-      if (!res.ok) throw new Error("Post not found")
+      const res = await fetch(`/@${cleanHandle}/${slug}`)
+      if (!res.ok) {
+        const fallback = await fetch(`/blog/@${cleanHandle}/${slug}`)
+        if (!fallback.ok) throw new Error("Post not found")
+        return fallback.json() as Promise<FullPost>
+      }
       return res.json() as Promise<FullPost>
     },
   })
@@ -181,7 +185,7 @@ export function BlogPost() {
     return (
       <div className="min-h-screen bg-[var(--bg-primary)] flex flex-col items-center justify-center gap-3">
         <span className="text-sm text-[var(--text-dim)]">Yazı bulunamadı</span>
-        <Link to={`/blog/@${cleanHandle}`} className="text-xs text-[var(--text-main)] underline">
+        <Link to={`/@${cleanHandle}`} className="text-xs text-[var(--text-main)] underline">
           @{cleanHandle} yazılarına dön
         </Link>
       </div>
@@ -192,7 +196,7 @@ export function BlogPost() {
     <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-main)] flex flex-col">
       <header className="border-b border-[var(--border-color)] bg-[var(--bg-secondary)] px-8 py-3.5 flex items-center justify-between">
         <Link
-          to={`/blog/@${cleanHandle}`}
+          to={`/@${cleanHandle}`}
           className="text-xs text-[var(--text-muted)] hover:text-[var(--text-main)] flex items-center gap-1.5 transition-colors"
         >
           <ArrowLeft size={13} />
@@ -218,7 +222,7 @@ export function BlogPost() {
             size={40}
           />
           <div>
-            <Link to={`/blog/@${cleanHandle}`} className="text-sm font-semibold text-[var(--text-main)] hover:underline">
+            <Link to={`/@${cleanHandle}`} className="text-sm font-semibold text-[var(--text-main)] hover:underline">
               {post.author_name || `@${post.author_handle}`}
             </Link>
             <div className="text-xs text-[var(--text-dim)]">

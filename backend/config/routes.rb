@@ -108,12 +108,14 @@ Rails.application.routes.draw do
   end
 
   # Public blog (no auth)
-  # blog.domain.com or /blog namespace
+  # blog.domain.com or /blog namespace or direct /@handle
   constraints(subdomain: "blog") do
     namespace :blog, path: "" do
-      get "/",              to: "posts#index"
-      get "/@:handle",      to: "posts#index",  as: :author_posts
-      get "/@:handle/:slug", to: "posts#show",  as: :author_post
+      get "/",               to: "posts#index"
+      get "/@:handle",       to: "posts#index",  as: :author_posts
+      get "/@:handle/:slug", to: "posts#show",   as: :author_post
+      get "/:handle",        to: "posts#index"
+      get "/:handle/:slug",  to: "posts#show"
     end
   end
 
@@ -122,5 +124,10 @@ Rails.application.routes.draw do
     get "/",               to: "posts#index"
     get "/@:handle",       to: "posts#index"
     get "/@:handle/:slug", to: "posts#show"
+    get "/:handle",        to: "posts#index"
+    get "/:handle/:slug",  to: "posts#show"
   end
+
+  get "/@:handle",       to: "blog/posts#index"
+  get "/@:handle/:slug", to: "blog/posts#show"
 end

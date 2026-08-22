@@ -500,7 +500,7 @@ export default function EmailReader({ id, folder, onReply, onForward }: Props) {
                     }
                     setAvatarModalOpen(true)
                   }}
-                  className={`relative z-10 group ${isOtherDispatchUser ? "cursor-default" : "cursor-pointer"}`}
+                  className={`relative z-10 group transition-all duration-200 ease-out hover:scale-110 hover:z-30 hover:-translate-y-0.5 rounded-full ${isOtherDispatchUser ? "cursor-default" : "cursor-pointer"}`}
                   title={`Gönderen: ${email.sender_name || email.from}`}
                 >
                   <SenderAvatar
@@ -520,7 +520,7 @@ export default function EmailReader({ id, folder, onReply, onForward }: Props) {
                 {/* Recipient Avatar (Overlapping on right - half-shifted) */}
                 {email.to && (
                   <div
-                    className="relative z-20 -ml-4 rounded-full ring-2 ring-[var(--bg-secondary)] shadow-xs shrink-0 select-none"
+                    className="relative z-20 -ml-4 rounded-full ring-2 ring-[var(--bg-secondary)] shadow-xs shrink-0 select-none transition-all duration-200 ease-out hover:scale-110 hover:z-30 hover:-translate-y-0.5 cursor-pointer"
                     title={`Alıcı: ${email.recipient_name || email.to}`}
                   >
                     <SenderAvatar
