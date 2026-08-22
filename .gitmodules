@@ -1,0 +1,3 @@
+[submodule "emailwiz"]
+	path = emailwiz
+	url = https://github.com/LukeSmithxyz/emailwiz
