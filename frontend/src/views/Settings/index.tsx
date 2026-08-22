@@ -134,6 +134,8 @@ function ProfileTab({ user, onUpdate }: { user: any; onUpdate: () => void }) {
     }
   }, [user])
 
+  const qc = useQueryClient()
+
   const updateProfile = useMutation({
     mutationFn: async () => {
       setPwError("")
@@ -150,6 +152,7 @@ function ProfileTab({ user, onUpdate }: { user: any; onUpdate: () => void }) {
       return api.patch("/settings", payload)
     },
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["settings"] })
       onUpdate()
       setSaved(true)
       if (newPassword) {

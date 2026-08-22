@@ -40,8 +40,9 @@ export default function EmailView() {
   })
 
   function startCompose() {
-    const rawSig = settings?.default_signature || user?.default_signature
-    const signature = rawSig ? `\n\n--\n${rawSig}` : ""
+    const rawSig = settings?.default_signature ?? user?.default_signature ?? ""
+    const cleanSig = String(rawSig).replace(/\\n/g, "\n").trim()
+    const signature = cleanSig ? `\n\n--\n${cleanSig}` : ""
     setComposeConfig({
       to: "",
       subject: "",
@@ -52,7 +53,9 @@ export default function EmailView() {
   }
 
   function handleReply(email: any, customBody?: string) {
-    const signature = user?.default_signature ? `\n\n--\n${user.default_signature}` : ""
+    const rawSig = settings?.default_signature ?? user?.default_signature ?? ""
+    const cleanSig = String(rawSig).replace(/\\n/g, "\n").trim()
+    const signature = cleanSig ? `\n\n--\n${cleanSig}` : ""
     const defaultQuoted = `\n\n> On ${new Date(email.created_at).toLocaleString()}, ${email.from} wrote:\n> ${email.body?.replace(/\n/g, "\n> ")}`
     
     setComposeConfig({
