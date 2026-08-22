@@ -7,6 +7,11 @@ Rails.application.routes.draw do
       delete "auth/logout",    to: "auth#logout"
       get    "auth/me",        to: "auth#me"
 
+      # Setup Wizard & DNS
+      get  "setup/status", to: "setup#status"
+      post "setup",        to: "setup#create"
+      get  "setup/dns",   to: "setup#dns"
+
       # Sender avatar (public)
       get "sender_profiles/avatar", to: "sender_profiles#avatar"
 
