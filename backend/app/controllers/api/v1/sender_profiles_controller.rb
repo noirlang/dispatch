@@ -10,30 +10,49 @@ class Api::V1::SenderProfilesController < Api::V1::BaseController
   # POST /api/v1/sender_profiles/update_avatar
   def update_avatar
     email = params[:email].to_s.downcase.strip
-    return render json: { error: "Email required" }, status: :bad_request if email.blank?
+    return render json: { error: "E-posta adresi zorunludur." }, status: :bad_request if email.blank?
+
+    file = params[:file] || params[:avatar] || params[:image]
+    avatar_url = params[:avatar_url].to_s.strip
+
+    if file.blank? && avatar_url.blank?
+      return render json: { error: "Lütfen bir resim dosyası seçin veya görsel bağlantısı (URL) girin." }, status: :unprocessable_entity
+    end
 
     profile = SenderProfile.find_or_initialize_by(email: email)
 
-    if params[:file].present?
-      file = params[:file]
+    if file.present?
       ext = File.extname(file.original_filename).presence || ".png"
       filename = "sender_#{Digest::MD5.hexdigest(email)}_#{Time.now.to_i}#{ext}"
       dir = Rails.root.join("public/avatars")
       FileUtils.mkdir_p(dir)
       path = dir.join(filename)
-      File.open(path, "wb") { |f| f.write(file.read) }
+      if file.respond_to?(:tempfile) && File.exist?(file.tempfile.path)
+        FileUtils.cp(file.tempfile.path, path)
+      elsif file.respond_to?(:read)
+        file.rewind if file.respond_to?(:rewind)
+        File.open(path, "wb") { |f| f.write(file.read) }
+      end
       profile.avatar_url = "/avatars/#{filename}"
-    elsif params[:avatar_url].present?
-      profile.avatar_url = params[:avatar_url]
+    elsif avatar_url.present?
+      profile.avatar_url = avatar_url
     end
 
     profile.display_name = params[:display_name] if params[:display_name].present?
     profile.save!
 
+    # If this matches current user's email, sync user account avatar
+    if current_user && current_user.email.downcase.strip == email
+      current_user.update!(avatar_path: profile.avatar_url)
+    end
+
     render json: {
       email: profile.email,
       display_name: profile.display_name,
-      avatar_url: profile.avatar_url
+      avatar_url: profile.avatar_url,
+      message: "Fotoğraf başarıyla güncellendi."
     }
+  rescue => e
+    render json: { error: "Fotoğraf kaydedilirken hata oluştu: #{e.message}" }, status: :unprocessable_entity
   end
 end

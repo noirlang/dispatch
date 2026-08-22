@@ -242,6 +242,12 @@ export default function EmailReader({ id, folder, onReply, onForward }: Props) {
   async function handleSaveContactPhoto(e?: React.ChangeEvent<HTMLInputElement>) {
     if (!email) return
     const file = e?.target.files?.[0]
+
+    if (!file && !avatarUrlInput.trim()) {
+      alert("Lütfen bir resim dosyası seçin veya görsel URL adresi girin.")
+      return
+    }
+
     setUploadingAvatar(true)
 
     try {
@@ -250,18 +256,24 @@ export default function EmailReader({ id, folder, onReply, onForward }: Props) {
         formData.append("email", email.from)
         formData.append("file", file)
         await api.upload("/sender_profiles/update_avatar", formData)
-      } else if (avatarUrlInput) {
+      } else if (avatarUrlInput.trim()) {
         await api.post("/sender_profiles/update_avatar", {
           email: email.from,
-          avatar_url: avatarUrlInput
+          avatar_url: avatarUrlInput.trim()
         })
       }
       setAvatarModalOpen(false)
       setAvatarUrlInput("")
-      qc.invalidateQueries({ queryKey: ["emails"] })
-      qc.invalidateQueries({ queryKey: ["email", id] })
-    } catch {
-      alert("Fotoğraf kaydedilemedi.")
+      await qc.invalidateQueries({ queryKey: ["email", id] })
+      await qc.invalidateQueries({ queryKey: ["emails"] })
+      await qc.invalidateQueries({ queryKey: ["sender-profiles"] })
+      await qc.invalidateQueries({ queryKey: ["me"] })
+      addToast({
+        from: "Kişi Profili",
+        subject: "Fotoğraf başarıyla güncellendi!"
+      })
+    } catch (err: any) {
+      alert(err.message || "Fotoğraf kaydedilemedi! Lütfen geçerli bir resim dosyası seçin.")
     } finally {
       setUploadingAvatar(false)
     }
