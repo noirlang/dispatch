@@ -58,6 +58,7 @@ class Email::SendService
       Rails.logger.warn "SMTP delivery warning (stored locally): #{e.message}"
     end
 
+    # Save to sender's Sent folder
     email = user.emails.create!(
       from_address: user.email,
       to_address: params[:to],
@@ -69,16 +70,30 @@ class Email::SendService
       is_read: true
     )
 
-    # If recipient is a local user on this server, deliver to their inbox!
+    # If recipient is a local user on this server, deliver to their inbox with Speakeasy & Approval check!
     recipient_user = User.find_by(email: params[:to]&.downcase&.strip)
     if recipient_user
-      recipient_folder = recipient_user.approval_system_enabled ? "approvals" : "inbox"
-      # Check if sender is approved or speakeasy bypass
-      rule = recipient_user.sender_rules.find_by(email_address: user.email.downcase)
-      if rule&.status == "approved" || rule&.status == "important"
-        recipient_folder = "inbox"
-      elsif rule&.status == "blocked"
-        recipient_folder = "trash"
+      full_content = "#{params[:subject]} #{raw_body}"
+      
+      # 1. Check Speakeasy Passcode (Highest Priority Bypass)
+      speakeasy_matched = recipient_user.speakeasy_codes.active.any? do |sc|
+        if full_content.include?(sc.code) && sc.valid_code?
+          sc.update!(used: true) if sc.single_use
+          true
+        end
+      end
+
+      recipient_folder = if speakeasy_matched
+        "inbox"
+      else
+        rule = recipient_user.sender_rules.find_by(email_address: user.email.downcase)
+        if rule&.status == "approved" || rule&.status == "important"
+          "inbox"
+        elsif rule&.status == "blocked"
+          "trash"
+        else
+          recipient_user.approval_system_enabled ? "approvals" : "inbox"
+        end
       end
 
       recipient_user.emails.create!(
