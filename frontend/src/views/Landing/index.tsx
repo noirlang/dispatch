@@ -2,42 +2,43 @@ import { Link, Navigate } from "react-router-dom"
 import { useAuth } from "../../store/auth"
 import { useAppStore } from "../../store/themeAndLocale"
 import { useQuery } from "@tanstack/react-query"
+import { api } from "../../lib/api"
 import { motion } from "framer-motion"
 import {
-  Mail,
-  Calendar,
-  Shield,
   ArrowRight,
   Sun,
   Moon,
-  Laptop,
-  Sparkles
+  Laptop
 } from "lucide-react"
+
+interface RegStatus {
+  mode: "public" | "invite_only" | "admin_only"
+  allow_registration: boolean
+  requires_invite: boolean
+}
 
 export default function LandingView() {
   const { token } = useAuth()
   const { theme, setTheme, lang, setLang } = useAppStore()
 
-  const { data: regStatus } = useQuery({
+  const { data: regStatus } = useQuery<RegStatus>({
     queryKey: ["registration-status"],
-    queryFn: async () => {
-      const res = await fetch("http://localhost:3000/api/v1/auth/registration_status")
-      if (!res.ok) return { allow_registration: true, mode: "public" }
-      return res.json()
-    }
+    queryFn: () => api.get<RegStatus>("/auth/registration_status")
   })
-
-  const allowRegistration = regStatus?.allow_registration !== false
 
   // If user is already logged in, redirect directly to the app
   if (token) {
     return <Navigate to="/app" replace />
   }
 
+  const mode = regStatus?.mode || "public"
+  const isInviteOnly = mode === "invite_only"
+  const allowRegistration = regStatus ? regStatus.allow_registration : true
+
   const nextTheme = theme === "dark" ? "light" : theme === "light" ? "system" : "dark"
 
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-main)] flex flex-col selection:bg-[var(--accent)] selection:text-[var(--accent-invert)]">
+    <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-main)] flex flex-col justify-between selection:bg-[var(--accent)] selection:text-[var(--accent-invert)]">
       {/* Top Navbar */}
       <header className="h-16 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] px-8 flex items-center justify-between sticky top-0 z-50 backdrop-blur-md">
         {/* Brand */}
@@ -72,7 +73,7 @@ export default function LandingView() {
           {/* Theme Toggle */}
           <button
             onClick={() => setTheme(nextTheme)}
-            className="w-8 h-8 rounded-full flex items-center justify-center border border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors shadow-xs"
+            className="w-8 h-8 rounded-full flex items-center justify-center border border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors shadow-xs cursor-pointer"
           >
             {theme === "dark" && <Moon size={14} />}
             {theme === "light" && <Sun size={14} />}
@@ -91,7 +92,11 @@ export default function LandingView() {
               to="/register"
               className="px-5 py-2 rounded-xl text-xs font-bold bg-[var(--accent)] text-[var(--accent-invert)] hover:opacity-90 transition-all shadow-sm flex items-center gap-1"
             >
-              <span>{lang === "tr" ? "Kayıt Ol" : "Get Started"}</span>
+              <span>
+                {isInviteOnly
+                  ? (lang === "tr" ? "Kayıt Ol (Davet)" : "Register (Invite)")
+                  : (lang === "tr" ? "Kayıt Ol" : "Get Started")}
+              </span>
               <ArrowRight size={13} />
             </Link>
           )}
@@ -99,27 +104,15 @@ export default function LandingView() {
       </header>
 
       {/* Hero Section */}
-      <main className="flex-1 flex flex-col items-center justify-center px-6 py-20 max-w-5xl mx-auto text-center">
-        {/* Badge */}
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-medium mb-6 text-[var(--text-muted)] shadow-xs"
-        >
-          <Sparkles size={13} className="text-[#f59e0b]" />
-          <span>{lang === "tr" ? "Akıllı & Güvenli E-Posta İstemcisi" : "Intelligent Self-Hosted Email Client"}</span>
-        </motion.div>
-
+      <main className="flex-1 flex flex-col items-center justify-center px-6 py-24 max-w-4xl mx-auto text-center">
         {/* Main Title */}
         <motion.h1
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="text-4xl sm:text-6xl font-extrabold tracking-tight max-w-3xl leading-tight mb-6"
+          className="text-5xl sm:text-7xl font-extrabold tracking-tight max-w-2xl leading-tight mb-4"
         >
-          {lang === "tr"
-            ? "E-postanızı Yapay Zeka ve Gizlilikle Yeniden Keşfedin."
-            : "Reimagine Your Email with AI and Privacy."}
+          Dispatch
         </motion.h1>
 
         {/* Subtitle */}
@@ -127,11 +120,11 @@ export default function LandingView() {
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="text-sm sm:text-base text-[var(--text-muted)] max-w-2xl leading-relaxed mb-10"
+          className="text-base sm:text-lg text-[var(--text-muted)] max-w-xl leading-relaxed mb-10"
         >
           {lang === "tr"
-            ? "Thunderbird sadeliği, onay kuyruğu ile spam engelleme, dikey takvim, dahili RSS okuyucu ve casus piksel kalkanı tek bir minimalist uygulamada."
-            : "Minimalist email client with sender approval queues, vertical calendar agenda, in-app RSS reader, and spy pixel tracker shield."}
+            ? "Minimalist, hızlı ve güvenli e-posta deneyimi."
+            : "Minimalist, fast, and secure email experience."}
         </motion.p>
 
         {/* CTA Buttons */}
@@ -139,7 +132,7 @@ export default function LandingView() {
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="flex flex-wrap items-center justify-center gap-4 mb-20"
+          className="flex flex-wrap items-center justify-center gap-4"
         >
           {allowRegistration ? (
             <>
@@ -147,14 +140,18 @@ export default function LandingView() {
                 to="/register"
                 className="px-8 py-3.5 rounded-2xl bg-[var(--accent)] text-[var(--accent-invert)] font-extrabold text-sm hover:opacity-90 transition-all shadow-lg flex items-center gap-2"
               >
-                <span>{lang === "tr" ? "Hemen Başla (Ücretsiz)" : "Start Free Now"}</span>
+                <span>
+                  {isInviteOnly
+                    ? (lang === "tr" ? "Kayıt Ol (Davet Gerektirir)" : "Register (Invite Required)")
+                    : (lang === "tr" ? "Hemen Başla (Kayıt Ol)" : "Start Free (Register)")}
+                </span>
                 <ArrowRight size={16} />
               </Link>
               <Link
                 to="/login"
                 className="px-7 py-3.5 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] hover:bg-[var(--bg-card)] font-bold text-sm transition-all shadow-xs"
               >
-                {lang === "tr" ? "Hesabıma Giriş Yap" : "Sign In to Mailbox"}
+                {lang === "tr" ? "Giriş Yap" : "Sign In"}
               </Link>
             </>
           ) : (
@@ -162,61 +159,16 @@ export default function LandingView() {
               to="/login"
               className="px-8 py-3.5 rounded-2xl bg-[var(--accent)] text-[var(--accent-invert)] font-extrabold text-sm hover:opacity-90 transition-all shadow-lg flex items-center gap-2"
             >
-              <span>{lang === "tr" ? "E-Posta Girişi Yap" : "Sign In to Mailbox"}</span>
+              <span>{lang === "tr" ? "Giriş Yap" : "Sign In"}</span>
               <ArrowRight size={16} />
             </Link>
           )}
         </motion.div>
-
-        {/* Feature Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full text-left">
-          {/* Feature 1 */}
-          <div className="p-6 rounded-3xl bg-[var(--bg-secondary)] border border-[var(--border-color)] shadow-xs flex flex-col gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-[var(--bg-primary)] border border-[var(--border-color)] flex items-center justify-center">
-              <Mail size={18} className="text-[#3b82f6]" />
-            </div>
-            <h3 className="text-base font-bold">{lang === "tr" ? "Onay Kuyruğu & Gizlilik" : "Approval Queue & Privacy"}</h3>
-            <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-              {lang === "tr"
-                ? "Tanımadığınız kişilerden gelen mailler önce Onay klasörüne düşer. Siz onaylamadıkça gelen kutunuz temiz kalır."
-                : "New senders land in the Approvals queue. Your primary inbox stays pristine and spam-free."}
-            </p>
-          </div>
-
-          {/* Feature 2 */}
-          <div className="p-6 rounded-3xl bg-[var(--bg-secondary)] border border-[var(--border-color)] shadow-xs flex flex-col gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-[var(--bg-primary)] border border-[var(--border-color)] flex items-center justify-center">
-              <Calendar size={18} className="text-[#22c55e]" />
-            </div>
-            <h3 className="text-base font-bold">{lang === "tr" ? "Dikey Akan Takvim" : "Vertical Agenda Calendar"}</h3>
-            <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-              {lang === "tr"
-                ? "Klasik karmaşık takvim kutuları yerine dikey, akıcı ve maillerden otomatik toplantı oluşturan akıllı takvim."
-                : "Smooth vertical scrolling agenda. Add, edit, and auto-extract events directly from inbound emails."}
-            </p>
-          </div>
-
-          {/* Feature 3 */}
-          <div className="p-6 rounded-3xl bg-[var(--bg-secondary)] border border-[var(--border-color)] shadow-xs flex flex-col gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-[var(--bg-primary)] border border-[var(--border-color)] flex items-center justify-center">
-              <Shield size={18} className="text-[#ef4444]" />
-            </div>
-            <h3 className="text-base font-bold">{lang === "tr" ? "Casus Piksel Kalkanı" : "Spy Pixel Shield"}</h3>
-            <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-              {lang === "tr"
-                ? "İzleyici pikselleri ve tracker domainleri sunucu proxy'sinde engellenir. IP adresiniz dışarı sızmaz."
-                : "Live tracker domain sync with uBlock Origin. Email trackers cannot log your IP or location."}
-            </p>
-          </div>
-        </div>
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-[var(--border-color)] bg-[var(--bg-secondary)] py-6 px-8 flex items-center justify-between text-xs text-[var(--text-dim)]">
-        <span>Dispatch © 2026. Self-hosted modern email client.</span>
-        <a href="https://noirlang.tr" target="_blank" rel="noopener noreferrer" title="NoirLang">
-          <img src="/sirket.png" alt="NoirLang" className="h-5 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity" />
-        </a>
+      <footer className="border-t border-[var(--border-color)] bg-[var(--bg-secondary)] py-6 px-8 flex items-center justify-center text-xs text-[var(--text-dim)] select-none">
+        <span>noirLang 2026 Dispatch</span>
       </footer>
     </div>
   )
