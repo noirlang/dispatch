@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "../../lib/api"
-import { useT, useDateLocale } from "../../store/themeAndLocale"
+import { useT, useDateLocale, useAppStore } from "../../store/themeAndLocale"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   format,
@@ -20,7 +20,11 @@ import {
   MapPin,
   Trash2,
   X,
-  Edit2
+  Edit2,
+  Copy,
+  Check,
+  Share2,
+  CalendarDays
 } from "lucide-react"
 
 interface CalEvent {
@@ -38,11 +42,33 @@ interface CalEvent {
 export default function CalendarView() {
   const t = useT()
   const dateLocale = useDateLocale()
+  const { lang } = useAppStore()
   const qc = useQueryClient()
 
   const [weekStart, setWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }))
   const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 })
   const days = eachDayOfInterval({ start: weekStart, end: weekEnd })
+
+  // Sync Modal State
+  const [syncModalOpen, setSyncModalOpen] = useState(false)
+  const [copiedKey, setCopiedKey] = useState<string | null>(null)
+
+  const { data: syncInfo } = useQuery({
+    queryKey: ["calendar-sync-info"],
+    queryFn: () => api.get<{
+      user_email: string
+      feed_url: string
+      webcal_url: string
+      instructions: { iphone: string; thunderbird: string; google_calendar: string }
+    }>("/calendar/sync_info"),
+    enabled: syncModalOpen
+  })
+
+  function copyText(text: string, key: string) {
+    navigator.clipboard.writeText(text)
+    setCopiedKey(key)
+    setTimeout(() => setCopiedKey(null), 2000)
+  }
 
   // Modal State for Add / Edit
   const [modalOpen, setModalOpen] = useState(false)
@@ -178,6 +204,17 @@ export default function CalendarView() {
               <ChevronRight size={16} />
             </motion.button>
           </div>
+
+          <motion.button
+            whileTap={{ scale: 0.94 }}
+            whileHover={{ scale: 1.03 }}
+            onClick={() => setSyncModalOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border border-[var(--border-color)] bg-[var(--bg-secondary)] hover:bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-[var(--text-main)] transition-all shadow-xs"
+            title="iPhone, Mac ve Thunderbird ile Eşitle"
+          >
+            <Share2 size={13} className="text-[#3b82f6]" />
+            <span>{lang === "tr" ? "Cihazla Eşitle" : "Sync Calendar"}</span>
+          </motion.button>
 
           <motion.button
             whileTap={{ scale: 0.94 }}
@@ -466,6 +503,121 @@ export default function CalendarView() {
                     {saveMutation.isPending ? "Saving..." : editingEvent ? "Save Changes" : "Create"}
                   </motion.button>
                 </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Calendar Sync Modal (iPhone / Thunderbird / iCal) */}
+      <AnimatePresence>
+        {syncModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-3xl p-6 max-w-lg w-full shadow-2xl flex flex-col gap-5"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-[var(--border-color)]">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-2xl bg-[#3b82f615] text-[#3b82f6] border border-[#3b82f630] flex items-center justify-center">
+                    <CalendarDays size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-[var(--text-main)]">
+                      {lang === "tr" ? "Takvimi Cihazlarla Eşitle (iCal & Webcal)" : "Sync Calendar to Devices"}
+                    </h3>
+                    <p className="text-[11px] text-[var(--text-dim)]">
+                      {lang === "tr" ? "iPhone, Mac, Thunderbird ve Google Takvim desteği" : "Apple, Thunderbird and Google Calendar sync"}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSyncModalOpen(false)}
+                  className="p-1 rounded-full text-[var(--text-dim)] hover:text-[var(--text-main)] hover:bg-[var(--bg-card)]"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Feed URL Box */}
+              <div className="flex flex-col gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1">
+                    {lang === "tr" ? "Webcal / iCalendar Akış Bağlantısı" : "Webcal / iCalendar Subscription URL"}
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value={syncInfo?.feed_url || "Yükleniyor..."}
+                      className="flex-1 bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-xl focus:outline-none font-mono select-all truncate"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => syncInfo?.feed_url && copyText(syncInfo.feed_url, "feed_url")}
+                      className="px-3.5 py-2.5 rounded-xl bg-[var(--accent)] text-[var(--accent-invert)] text-xs font-bold hover:opacity-90 transition-all flex items-center gap-1 shrink-0"
+                    >
+                      {copiedKey === "feed_url" ? <Check size={13} /> : <Copy size={13} />}
+                      <span>{copiedKey === "feed_url" ? (lang === "tr" ? "Kopyalandı" : "Copied") : (lang === "tr" ? "Kopyala" : "Copy")}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Instructions Accordion Cards */}
+                <div className="flex flex-col gap-2.5 pt-2">
+                  <div className="p-3.5 rounded-2xl bg-[var(--bg-primary)] border border-[var(--border-color)] flex items-start gap-3 text-xs">
+                    <span className="text-lg">🍏</span>
+                    <div>
+                      <span className="font-bold text-[var(--text-main)] block mb-0.5">iPhone / iPad / Mac Takvim</span>
+                      <span className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+                        {lang === "tr"
+                          ? "Ayarlar > Takvim > Hesaplar > Hesap Ekle > Diğer > Abone Olunan Takvim Ekle kısmına yukarıdaki bağlantıyı yapıştırın."
+                          : "Settings > Calendar > Accounts > Add Account > Other > Add Subscribed Calendar and paste this URL."}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-[var(--bg-primary)] border border-[var(--border-color)] flex items-start gap-3 text-xs">
+                    <span className="text-lg">🐦</span>
+                    <div>
+                      <span className="font-bold text-[var(--text-main)] block mb-0.5">Mozilla Thunderbird</span>
+                      <span className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+                        {lang === "tr"
+                          ? "Takvim sekmesi > Yeni Takvim > Ağ Üzerinde > iCalendar (.ics) seçip bu bağlantıyı yapıştırın."
+                          : "Calendar tab > New Calendar > On the Network > iCalendar (.ics) and paste this URL."}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-[var(--bg-primary)] border border-[var(--border-color)] flex items-start gap-3 text-xs">
+                    <span className="text-lg">🌐</span>
+                    <div>
+                      <span className="font-bold text-[var(--text-main)] block mb-0.5">Google / Outlook Takvim</span>
+                      <span className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+                        {lang === "tr"
+                          ? "Diğer Takvimler (+) > URL'den Ekle seçeneğine tıklayıp akış bağlantısını ekleyin."
+                          : "Other Calendars (+) > From URL and paste this subscription URL."}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end pt-3 border-t border-[var(--border-color)]">
+                <button
+                  type="button"
+                  onClick={() => setSyncModalOpen(false)}
+                  className="bg-[var(--accent)] text-[var(--accent-invert)] px-5 py-2 rounded-xl text-xs font-bold hover:opacity-90 transition-all shadow-sm"
+                >
+                  {lang === "tr" ? "Tamam" : "Done"}
+                </button>
               </div>
             </motion.div>
           </motion.div>

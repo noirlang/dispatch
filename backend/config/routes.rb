@@ -59,6 +59,8 @@ Rails.application.routes.draw do
       # Calendar
       namespace :calendar do
         resources :events
+        get "feed.ics",  to: "events#feed"
+        get "sync_info", to: "events#sync_info"
       end
 
       # RSS
