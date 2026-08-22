@@ -30,7 +30,7 @@ export function BlogIndex() {
     enabled: Boolean(cleanHandle),
     queryFn: async () => {
       if (!cleanHandle) return []
-      const res = await fetch(`/blog/@${cleanHandle}`)
+      const res = await fetch(`/api/v1/blog/@${cleanHandle}`)
       if (!res.ok) return []
       return res.json() as Promise<Post[]>
     },
@@ -156,12 +156,8 @@ export function BlogPost() {
     queryKey: ["blog-post", cleanHandle, slug],
     enabled: Boolean(cleanHandle && slug),
     queryFn: async () => {
-      const res = await fetch(`/@${cleanHandle}/${slug}`)
-      if (!res.ok) {
-        const fallback = await fetch(`/blog/@${cleanHandle}/${slug}`)
-        if (!fallback.ok) throw new Error("Post not found")
-        return fallback.json() as Promise<FullPost>
-      }
+      const res = await fetch(`/api/v1/blog/@${cleanHandle}/${slug}`)
+      if (!res.ok) throw new Error("Post not found")
       return res.json() as Promise<FullPost>
     },
   })

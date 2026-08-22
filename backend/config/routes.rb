@@ -104,6 +104,14 @@ Rails.application.routes.draw do
           post :toggle, on: :member
         end
       end
+
+      # Blog API
+      namespace :blog do
+        get "/@:handle",       to: "/blog/posts#index"
+        get "/@:handle/:slug", to: "/blog/posts#show"
+        get "/:handle",        to: "/blog/posts#index"
+        get "/:handle/:slug",  to: "/blog/posts#show"
+      end
     end
   end
 
