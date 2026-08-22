@@ -128,16 +128,19 @@ Script çalıştıktan sonra alan adınızı (`example.com`) girin. Dovecot, Pos
 
 ---
 
-## 🔄 Güvenli Sistem Güncelleme (Sıfır Veri Kaybı)
+## 🛡️ Yönetici Paneli & Güvenli Güncelleme (`/admin`)
 
-Dispatch, kullanıcı verilerini, gelen/giden e-postaları, şifreleri ve DNS ayarlarını **asla silmeyen ve bozmayan** güvenli bir güncelleme motoruna sahiptir.
+Dispatch sistem yönetimi, sunucu durum takibi ve güvenli çekirdek güncellemeleri için bağımsız bir **`/admin` Yönetici Paneline** sahiptir.
 
-### Web Arayüzünden Güncelleme:
-1. `Ayarlar > Sistem Güncelleme` sekmesine gidin.
-2. **"Kontrol Et"** butonuna basarak `noirlang/dispatch` deposundaki son commit durumunu inceleyin.
-3. **"Sistemi Güvenle Güncelle"** butonuna basın.
+- **Yönetici Paneli URL:** `http://localhost:5173/admin` (veya `https://yourdomain.com/admin`)
+- **Varsayılan Şifre:** `admin1234` (EmailWiz kurulum scriptinde veya `/admin > Admin Şifresi` sekmesinden kolayca değiştirilebilir).
 
-### Terminalden Güncelleme:
+### /admin Paneli Üzerinden Sıfır Veri Kayıplı Güncelleme:
+1. Tarayıcınızdan `/admin` sayfasına gidin ve yönetici şifrenizle giriş yapın.
+2. **"Sistem Güncelleme"** sekmesinde `noirlang/dispatch` deposundaki son commitleri inceleyin.
+3. **"Sistemi Güvenle Güncelle"** butonuna basın. Güncelleme sırasında e-postalarınız, kullanıcı hesaplarınız ve ayarlarınız **%100 korunur**.
+
+### Terminalden Manuel Güncelleme:
 ```bash
 # 1. Kodları çekin
 git pull origin master

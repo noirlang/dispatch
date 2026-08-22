@@ -81,6 +81,17 @@ Rails.application.routes.draw do
       # Updates (noirlang/dispatch safe updater)
       get  "updates/check",          to: "updates#check"
       post "updates/apply",          to: "updates#apply"
+
+      # Admin Management API
+      namespace :admin do
+        post "auth/login",             to: "auth#login"
+        get  "auth/me",                to: "auth#me"
+        get  "system/status",          to: "system#status"
+        get  "system/users",           to: "system#users"
+        post "system/change_password", to: "system#change_password"
+        get  "updates/check",          to: "updates#check"
+        post "updates/apply",          to: "updates#apply"
+      end
     end
   end
 

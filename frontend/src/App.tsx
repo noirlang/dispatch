@@ -12,6 +12,7 @@ import CalendarView from "./views/Calendar"
 import FeedView from "./views/Feed"
 import DashboardView from "./views/Dashboard"
 import SettingsView from "./views/Settings"
+import AdminView from "./views/Admin"
 import { BlogIndex, BlogPost } from "./views/Blog"
 
 const qc = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 30_000 } } })
@@ -48,6 +49,10 @@ export default function App() {
           <Route path="/login"    element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/setup"    element={<SetupWizard />} />
+
+          {/* Admin Management & Safe Updates Panel */}
+          <Route path="/admin"    element={<AdminView />} />
+          <Route path="/admin/*"  element={<AdminView />} />
 
           {/* Public blog */}
           <Route path="/blog"                     element={<BlogIndex />} />
