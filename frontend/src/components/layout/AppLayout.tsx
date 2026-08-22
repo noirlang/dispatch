@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react"
-import { Calendar, Mail, Rss, Settings, LayoutDashboard, Sun, Moon, Laptop, X } from "lucide-react"
+import { Calendar, Mail, Rss, Settings, LayoutDashboard, Sun, Moon, Laptop, X, Bell } from "lucide-react"
 import { useAppStore, useT, applyThemeToDOM } from "../../store/themeAndLocale"
+import { requestNotificationPermission, sendBrowserNotification } from "../../lib/notifications"
 import { useQuery } from "@tanstack/react-query"
 import { api } from "../../lib/api"
 import { motion, AnimatePresence } from "framer-motion"
@@ -26,12 +27,25 @@ export default function AppLayout({
   const [active, setActive] = useState<Panel>("email")
   const t = useT()
   const { theme, setTheme, lang, setLang, toasts, addToast, removeToast } = useAppStore()
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">(
+    typeof window !== "undefined" && "Notification" in window ? Notification.permission : "unsupported"
+  )
 
   useEffect(() => {
     applyThemeToDOM(theme)
   }, [theme])
 
-  // Live real-time incoming email watcher & toast notifier
+  // Request notification permission smoothly on first user interaction or mount
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      // Prompt user for notifications
+      requestNotificationPermission().then((granted) => {
+        setNotifPermission(granted ? "granted" : "denied")
+      })
+    }
+  }, [])
+
+  // Live real-time incoming email watcher & desktop notification trigger
   const knownEmailIds = useRef<Set<number>>(new Set())
   const initialLoaded = useRef(false)
 
@@ -48,11 +62,19 @@ export default function AppLayout({
       list.forEach(e => {
         if (!knownEmailIds.current.has(e.id)) {
           knownEmailIds.current.add(e.id)
+
+          // 1. In-app bottom-right toast
           addToast({
             from: e.sender_name || e.from,
             subject: e.subject || "(No Subject)",
             avatar_url: e.avatar_url,
             initials: e.avatar_initials
+          })
+
+          // 2. Native OS/Browser Desktop Notification
+          sendBrowserNotification(e.sender_name || e.from, {
+            body: `${e.subject || "(No Subject)"}\n${e.body_text?.slice(0, 100) || ""}`,
+            tag: `email-${e.id}`,
           })
         }
       })
@@ -108,8 +130,24 @@ export default function AppLayout({
           />
         </nav>
 
-        {/* Right: Flag Buttons, Theme Toggle, Settings Button */}
+        {/* Right: Flag Buttons, Notifications prompt, Theme Toggle, Settings Button */}
         <div className="flex items-center gap-2">
+          {/* Notification Permission Prompt if not granted */}
+          {notifPermission === "default" && (
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={async () => {
+                const granted = await requestNotificationPermission()
+                setNotifPermission(granted ? "granted" : "denied")
+              }}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#f59e0b15] text-[#f59e0b] border border-[#f59e0b30] text-xs font-semibold hover:bg-[#f59e0b25] transition-colors"
+              title="Bildirimlere İzin Ver"
+            >
+              <Bell size={13} className="animate-bounce" />
+              <span>{lang === "tr" ? "Bildirimleri Aç" : "Enable Alerts"}</span>
+            </motion.button>
+          )}
+
           {/* Circular Flags */}
           <div className="flex items-center gap-1.5 p-1 rounded-full bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-xs">
             <motion.button
@@ -232,7 +270,7 @@ export default function AppLayout({
         </AnimatePresence>
       </div>
 
-      {/* Floating Bottom-Right Toast Notifications for incoming emails */}
+      {/* Floating Bottom-Right Toast Notifications */}
       <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2.5 max-w-sm pointer-events-none">
         <AnimatePresence>
           {toasts.map((toast) => (
