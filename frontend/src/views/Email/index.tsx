@@ -236,35 +236,27 @@ export default function EmailView() {
                   key={selectedId}
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  transition={{ duration: 0.18, ease: "easeOut" }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ duration: 0.2, ease: "easeInOut" }}
                   className="h-full w-full flex flex-col"
                 >
-                  {/* Mobile Back Button Bar */}
-                  <div className="flex md:hidden items-center gap-2 p-2.5 border-b border-[var(--border-color)] bg-[var(--bg-secondary)]">
-                    <button
-                      onClick={() => setSelectedId(null)}
-                      className="px-3 py-1 rounded-lg bg-[var(--bg-card)] border border-[var(--border-color)] text-xs font-bold text-[var(--text-main)] flex items-center gap-1 shadow-xs"
-                    >
-                      <span>← {lang === "tr" ? "Listeye Dön" : "Back to List"}</span>
-                    </button>
-                  </div>
-
                   <div className="flex-1 overflow-hidden">
                     <EmailReader
                       id={selectedId}
                       folder={folder}
                       onReply={handleReply}
                       onForward={handleForward}
+                      onClose={() => setSelectedId(null)}
                     />
                   </div>
                 </motion.div>
               ) : (
                 <motion.div
                   key="empty-state"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
+                  initial={{ opacity: 0, scale: 0.96 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.96 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
                   className="h-full flex flex-col items-center justify-center text-[var(--text-dim)] gap-3 select-none"
                 >
                   <div className="w-12 h-12 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-center text-[var(--text-muted)]">

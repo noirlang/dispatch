@@ -21,7 +21,8 @@ import {
   BookmarkPlus,
   Star,
   Languages,
-  Globe2
+  Globe2,
+  ArrowLeft
 } from "lucide-react"
 import DOMPurify from "dompurify"
 import EmailMdView from "../../components/ui/EmailMdView"
@@ -61,7 +62,7 @@ interface Props {
   onClose?: () => void
 }
 
-export default function EmailReader({ id, folder, onReply, onForward }: Props) {
+export default function EmailReader({ id, folder, onReply, onForward, onClose }: Props) {
   const t = useT()
   const dateLocale = useDateLocale()
   const { user } = useAuth()
@@ -318,19 +319,34 @@ export default function EmailReader({ id, folder, onReply, onForward }: Props) {
     >
       {/* Subject & Actions Toolbar */}
       <div className="px-8 py-5 border-b border-[var(--border-color)] flex flex-wrap items-center justify-between gap-4 shrink-0 bg-[var(--bg-secondary)] shadow-2xs">
-        <div>
-          <h1 className="text-xl font-bold text-[var(--text-main)] mb-1">
-            {translation && !showOriginal ? translation.translated_subject : (email.subject || "(No Subject)")}
-          </h1>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-[var(--text-dim)] font-mono">
-              Klasör: {email.folder}
-            </span>
-            {translation && !showOriginal && (
-              <span className="px-2 py-0.5 rounded-md bg-[#10b98120] text-[#10b981] border border-[#10b98140] text-[10px] font-bold">
-                🌐 Çeviri ({languageOptions.find(l => l.code === translation.target_language)?.name || translation.target_language})
+        <div className="flex items-center gap-3.5">
+          {onClose && (
+            <motion.button
+              whileHover={{ x: -3 }}
+              whileTap={{ scale: 0.94 }}
+              onClick={onClose}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] text-xs font-bold text-[var(--text-main)] hover:bg-[var(--bg-card)] transition-all shadow-xs cursor-pointer select-none shrink-0"
+              title="Listeye Dön"
+            >
+              <ArrowLeft size={14} />
+              <span>Listeye Dön</span>
+            </motion.button>
+          )}
+
+          <div>
+            <h1 className="text-xl font-bold text-[var(--text-main)] mb-1">
+              {translation && !showOriginal ? translation.translated_subject : (email.subject || "(No Subject)")}
+            </h1>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-[var(--text-dim)] font-mono">
+                Klasör: {email.folder}
               </span>
-            )}
+              {translation && !showOriginal && (
+                <span className="px-2 py-0.5 rounded-md bg-[#10b98120] text-[#10b981] border border-[#10b98140] text-[10px] font-bold">
+                  🌐 Çeviri ({languageOptions.find(l => l.code === translation.target_language)?.name || translation.target_language})
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
