@@ -101,14 +101,46 @@ export default function FeedView() {
   const sanitizedArticleHtml = useMemo(() => {
     if (!rawArticleContent) return ""
     if (allowImages) {
-      return DOMPurify.sanitize(rawArticleContent, {
-        ADD_TAGS: ["iframe", "img"],
-        ADD_ATTR: ["target", "src", "alt", "width", "height", "loading", "allowfullscreen", "style"]
+      // Ensure all img tags have referrerpolicy="no-referrer" and graceful fallback on 403 hotlink blocks
+      let html = rawArticleContent.replace(
+        /<img\s+([^>]*?)(\/?)>/gi,
+        (_match, attrs, slash) => {
+          let cleanAttrs = attrs
+          if (!cleanAttrs.includes("referrerpolicy")) {
+            cleanAttrs += ' referrerpolicy="no-referrer"'
+          }
+          if (!cleanAttrs.includes("loading")) {
+            cleanAttrs += ' loading="lazy"'
+          }
+          const fallbackJs = `this.onerror=null; if(this.parentElement && this.parentElement.tagName==='A'){ this.parentElement.innerHTML='<span style=\\'display:inline-flex;align-items:center;gap:6px;padding:6px 12px;margin:8px 0;border-radius:10px;background:var(--bg-primary);border:1px solid var(--border-color);font-size:12px;color:var(--text-main);font-weight:600;\\'>🖼️ Görseli Kaynağında Görüntüle ↗</span>'; } else { this.outerHTML='<a href=\\''+this.src+'\\' target=\\'_blank\\' rel=\\'noreferrer\\' style=\\'display:inline-flex;align-items:center;gap:6px;padding:6px 12px;margin:8px 0;border-radius:10px;background:var(--bg-primary);border:1px solid var(--border-color);font-size:12px;color:var(--text-main);font-weight:600;text-decoration:none;\\'>🖼️ Görseli Aç ↗</a>'; }`
+          return `<img ${cleanAttrs} onerror="${fallbackJs}" ${slash}>`
+        }
+      )
+
+      return DOMPurify.sanitize(html, {
+        ADD_TAGS: ["iframe", "img", "figure", "figcaption", "span", "div"],
+        ADD_ATTR: [
+          "target",
+          "src",
+          "srcset",
+          "alt",
+          "width",
+          "height",
+          "loading",
+          "referrerpolicy",
+          "crossorigin",
+          "allowfullscreen",
+          "style",
+          "onerror",
+          "data-download-href",
+          "data-base62-sha1",
+          "data-dominant-color"
+        ]
       })
     }
     return DOMPurify.sanitize(rawArticleContent, {
       FORBID_TAGS: ["img", "iframe"],
-      FORBID_ATTR: ["src"]
+      FORBID_ATTR: ["src", "srcset"]
     })
   }, [rawArticleContent, allowImages])
 
