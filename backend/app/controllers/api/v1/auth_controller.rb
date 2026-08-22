@@ -1,9 +1,41 @@
 class Api::V1::AuthController < ActionController::API
   before_action :authenticate!, only: [:logout, :me]
 
+  def registration_status
+    mode = SystemConfig.get("registration_mode", "public")
+    render json: {
+      mode: mode,
+      allow_registration: mode != "admin_only",
+      requires_invite: mode == "invite_only"
+    }
+  end
+
+  def verify_invite
+    code = params[:invite_code].to_s.strip.upcase
+    if InviteCode.valid_code?(code)
+      render json: { valid: true, message: "Davet kodu geçerli." }
+    else
+      render json: { valid: false, error: "Geçersiz veya süresi dolmuş davet kodu!" }, status: :unprocessable_entity
+    end
+  end
+
   def register
+    mode = SystemConfig.get("registration_mode", "public")
+
+    if mode == "admin_only"
+      return render json: { error: "Bu sunucuda açık kayıtlar kapalıdır. Lütfen sistem yöneticisinden hesap talep edin." }, status: :forbidden
+    end
+
+    if mode == "invite_only"
+      code = params[:invite_code].to_s.strip.upcase
+      unless InviteCode.valid_code?(code)
+        return render json: { error: "Kayıt için geçerli bir davet kodu gereklidir!" }, status: :unprocessable_entity
+      end
+    end
+
     user = User.new(register_params)
     if user.save
+      InviteCode.use_code!(params[:invite_code]) if mode == "invite_only"
       token = JwtHelper.encode(user_id: user.id)
       render json: { token: token, user: user_json(user) }, status: :created
     else
@@ -17,7 +49,7 @@ class Api::V1::AuthController < ActionController::API
       token = JwtHelper.encode(user_id: user.id)
       render json: { token: token, user: user_json(user) }
     else
-      render json: { error: "Invalid email or password" }, status: :unauthorized
+      render json: { error: "Geçersiz e-posta veya şifre" }, status: :unauthorized
     end
   end
 

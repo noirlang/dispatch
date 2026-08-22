@@ -88,46 +88,48 @@ export default function AppLayout({
   return (
     <div className="h-screen w-screen flex flex-col bg-[var(--bg-primary)] text-[var(--text-main)] overflow-hidden">
       {/* Top Header & Floating Center Dock */}
-      <header className="h-14 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] px-6 flex items-center justify-between shrink-0 select-none z-30 shadow-xs">
+      <header className="h-14 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] px-6 flex items-center justify-between shrink-0 select-none z-30 shadow-xs relative">
         {/* Left: Brand logo */}
         <motion.div
           whileHover={{ scale: 1.03 }}
-          className="flex items-center gap-2 cursor-pointer"
+          className="flex items-center gap-2 cursor-pointer z-10"
           onClick={() => setActive("email")}
         >
           <img src="/dispatch.png" alt="Dispatch" className="h-6 w-auto object-contain" />
         </motion.div>
 
-        {/* Center: Modern Floating Nav Bar / Dock with Spring Morph */}
-        <nav className="flex items-center p-1 rounded-2xl bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-sm gap-1">
-          <DockBtn
-            icon={<Mail size={16} />}
-            label={t("email")}
-            active={active === "email"}
-            onClick={() => setActive("email")}
-          />
-          <DockBtn
-            icon={<Calendar size={16} />}
-            label={t("calendar")}
-            active={active === "calendar"}
-            onClick={() => setActive("calendar")}
-          />
-          <DockBtn
-            icon={<Rss size={16} />}
-            label={t("feed")}
-            active={active === "feed"}
-            onClick={() => setActive("feed")}
-          />
-          <DockBtn
-            icon={<LayoutDashboard size={16} />}
-            label={t("dashboard")}
-            active={active === "dashboard"}
-            onClick={() => setActive("dashboard")}
-          />
-        </nav>
+        {/* Center: Modern Floating Nav Bar / Dock with Spring Morph (100% Dead-Centered) */}
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
+          <nav className="flex items-center p-1 rounded-2xl bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-sm gap-1">
+            <DockBtn
+              icon={<Mail size={16} />}
+              label={t("email")}
+              active={active === "email"}
+              onClick={() => setActive("email")}
+            />
+            <DockBtn
+              icon={<Calendar size={16} />}
+              label={t("calendar")}
+              active={active === "calendar"}
+              onClick={() => setActive("calendar")}
+            />
+            <DockBtn
+              icon={<Rss size={16} />}
+              label={t("feed")}
+              active={active === "feed"}
+              onClick={() => setActive("feed")}
+            />
+            <DockBtn
+              icon={<LayoutDashboard size={16} />}
+              label={t("dashboard")}
+              active={active === "dashboard"}
+              onClick={() => setActive("dashboard")}
+            />
+          </nav>
+        </div>
 
         {/* Right: Flag Buttons, Notifications prompt, Theme Toggle, Settings Button, Company Logo */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 z-10">
           {/* Notification Permission Prompt if not granted */}
           {notifPermission === "default" && (
             <motion.button
@@ -194,10 +196,16 @@ export default function AppLayout({
             <Settings size={15} />
           </motion.button>
 
-          {/* Company Logo on Top-Right */}
-          <div className="pl-2 border-l border-[var(--border-color)] flex items-center">
-            <img src="/sirket.png" alt="Şirket" className="h-6 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity" />
-          </div>
+          {/* Company Logo on Top-Right linking to noirlang.tr */}
+          <a
+            href="https://noirlang.tr"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="pl-2 border-l border-[var(--border-color)] flex items-center"
+            title="NoirLang"
+          >
+            <img src="/sirket.png" alt="NoirLang" className="h-6 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity" />
+          </a>
         </div>
       </header>
 

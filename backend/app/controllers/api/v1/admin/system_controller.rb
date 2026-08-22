@@ -5,6 +5,7 @@ class Api::V1::Admin::SystemController < Api::V1::Admin::BaseController
     groups_count = ContactGroup.count
     feeds_count = RssFeed.count
     events_count = CalendarEvent.count
+    invites_count = InviteCode.where(is_active: true).count
 
     # Check Redis
     redis_ok = begin
@@ -24,6 +25,7 @@ class Api::V1::Admin::SystemController < Api::V1::Admin::BaseController
       domain: ENV.fetch("MAIL_DOMAIN", "dispatch.local"),
       mail_host: ENV.fetch("MAIL_HOST", "mailserver"),
       environment: Rails.env,
+      registration_mode: SystemConfig.get("registration_mode", "public"),
       database_status: db_ok ? "connected" : "error",
       redis_status: redis_ok ? "connected" : "error",
       stats: {
@@ -31,10 +33,27 @@ class Api::V1::Admin::SystemController < Api::V1::Admin::BaseController
         emails_count: emails_count,
         groups_count: groups_count,
         feeds_count: feeds_count,
-        events_count: events_count
+        events_count: events_count,
+        invites_count: invites_count
       },
       system_time: Time.current
     }
+  end
+
+  def settings
+    render json: {
+      registration_mode: SystemConfig.get("registration_mode", "public")
+    }
+  end
+
+  def update_settings
+    mode = params[:registration_mode].to_s
+    if %w[public admin_only invite_only].include?(mode)
+      SystemConfig.set("registration_mode", mode)
+      render json: { message: "Kayıt erişim modu güncellendi: #{mode}", registration_mode: mode }
+    else
+      render json: { error: "Geçersiz kayıt modu!" }, status: :unprocessable_entity
+    end
   end
 
   def users
@@ -50,6 +69,21 @@ class Api::V1::Admin::SystemController < Api::V1::Admin::BaseController
       }
     end
     render json: users
+  end
+
+  def create_user
+    user = User.new(
+      name: params[:name],
+      email: params[:email]&.downcase&.strip,
+      password: params[:password],
+      password_confirmation: params[:password_confirmation].presence || params[:password]
+    )
+
+    if user.save
+      render json: { message: "Kullanıcı hesabı oluşturuldu.", user: { id: user.id, name: user.name, email: user.email } }, status: :created
+    else
+      render json: { error: user.errors.full_messages.join(", ") }, status: :unprocessable_entity
+    end
   end
 
   def change_password

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_22_174122) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_22_175100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -106,6 +106,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_22_174122) do
     t.index ["thread_id"], name: "index_emails_on_thread_id"
     t.index ["user_id", "folder"], name: "index_emails_on_user_id_and_folder"
     t.index ["user_id"], name: "index_emails_on_user_id"
+  end
+
+  create_table "invite_codes", force: :cascade do |t|
+    t.string "code", null: false
+    t.datetime "created_at", null: false
+    t.datetime "expires_at"
+    t.boolean "is_active", default: true
+    t.string "label"
+    t.integer "max_uses", default: 1
+    t.datetime "updated_at", null: false
+    t.integer "used_count", default: 0
+    t.index ["code"], name: "index_invite_codes_on_code", unique: true
   end
 
   create_table "rss_feeds", force: :cascade do |t|

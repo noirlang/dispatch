@@ -2,11 +2,13 @@ Rails.application.routes.draw do
   namespace :api do
     namespace :v1 do
       # Auth
-      post   "auth/register",    to: "auth#register"
-      post   "auth/login",       to: "auth#login"
-      post   "auth/check_email", to: "auth#check_email"
-      delete "auth/logout",      to: "auth#logout"
-      get    "auth/me",          to: "auth#me"
+      post   "auth/register",            to: "auth#register"
+      post   "auth/login",               to: "auth#login"
+      post   "auth/check_email",         to: "auth#check_email"
+      get    "auth/registration_status", to: "auth#registration_status"
+      post   "auth/verify_invite",       to: "auth#verify_invite"
+      delete "auth/logout",              to: "auth#logout"
+      get    "auth/me",                  to: "auth#me"
 
       # Setup Wizard & DNS
       get  "setup/status", to: "setup#status"
@@ -87,10 +89,17 @@ Rails.application.routes.draw do
         post "auth/login",             to: "auth#login"
         get  "auth/me",                to: "auth#me"
         get  "system/status",          to: "system#status"
+        get  "system/settings",        to: "system#settings"
+        post "system/settings",        to: "system#update_settings"
         get  "system/users",           to: "system#users"
+        post "system/create_user",     to: "system#create_user"
         post "system/change_password", to: "system#change_password"
         get  "updates/check",          to: "updates#check"
         post "updates/apply",          to: "updates#apply"
+
+        resources :invite_codes, only: [:index, :create, :destroy] do
+          post :toggle, on: :member
+        end
       end
     end
   end

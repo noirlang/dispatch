@@ -18,7 +18,7 @@ interface AuthStore {
   user: User | null
   token: string | null
   login: (email: string, password: string) => Promise<void>
-  register: (name: string, email: string, password: string) => Promise<void>
+  register: (name: string, email: string, password: string, inviteCode?: string) => Promise<void>
   logout: () => void
   fetchMe: () => Promise<void>
 }
@@ -33,8 +33,13 @@ export const useAuth = create<AuthStore>((set) => ({
     set({ token: res.token, user: res.user })
   },
 
-  register: async (name, email, password) => {
-    const res = await api.post<{ token: string; user: User }>("/auth/register", { name, email, password })
+  register: async (name, email, password, inviteCode) => {
+    const res = await api.post<{ token: string; user: User }>("/auth/register", {
+      name,
+      email,
+      password,
+      invite_code: inviteCode
+    })
     localStorage.setItem("dispatch_token", res.token)
     set({ token: res.token, user: res.user })
   },

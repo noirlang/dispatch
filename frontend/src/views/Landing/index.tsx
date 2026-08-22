@@ -1,6 +1,7 @@
 import { Link, Navigate } from "react-router-dom"
 import { useAuth } from "../../store/auth"
 import { useAppStore } from "../../store/themeAndLocale"
+import { useQuery } from "@tanstack/react-query"
 import { motion } from "framer-motion"
 import {
   Mail,
@@ -16,6 +17,17 @@ import {
 export default function LandingView() {
   const { token } = useAuth()
   const { theme, setTheme, lang, setLang } = useAppStore()
+
+  const { data: regStatus } = useQuery({
+    queryKey: ["registration-status"],
+    queryFn: async () => {
+      const res = await fetch("http://localhost:3000/api/v1/auth/registration_status")
+      if (!res.ok) return { allow_registration: true, mode: "public" }
+      return res.json()
+    }
+  })
+
+  const allowRegistration = regStatus?.allow_registration !== false
 
   // If user is already logged in, redirect directly to the app
   if (token) {
@@ -74,13 +86,15 @@ export default function LandingView() {
             {lang === "tr" ? "Giriş Yap" : "Sign In"}
           </Link>
 
-          <Link
-            to="/register"
-            className="px-5 py-2 rounded-xl text-xs font-bold bg-[var(--accent)] text-[var(--accent-invert)] hover:opacity-90 transition-all shadow-sm flex items-center gap-1"
-          >
-            <span>{lang === "tr" ? "Kayıt Ol" : "Get Started"}</span>
-            <ArrowRight size={13} />
-          </Link>
+          {allowRegistration && (
+            <Link
+              to="/register"
+              className="px-5 py-2 rounded-xl text-xs font-bold bg-[var(--accent)] text-[var(--accent-invert)] hover:opacity-90 transition-all shadow-sm flex items-center gap-1"
+            >
+              <span>{lang === "tr" ? "Kayıt Ol" : "Get Started"}</span>
+              <ArrowRight size={13} />
+            </Link>
+          )}
         </div>
       </header>
 
@@ -127,19 +141,31 @@ export default function LandingView() {
           transition={{ delay: 0.3 }}
           className="flex flex-wrap items-center justify-center gap-4 mb-20"
         >
-          <Link
-            to="/register"
-            className="px-8 py-3.5 rounded-2xl bg-[var(--accent)] text-[var(--accent-invert)] font-extrabold text-sm hover:opacity-90 transition-all shadow-lg flex items-center gap-2"
-          >
-            <span>{lang === "tr" ? "Hemen Başla (Ücretsiz)" : "Start Free Now"}</span>
-            <ArrowRight size={16} />
-          </Link>
-          <Link
-            to="/login"
-            className="px-7 py-3.5 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] hover:bg-[var(--bg-card)] font-bold text-sm transition-all shadow-xs"
-          >
-            {lang === "tr" ? "Hesabıma Giriş Yap" : "Sign In to Mailbox"}
-          </Link>
+          {allowRegistration ? (
+            <>
+              <Link
+                to="/register"
+                className="px-8 py-3.5 rounded-2xl bg-[var(--accent)] text-[var(--accent-invert)] font-extrabold text-sm hover:opacity-90 transition-all shadow-lg flex items-center gap-2"
+              >
+                <span>{lang === "tr" ? "Hemen Başla (Ücretsiz)" : "Start Free Now"}</span>
+                <ArrowRight size={16} />
+              </Link>
+              <Link
+                to="/login"
+                className="px-7 py-3.5 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] hover:bg-[var(--bg-card)] font-bold text-sm transition-all shadow-xs"
+              >
+                {lang === "tr" ? "Hesabıma Giriş Yap" : "Sign In to Mailbox"}
+              </Link>
+            </>
+          ) : (
+            <Link
+              to="/login"
+              className="px-8 py-3.5 rounded-2xl bg-[var(--accent)] text-[var(--accent-invert)] font-extrabold text-sm hover:opacity-90 transition-all shadow-lg flex items-center gap-2"
+            >
+              <span>{lang === "tr" ? "E-Posta Girişi Yap" : "Sign In to Mailbox"}</span>
+              <ArrowRight size={16} />
+            </Link>
+          )}
         </motion.div>
 
         {/* Feature Cards Grid */}
@@ -188,7 +214,9 @@ export default function LandingView() {
       {/* Footer */}
       <footer className="border-t border-[var(--border-color)] bg-[var(--bg-secondary)] py-6 px-8 flex items-center justify-between text-xs text-[var(--text-dim)]">
         <span>Dispatch © 2026. Self-hosted modern email client.</span>
-        <img src="/sirket.png" alt="Şirket" className="h-5 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity" />
+        <a href="https://noirlang.tr" target="_blank" rel="noopener noreferrer" title="NoirLang">
+          <img src="/sirket.png" alt="NoirLang" className="h-5 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity" />
+        </a>
       </footer>
     </div>
   )
