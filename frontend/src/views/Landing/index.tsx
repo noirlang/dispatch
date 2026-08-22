@@ -104,16 +104,20 @@ export default function LandingView() {
       </header>
 
       {/* Hero Section */}
-      <main className="flex-1 flex flex-col items-center justify-center px-6 py-24 max-w-4xl mx-auto text-center">
-        {/* Main Title */}
-        <motion.h1
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
+      <main className="flex-1 flex flex-col items-center justify-center px-6 py-16 max-w-4xl mx-auto text-center">
+        {/* Big Center Dispatch Logo */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.1 }}
-          className="text-5xl sm:text-7xl font-extrabold tracking-tight max-w-2xl leading-tight mb-4"
+          className="flex justify-center mb-6"
         >
-          Dispatch
-        </motion.h1>
+          <img
+            src="/dispatch.png"
+            alt="Dispatch"
+            className="h-20 sm:h-28 w-auto object-contain select-none filter drop-shadow-md"
+          />
+        </motion.div>
 
         {/* Subtitle */}
         <motion.p
@@ -166,9 +170,24 @@ export default function LandingView() {
         </motion.div>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-[var(--border-color)] bg-[var(--bg-secondary)] py-6 px-8 flex items-center justify-center text-xs text-[var(--text-dim)] select-none">
-        <span>noirLang 2026 Dispatch</span>
+      {/* Footer with Big Centered NoirLang Logo and noirLang © 2026 */}
+      <footer className="border-t border-[var(--border-color)] bg-[var(--bg-secondary)] py-8 px-8 flex flex-col items-center justify-center gap-3.5 select-none">
+        <a
+          href="https://noirlang.tr"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="NoirLang"
+          className="transition-transform hover:scale-105"
+        >
+          <img
+            src="/sirket.png"
+            alt="NoirLang"
+            className="h-10 sm:h-12 w-auto object-contain opacity-90 hover:opacity-100 transition-opacity"
+          />
+        </a>
+        <span className="text-xs text-[var(--text-dim)] font-medium tracking-wide">
+          noirLang © 2026
+        </span>
       </footer>
     </div>
   )
