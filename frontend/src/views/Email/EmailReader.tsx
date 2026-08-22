@@ -469,16 +469,8 @@ export default function EmailReader({ id, folder, onReply, onForward }: Props) {
           </div>
 
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-[var(--text-main)]">
-                {email.sender_name || email.from}
-              </span>
-              <button
-                onClick={() => setAvatarModalOpen(true)}
-                className="text-[10px] text-[var(--text-dim)] hover:text-[var(--text-main)] underline"
-              >
-                Fotoğraf Değiştir
-              </button>
+            <div className="text-xs font-bold text-[var(--text-main)]">
+              {email.sender_name || email.from}
             </div>
             <div className="text-[11px] text-[var(--text-dim)] font-mono">{email.from} · Kime: {email.to}</div>
           </div>

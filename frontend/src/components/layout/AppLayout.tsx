@@ -451,9 +451,12 @@ export default function AppLayout({
               {/* User Card */}
               {user && (
                 <div className="py-3 px-3.5 my-3 rounded-2xl bg-[var(--bg-primary)] border border-[var(--border-color)] flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[var(--bg-card)] border border-[var(--border-color)] flex items-center justify-center font-bold text-xs">
-                    {user.name?.charAt(0) || user.email?.charAt(0)}
-                  </div>
+                  <SenderAvatar
+                    avatarUrl={user.avatar_path}
+                    initials={user.name?.charAt(0) || user.email?.charAt(0)}
+                    name={user.name}
+                    size={34}
+                  />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-bold text-[var(--text-main)] truncate">{user.name}</p>
                     <p className="text-[11px] text-[var(--text-dim)] font-mono truncate">{user.email}</p>

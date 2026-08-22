@@ -1,4 +1,12 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
+
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000"
+
+export function resolveAvatarUrl(url?: string | null): string | null {
+  if (!url) return null
+  if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) return url
+  return `${API_BASE}${url.startsWith("/") ? "" : "/"}${url}`
+}
 
 interface Props {
   avatarUrl?: string | null
@@ -11,10 +19,16 @@ interface Props {
 export default function SenderAvatar({ avatarUrl, initials = "?", name, size = 32, isKnownCompany }: Props) {
   const [imgError, setImgError] = useState(false)
 
-  if (avatarUrl && !imgError) {
+  useEffect(() => {
+    setImgError(false)
+  }, [avatarUrl])
+
+  const resolvedUrl = resolveAvatarUrl(avatarUrl)
+
+  if (resolvedUrl && !imgError) {
     return (
       <img
-        src={avatarUrl}
+        src={resolvedUrl}
         alt={name || initials}
         title={name}
         width={size}
@@ -24,7 +38,6 @@ export default function SenderAvatar({ avatarUrl, initials = "?", name, size = 3
         style={{
           width: size,
           height: size,
-          // Known company logos often have transparent bg — add subtle bg
           background: isKnownCompany ? "#1a1a1a" : undefined,
           padding: isKnownCompany ? 3 : 0,
         }}

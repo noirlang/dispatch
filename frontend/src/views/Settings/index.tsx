@@ -33,6 +33,7 @@ import {
   ExternalLink,
   UsersRound
 } from "lucide-react"
+import { resolveAvatarUrl } from "../../components/ui/SenderAvatar"
 
 type Tab = "profile" | "appearance" | "contacts" | "speakeasy" | "ai" | "rss" | "security" | "updates"
 
@@ -220,7 +221,7 @@ function ProfileTab({ user, onUpdate }: { user: any; onUpdate: () => void }) {
         <div className="flex items-center gap-4">
           <div className="relative group cursor-pointer w-16 h-16 rounded-full overflow-hidden border border-[var(--border-color)] bg-[var(--bg-secondary)] flex items-center justify-center text-xl font-bold">
             {user?.avatar_path ? (
-              <img src={user.avatar_path} alt="Avatar" className="w-full h-full object-cover" />
+              <img src={resolveAvatarUrl(user.avatar_path) || user.avatar_path} alt="Avatar" className="w-full h-full object-cover" />
             ) : (
               <span>{user?.name?.[0]?.toUpperCase() || "U"}</span>
             )}
