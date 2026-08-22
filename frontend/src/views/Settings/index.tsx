@@ -2,6 +2,7 @@ import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "../../lib/api"
 import { useAuth } from "../../store/auth"
+import { useAppStore, useT, Theme, Lang } from "../../store/themeAndLocale"
 import {
   User,
   Users,
@@ -10,21 +11,24 @@ import {
   Rss,
   Shield,
   Server,
+  Palette,
   Check,
   Copy,
   Trash2,
   Plus,
   RefreshCw,
   Sparkles,
-  AlertCircle
+  Sun,
+  Moon,
+  Laptop
 } from "lucide-react"
 
-type Tab = "profile" | "contacts" | "speakeasy" | "ai" | "rss" | "security" | "dns"
+type Tab = "profile" | "appearance" | "contacts" | "speakeasy" | "ai" | "rss" | "security" | "dns"
 
 export default function SettingsView() {
   const [tab, setTab] = useState<Tab>("profile")
   const { user, logout, fetchMe } = useAuth()
-  const qc = useQueryClient()
+  const t = useT()
 
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
   function copyText(val: string, key: string) {
@@ -34,39 +38,41 @@ export default function SettingsView() {
   }
 
   return (
-    <div className="h-full flex bg-[#0a0a0a] text-white">
+    <div className="h-full flex bg-[var(--bg-primary)] text-[var(--text-main)] overflow-hidden">
       {/* Sidebar Nav */}
-      <aside className="w-56 border-r border-[#1a1a1a] p-3 flex flex-col justify-between shrink-0">
+      <aside className="w-60 border-r border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 flex flex-col justify-between shrink-0">
         <div className="flex flex-col gap-1">
-          <div className="px-3 py-2 text-xs font-semibold text-[#555] uppercase tracking-wider">
-            Settings
+          <div className="px-3 py-2 text-[11px] font-bold text-[var(--text-dim)] uppercase tracking-wider">
+            {t("settings")}
           </div>
-          <TabBtn id="profile"   icon={<User size={14} />}   label="Profile"            active={tab} setTab={setTab} />
-          <TabBtn id="contacts"  icon={<Users size={14} />}  label="Contact Rules"      active={tab} setTab={setTab} />
-          <TabBtn id="speakeasy" icon={<Key size={14} />}    label="Speakeasy Codes"    active={tab} setTab={setTab} />
-          <TabBtn id="ai"        icon={<Bot size={14} />}    label="Artificial Intelligence" active={tab} setTab={setTab} />
-          <TabBtn id="rss"       icon={<Rss size={14} />}    label="RSS Feeds"          active={tab} setTab={setTab} />
-          <TabBtn id="security"  icon={<Shield size={14} />} label="Privacy & Security" active={tab} setTab={setTab} />
-          <TabBtn id="dns"       icon={<Server size={14} />} label="Cloudflare & DNS"   active={tab} setTab={setTab} />
+          <TabBtn id="profile"    icon={<User size={15} />}    label={t("profile")}          active={tab} setTab={setTab} />
+          <TabBtn id="appearance" icon={<Palette size={15} />} label={t("appearance")}       active={tab} setTab={setTab} />
+          <TabBtn id="contacts"   icon={<Users size={15} />}   label={t("contact_rules")}    active={tab} setTab={setTab} />
+          <TabBtn id="speakeasy"  icon={<Key size={15} />}     label={t("speakeasy_codes")}  active={tab} setTab={setTab} />
+          <TabBtn id="ai"         icon={<Bot size={15} />}     label={t("ai_settings")}      active={tab} setTab={setTab} />
+          <TabBtn id="rss"        icon={<Rss size={15} />}     label={t("rss_settings")}     active={tab} setTab={setTab} />
+          <TabBtn id="security"   icon={<Shield size={15} />}  label={t("privacy_security")} active={tab} setTab={setTab} />
+          <TabBtn id="dns"        icon={<Server size={15} />}  label={t("dns_settings")}     active={tab} setTab={setTab} />
         </div>
 
         <button
           onClick={logout}
-          className="px-3 py-2 text-xs text-[#ff4444] hover:bg-[#ff444415] rounded transition-colors text-left"
+          className="px-3 py-2 text-xs text-[#ff4444] hover:bg-[#ff444415] rounded-lg transition-colors text-left font-medium"
         >
           Sign Out
         </button>
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto p-8 max-w-4xl">
-        {tab === "profile"   && <ProfileTab user={user} onUpdate={fetchMe} />}
-        {tab === "contacts"  && <ContactsTab />}
-        {tab === "speakeasy" && <SpeakeasyTab copyText={copyText} copiedKey={copiedKey} />}
-        {tab === "ai"        && <AiTab />}
-        {tab === "rss"       && <RssTab />}
-        {tab === "security"  && <SecurityTab />}
-        {tab === "dns"       && <DnsTab copyText={copyText} copiedKey={copiedKey} />}
+      <main className="flex-1 overflow-y-auto p-10 max-w-4xl">
+        {tab === "profile"    && <ProfileTab user={user} onUpdate={fetchMe} />}
+        {tab === "appearance" && <AppearanceTab />}
+        {tab === "contacts"   && <ContactsTab />}
+        {tab === "speakeasy"  && <SpeakeasyTab copyText={copyText} copiedKey={copiedKey} />}
+        {tab === "ai"         && <AiTab />}
+        {tab === "rss"        && <RssTab />}
+        {tab === "security"   && <SecurityTab />}
+        {tab === "dns"        && <DnsTab copyText={copyText} copiedKey={copiedKey} />}
       </main>
     </div>
   )
@@ -79,8 +85,10 @@ function TabBtn({ id, icon, label, active, setTab }: {
   return (
     <button
       onClick={() => setTab(id)}
-      className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors text-left ${
-        isActive ? "bg-[#1a1a1a] text-white" : "text-[#777] hover:text-white hover:bg-[#111]"
+      className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-medium transition-colors text-left ${
+        isActive
+          ? "bg-[var(--bg-card)] text-[var(--text-main)] shadow-sm font-semibold border border-[var(--border-color)]"
+          : "text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-card)]"
       }`}
     >
       {icon}
@@ -93,6 +101,7 @@ function TabBtn({ id, icon, label, active, setTab }: {
    1. PROFILE TAB
    ========================================================================= */
 function ProfileTab({ user, onUpdate }: { user: any; onUpdate: () => void }) {
+  const t = useT()
   const [name, setName] = useState(user?.name || "")
   const [signature, setSignature] = useState(user?.default_signature || "")
   const [saved, setSaved] = useState(false)
@@ -107,49 +116,49 @@ function ProfileTab({ user, onUpdate }: { user: any; onUpdate: () => void }) {
   })
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 animate-fadeIn">
       <div>
-        <h2 className="text-lg font-medium">Profile Settings</h2>
-        <p className="text-xs text-[#666] mt-0.5">Manage your identity and email signature</p>
+        <h2 className="text-xl font-semibold text-[var(--text-main)]">{t("profile")}</h2>
+        <p className="text-xs text-[var(--text-muted)] mt-1">Manage your name and signature</p>
       </div>
 
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 max-w-lg">
         <div>
-          <label className="text-xs text-[#888] block mb-1">Full Name</label>
+          <label className="text-xs text-[var(--text-muted)] block mb-1.5">{t("full_name")}</label>
           <input
             type="text"
             value={name}
             onChange={e => setName(e.target.value)}
-            className="w-full max-w-md bg-[#111] border border-[#222] text-white text-sm px-4 py-2 rounded-lg focus:outline-none focus:border-white"
+            className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-main)] text-sm px-4 py-2.5 rounded-lg focus:outline-none focus:border-[var(--text-main)]"
           />
         </div>
 
         <div>
-          <label className="text-xs text-[#888] block mb-1">Email Address</label>
+          <label className="text-xs text-[var(--text-muted)] block mb-1.5">{t("email_address")}</label>
           <input
             type="text"
             disabled
             value={user?.email || ""}
-            className="w-full max-w-md bg-[#0a0a0a] border border-[#1a1a1a] text-[#666] text-sm px-4 py-2 rounded-lg cursor-not-allowed"
+            className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-dim)] text-sm px-4 py-2.5 rounded-lg cursor-not-allowed font-mono"
           />
         </div>
 
         <div>
-          <label className="text-xs text-[#888] block mb-1">Default Email Signature</label>
+          <label className="text-xs text-[var(--text-muted)] block mb-1.5">{t("signature")}</label>
           <textarea
             value={signature}
             onChange={e => setSignature(e.target.value)}
             placeholder="e.g. Best regards,&#10;Melih"
-            className="w-full max-w-md bg-[#111] border border-[#222] text-white text-sm px-4 py-2 rounded-lg h-24 resize-none focus:outline-none focus:border-white"
+            className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-main)] text-sm p-4 rounded-lg h-28 resize-none focus:outline-none focus:border-[var(--text-main)]"
           />
         </div>
 
-        <div>
+        <div className="pt-2">
           <button
             onClick={() => update.mutate()}
-            className="bg-white text-black text-xs px-6 py-2 rounded-lg font-medium hover:bg-[#e0e0e0] transition-colors"
+            className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs px-6 py-2.5 rounded-lg font-semibold hover:opacity-90 transition-all shadow-sm"
           >
-            {saved ? "Saved ✓" : "Save Changes"}
+            {saved ? t("saved") : t("save_changes")}
           </button>
         </div>
       </div>
@@ -158,9 +167,92 @@ function ProfileTab({ user, onUpdate }: { user: any; onUpdate: () => void }) {
 }
 
 /* =========================================================================
-   2. CONTACTS TAB (Sender Rules)
+   2. APPEARANCE & LANGUAGE TAB
+   ========================================================================= */
+function AppearanceTab() {
+  const t = useT()
+  const { theme, setTheme, lang, setLang } = useAppStore()
+
+  return (
+    <div className="flex flex-col gap-8 animate-fadeIn max-w-xl">
+      <div>
+        <h2 className="text-xl font-semibold text-[var(--text-main)]">{t("appearance")}</h2>
+        <p className="text-xs text-[var(--text-muted)] mt-1">Configure theme colors and interface language</p>
+      </div>
+
+      {/* Theme Picker */}
+      <div className="flex flex-col gap-3">
+        <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+          {t("theme")}
+        </label>
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { id: "dark" as Theme, label: t("theme_dark"), icon: <Moon size={15} /> },
+            { id: "light" as Theme, label: t("theme_light"), icon: <Sun size={15} /> },
+            { id: "system" as Theme, label: t("theme_system"), icon: <Laptop size={15} /> },
+          ].map(opt => (
+            <button
+              key={opt.id}
+              onClick={() => setTheme(opt.id)}
+              className={`p-4 rounded-xl border flex flex-col items-center gap-2 transition-all ${
+                theme === opt.id
+                  ? "bg-[var(--bg-card)] text-[var(--text-main)] border-[var(--text-main)] shadow-md font-semibold"
+                  : "bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-color)] hover:border-[var(--text-dim)]"
+              }`}
+            >
+              {opt.icon}
+              <span className="text-xs">{opt.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Language Picker */}
+      <div className="flex flex-col gap-3 pt-4 border-t border-[var(--border-color)]">
+        <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+          {t("language")}
+        </label>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={() => setLang("tr")}
+            className={`p-4 rounded-xl border flex items-center justify-between transition-all ${
+              lang === "tr"
+                ? "bg-[var(--bg-card)] text-[var(--text-main)] border-[var(--text-main)] shadow-md font-semibold"
+                : "bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-color)] hover:border-[var(--text-dim)]"
+            }`}
+          >
+            <div className="flex flex-col text-left">
+              <span className="text-sm">Türkçe</span>
+              <span className="text-[11px] text-[var(--text-dim)]">Turkish interface</span>
+            </div>
+            {lang === "tr" && <Check size={16} className="text-[#44ff88]" />}
+          </button>
+
+          <button
+            onClick={() => setLang("en")}
+            className={`p-4 rounded-xl border flex items-center justify-between transition-all ${
+              lang === "en"
+                ? "bg-[var(--bg-card)] text-[var(--text-main)] border-[var(--text-main)] shadow-md font-semibold"
+                : "bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-color)] hover:border-[var(--text-dim)]"
+            }`}
+          >
+            <div className="flex flex-col text-left">
+              <span className="text-sm">English</span>
+              <span className="text-[11px] text-[var(--text-dim)]">International interface</span>
+            </div>
+            {lang === "en" && <Check size={16} className="text-[#44ff88]" />}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* =========================================================================
+   3. CONTACT RULES TAB
    ========================================================================= */
 function ContactsTab() {
+  const t = useT()
   const qc = useQueryClient()
   const [newEmail, setNewEmail] = useState("")
   const [newStatus, setNewStatus] = useState<"approved" | "blocked" | "important">("approved")
@@ -190,53 +282,50 @@ function ContactsTab() {
   })
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 animate-fadeIn">
       <div>
-        <h2 className="text-lg font-medium">Contact Management (Sender Rules)</h2>
-        <p className="text-xs text-[#666] mt-0.5">Control which email addresses or domains bypass approvals or get blocked.</p>
+        <h2 className="text-xl font-semibold text-[var(--text-main)]">{t("contact_rules")}</h2>
+        <p className="text-xs text-[var(--text-muted)] mt-1">Control sender bypass permissions and blocks</p>
       </div>
 
-      {/* Add New Rule Form */}
-      <div className="p-4 rounded-xl bg-[#111] border border-[#222] flex flex-wrap items-center gap-3">
+      <div className="p-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex flex-wrap items-center gap-3">
         <input
           type="text"
-          placeholder="email@example.com or @company.com"
+          placeholder="email@example.com or @domain.com"
           value={newEmail}
           onChange={e => setNewEmail(e.target.value)}
-          className="flex-1 min-w-[200px] bg-[#0a0a0a] border border-[#222] text-white text-xs px-3 py-2 rounded focus:outline-none focus:border-white"
+          className="flex-1 min-w-[200px] bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3 py-2 rounded-lg focus:outline-none"
         />
         <select
           value={newStatus}
           onChange={e => setNewStatus(e.target.value as any)}
-          className="bg-[#0a0a0a] border border-[#222] text-white text-xs px-3 py-2 rounded focus:outline-none"
+          className="bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3 py-2 rounded-lg focus:outline-none"
         >
-          <option value="approved">Approved (Direct to Inbox)</option>
-          <option value="important">Important (⭐ Starred)</option>
+          <option value="approved">Approved (Inbox)</option>
+          <option value="important">⭐ Important</option>
           <option value="blocked">Blocked (Trash)</option>
         </select>
         <button
           onClick={() => addRule.mutate()}
-          className="bg-white text-black text-xs px-4 py-2 rounded font-medium hover:bg-[#e0e0e0] flex items-center gap-1"
+          className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs px-4 py-2 rounded-lg font-semibold flex items-center gap-1 hover:opacity-90"
         >
           <Plus size={13} />
-          <span>Add Rule</span>
+          <span>Add</span>
         </button>
       </div>
 
-      {/* Rules List */}
       <div className="flex flex-col gap-2">
-        {rules.length === 0 && <div className="text-xs text-[#555] py-4">No sender rules created yet.</div>}
         {rules.map(r => (
           <div
             key={r.id}
-            className="flex items-center justify-between p-3 rounded-lg bg-[#111] border border-[#1a1a1a] text-xs"
+            className="flex items-center justify-between p-3.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs"
           >
-            <span className="font-mono text-white">{r.email_address}</span>
+            <span className="font-mono text-[var(--text-main)]">{r.email_address}</span>
             <div className="flex items-center gap-3">
               <select
                 value={r.status}
                 onChange={e => updateStatus.mutate({ id: r.id, status: e.target.value })}
-                className="bg-[#0a0a0a] border border-[#222] text-xs px-2.5 py-1 rounded text-[#ccc] focus:outline-none"
+                className="bg-[var(--bg-primary)] border border-[var(--border-color)] text-xs px-2.5 py-1 rounded-md text-[var(--text-main)]"
               >
                 <option value="approved">Approved</option>
                 <option value="important">⭐ Important</option>
@@ -244,10 +333,9 @@ function ContactsTab() {
               </select>
               <button
                 onClick={() => deleteRule.mutate(r.id)}
-                className="text-[#555] hover:text-[#ff4444] p-1"
-                title="Delete rule"
+                className="text-[var(--text-dim)] hover:text-[#ff4444] p-1"
               >
-                <Trash2 size={13} />
+                <Trash2 size={14} />
               </button>
             </div>
           </div>
@@ -258,9 +346,10 @@ function ContactsTab() {
 }
 
 /* =========================================================================
-   3. SPEAKEASY CODES TAB
+   4. SPEAKEASY CODES TAB
    ========================================================================= */
 function SpeakeasyTab({ copyText, copiedKey }: { copyText: (val: string, k: string) => void; copiedKey: string | null }) {
+  const t = useT()
   const qc = useQueryClient()
   const [label, setLabel] = useState("")
   const [singleUse, setSingleUse] = useState(false)
@@ -293,41 +382,39 @@ function SpeakeasyTab({ copyText, copiedKey }: { copyText: (val: string, k: stri
   })
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 animate-fadeIn">
       <div>
-        <h2 className="text-lg font-medium">Speakeasy Codes</h2>
-        <p className="text-xs text-[#666] mt-0.5">
-          Generate temporary secret passcodes. Anyone who includes this code in their email subject or body is automatically trusted and lands in your Inbox without approval.
+        <h2 className="text-xl font-semibold text-[var(--text-main)]">{t("speakeasy_codes")}</h2>
+        <p className="text-xs text-[var(--text-muted)] mt-1">
+          Temporary trusted passcodes. Incoming emails containing this code land directly in your Inbox without approval.
         </p>
       </div>
 
-      {/* Generator Form */}
-      <div className="p-4 rounded-xl bg-[#111] border border-[#222] flex flex-col gap-3">
-        <span className="text-xs font-medium text-white">Generate New Speakeasy Code</span>
+      <div className="p-5 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex flex-col gap-3">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <input
             type="text"
-            placeholder="Label (e.g. Freelance Client, Friend)"
+            placeholder="Label (e.g. VIP Client)"
             value={label}
             onChange={e => setLabel(e.target.value)}
-            className="bg-[#0a0a0a] border border-[#222] text-white text-xs px-3 py-2 rounded focus:outline-none focus:border-white"
+            className="bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3 py-2.5 rounded-lg"
           />
           <select
             value={expiryDays}
             onChange={e => setExpiryDays(Number(e.target.value))}
-            className="bg-[#0a0a0a] border border-[#222] text-white text-xs px-3 py-2 rounded focus:outline-none"
+            className="bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3 py-2.5 rounded-lg"
           >
             <option value={1}>Expires in 1 Day</option>
             <option value={7}>Expires in 7 Days</option>
             <option value={30}>Expires in 30 Days</option>
             <option value={365}>Expires in 1 Year</option>
           </select>
-          <label className="flex items-center gap-2 text-xs text-[#ccc] cursor-pointer">
+          <label className="flex items-center gap-2 text-xs text-[var(--text-muted)] cursor-pointer">
             <input
               type="checkbox"
               checked={singleUse}
               onChange={e => setSingleUse(e.target.checked)}
-              className="accent-white"
+              className="accent-[var(--text-main)]"
             />
             <span>Single-use only</span>
           </label>
@@ -335,7 +422,7 @@ function SpeakeasyTab({ copyText, copiedKey }: { copyText: (val: string, k: stri
         <div className="flex justify-end">
           <button
             onClick={() => createCode.mutate()}
-            className="bg-white text-black text-xs px-4 py-2 rounded font-medium hover:bg-[#e0e0e0] flex items-center gap-1"
+            className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs px-5 py-2 rounded-lg font-semibold flex items-center gap-1 hover:opacity-90"
           >
             <Plus size={13} />
             <span>Generate Code</span>
@@ -343,31 +430,29 @@ function SpeakeasyTab({ copyText, copiedKey }: { copyText: (val: string, k: stri
         </div>
       </div>
 
-      {/* Code List */}
       <div className="flex flex-col gap-2">
         {codes.map(c => (
           <div
             key={c.id}
-            className="p-3.5 rounded-lg bg-[#111] border border-[#1a1a1a] flex items-center justify-between"
+            className="p-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-between"
           >
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-mono text-white text-xs font-semibold select-all">{c.code}</span>
+                <span className="font-mono text-[var(--text-main)] text-xs font-bold select-all">{c.code}</span>
                 <button
                   onClick={() => copyText(c.code, `code_${c.id}`)}
-                  className="text-[#666] hover:text-white p-0.5"
-                  title="Copy code"
+                  className="text-[var(--text-dim)] hover:text-[var(--text-main)] p-0.5"
                 >
-                  {copiedKey === `code_${c.id}` ? <Check size={12} className="text-[#44ff88]" /> : <Copy size={12} />}
+                  {copiedKey === `code_${c.id}` ? <Check size={13} className="text-[#44ff88]" /> : <Copy size={13} />}
                 </button>
               </div>
-              <div className="text-[11px] text-[#666] mt-0.5">
+              <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
                 {c.label} · {c.single_use ? "Single Use" : "Multi-use"} · Expires: {new Date(c.expires_at).toLocaleDateString()}
               </div>
             </div>
             <button
               onClick={() => revokeCode.mutate(c.id)}
-              className="text-[#ff4444] hover:bg-[#ff444415] px-2.5 py-1 rounded text-xs transition-colors"
+              className="text-[#ff4444] hover:bg-[#ff444415] px-3 py-1 rounded-lg text-xs font-medium"
             >
               Revoke
             </button>
@@ -379,9 +464,10 @@ function SpeakeasyTab({ copyText, copiedKey }: { copyText: (val: string, k: stri
 }
 
 /* =========================================================================
-   4. ARTIFICIAL INTELLIGENCE TAB
+   5. ARTIFICIAL INTELLIGENCE TAB
    ========================================================================= */
 function AiTab() {
+  const t = useT()
   const qc = useQueryClient()
   const { data: settings } = useQuery({
     queryKey: ["settings"],
@@ -404,7 +490,7 @@ function AiTab() {
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["settings"] })
-      setTestResult({ success: true, msg: "AI settings saved successfully!" })
+      setTestResult({ success: true, msg: "API keys encrypted and saved successfully!" })
     }
   })
 
@@ -422,31 +508,30 @@ function AiTab() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 animate-fadeIn max-w-lg">
       <div>
-        <h2 className="text-lg font-medium flex items-center gap-2">
-          <Bot size={18} />
-          <span>AI Integration & API Keys</span>
+        <h2 className="text-xl font-semibold text-[var(--text-main)] flex items-center gap-2">
+          <Bot size={20} />
+          <span>{t("ai_settings")}</span>
         </h2>
-        <p className="text-xs text-[#666] mt-0.5">
-          Enter your own API keys. All keys are encrypted at rest with AES-256. If no API key is provided, AI buttons and background processors remain hidden.
+        <p className="text-xs text-[var(--text-muted)] mt-1">
+          Keys are encrypted at rest with AES-256. If unconfigured, AI buttons stay hidden.
         </p>
       </div>
 
       <div className="flex flex-col gap-4">
-        {/* Active Provider Selector */}
         <div>
-          <label className="text-xs text-[#888] block mb-1.5">Active AI Model Provider</label>
-          <div className="grid grid-cols-3 gap-2 max-w-md">
+          <label className="text-xs text-[var(--text-muted)] block mb-1.5">Active AI Provider</label>
+          <div className="grid grid-cols-3 gap-2">
             {["gemini", "claude", "openai"].map(p => (
               <button
                 key={p}
                 type="button"
                 onClick={() => setProvider(p)}
-                className={`py-2 rounded-lg border text-xs font-medium uppercase tracking-wider transition-all ${
+                className={`py-2.5 rounded-lg border text-xs font-semibold uppercase tracking-wider transition-all ${
                   (provider || settings?.ai_provider) === p
-                    ? "border-white bg-[#1a1a1a] text-white"
-                    : "border-[#222] bg-[#0a0a0a] text-[#666] hover:border-[#333]"
+                    ? "border-[var(--text-main)] bg-[var(--bg-card)] text-[var(--text-main)] shadow-sm"
+                    : "border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-muted)]"
                 }`}
               >
                 {p}
@@ -455,10 +540,9 @@ function AiTab() {
           </div>
         </div>
 
-        {/* Gemini Key */}
         <div>
-          <div className="flex items-center justify-between max-w-md mb-1">
-            <label className="text-xs text-[#888]">Google Gemini API Key</label>
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-xs text-[var(--text-muted)]">Google Gemini API Key</label>
             {settings?.has_gemini_key && <span className="text-[10px] text-[#44ff88]">Configured ✓</span>}
           </div>
           <input
@@ -466,14 +550,13 @@ function AiTab() {
             placeholder={settings?.has_gemini_key ? "••••••••••••••••" : "AIzaSy..."}
             value={geminiKey}
             onChange={e => setGeminiKey(e.target.value)}
-            className="w-full max-w-md bg-[#111] border border-[#222] text-white text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-white"
+            className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-lg"
           />
         </div>
 
-        {/* Claude Key */}
         <div>
-          <div className="flex items-center justify-between max-w-md mb-1">
-            <label className="text-xs text-[#888]">Anthropic Claude API Key</label>
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-xs text-[var(--text-muted)]">Anthropic Claude API Key</label>
             {settings?.has_claude_key && <span className="text-[10px] text-[#44ff88]">Configured ✓</span>}
           </div>
           <input
@@ -481,14 +564,13 @@ function AiTab() {
             placeholder={settings?.has_claude_key ? "••••••••••••••••" : "sk-ant-api..."}
             value={claudeKey}
             onChange={e => setClaudeKey(e.target.value)}
-            className="w-full max-w-md bg-[#111] border border-[#222] text-white text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-white"
+            className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-lg"
           />
         </div>
 
-        {/* OpenAI Key */}
         <div>
-          <div className="flex items-center justify-between max-w-md mb-1">
-            <label className="text-xs text-[#888]">OpenAI API Key</label>
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-xs text-[var(--text-muted)]">OpenAI API Key</label>
             {settings?.has_openai_key && <span className="text-[10px] text-[#44ff88]">Configured ✓</span>}
           </div>
           <input
@@ -496,13 +578,12 @@ function AiTab() {
             placeholder={settings?.has_openai_key ? "••••••••••••••••" : "sk-proj-..."}
             value={openaiKey}
             onChange={e => setOpenaiKey(e.target.value)}
-            className="w-full max-w-md bg-[#111] border border-[#222] text-white text-xs px-3 py-2 rounded-lg focus:outline-none focus:border-white"
+            className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-lg"
           />
         </div>
 
-        {/* Test Result banner */}
         {testResult && (
-          <div className={`p-3 rounded-lg text-xs max-w-md ${testResult.success ? "bg-[#44ff8815] text-[#44ff88] border border-[#44ff8830]" : "bg-[#ff444415] text-[#ff4444] border border-[#ff444430]"}`}>
+          <div className={`p-3 rounded-lg text-xs ${testResult.success ? "bg-[#44ff8815] text-[#44ff88] border border-[#44ff8830]" : "bg-[#ff444415] text-[#ff4444] border border-[#ff444430]"}`}>
             {testResult.msg}
           </div>
         )}
@@ -510,17 +591,17 @@ function AiTab() {
         <div className="flex items-center gap-3 pt-2">
           <button
             onClick={() => saveAi.mutate()}
-            className="bg-white text-black text-xs px-5 py-2 rounded-lg font-medium hover:bg-[#e0e0e0] transition-colors"
+            className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs px-5 py-2.5 rounded-lg font-semibold hover:opacity-90"
           >
             Save API Keys
           </button>
           <button
             onClick={testConnection}
             disabled={testing}
-            className="border border-[#333] hover:border-white text-white text-xs px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-1.5"
+            className="border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-main)] text-xs px-4 py-2.5 rounded-lg font-medium hover:bg-[var(--bg-card)] flex items-center gap-1.5"
           >
-            {testing ? <RefreshCw size={12} className="animate-spin" /> : <Sparkles size={12} />}
-            <span>Test Active AI</span>
+            {testing ? <RefreshCw size={13} className="animate-spin" /> : <Sparkles size={13} />}
+            <span>Test Connection</span>
           </button>
         </div>
       </div>
@@ -529,9 +610,10 @@ function AiTab() {
 }
 
 /* =========================================================================
-   5. RSS FEEDS TAB
+   6. RSS FEEDS TAB
    ========================================================================= */
 function RssTab() {
+  const t = useT()
   const qc = useQueryClient()
   const [newUrl, setNewUrl] = useState("")
   const [category, setCategory] = useState("Tech")
@@ -560,57 +642,57 @@ function RssTab() {
   })
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 animate-fadeIn">
       <div>
-        <h2 className="text-lg font-medium">RSS Feed Subscriptions</h2>
-        <p className="text-xs text-[#666] mt-0.5">Add blogs, news sites, and newsletters to your Feed tab.</p>
+        <h2 className="text-xl font-semibold text-[var(--text-main)]">{t("rss_settings")}</h2>
+        <p className="text-xs text-[var(--text-muted)] mt-1">Subscribe to blogs and RSS feeds</p>
       </div>
 
-      <div className="p-4 rounded-xl bg-[#111] border border-[#222] flex flex-wrap items-center gap-3">
+      <div className="p-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex flex-wrap items-center gap-3">
         <input
           type="text"
-          placeholder="https://news.ycombinator.com/rss"
+          placeholder="https://example.com/feed.xml"
           value={newUrl}
           onChange={e => setNewUrl(e.target.value)}
-          className="flex-1 min-w-[200px] bg-[#0a0a0a] border border-[#222] text-white text-xs px-3 py-2 rounded focus:outline-none focus:border-white"
+          className="flex-1 min-w-[200px] bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3 py-2 rounded-lg"
         />
         <input
           type="text"
-          placeholder="Category (e.g. Tech, News)"
+          placeholder="Category"
           value={category}
           onChange={e => setCategory(e.target.value)}
-          className="w-32 bg-[#0a0a0a] border border-[#222] text-white text-xs px-3 py-2 rounded focus:outline-none"
+          className="w-32 bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3 py-2 rounded-lg"
         />
         <button
           onClick={() => addFeed.mutate()}
-          className="bg-white text-black text-xs px-4 py-2 rounded font-medium hover:bg-[#e0e0e0] flex items-center gap-1"
+          className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs px-4 py-2 rounded-lg font-semibold flex items-center gap-1 hover:opacity-90"
         >
           <Plus size={13} />
-          <span>Add Feed</span>
+          <span>Add</span>
         </button>
       </div>
 
       <div className="flex flex-col gap-2">
         {feeds.map(f => (
-          <div key={f.id} className="p-3.5 rounded-lg bg-[#111] border border-[#1a1a1a] flex items-center justify-between text-xs">
+          <div key={f.id} className="p-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-between text-xs">
             <div>
-              <div className="text-white font-medium">{f.title || f.url}</div>
-              <div className="text-[11px] text-[#666] truncate max-w-md">{f.url}</div>
+              <div className="text-[var(--text-main)] font-semibold">{f.title || f.url}</div>
+              <div className="text-[11px] text-[var(--text-dim)] truncate max-w-md">{f.url}</div>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => refreshFeed.mutate(f.id)}
-                className="text-[#666] hover:text-white p-1 rounded"
-                title="Fetch updates now"
+                className="text-[var(--text-dim)] hover:text-[var(--text-main)] p-1"
+                title="Refresh"
               >
-                <RefreshCw size={13} />
+                <RefreshCw size={14} />
               </button>
               <button
                 onClick={() => deleteFeed.mutate(f.id)}
-                className="text-[#ff4444] hover:bg-[#ff444415] p-1 rounded"
-                title="Delete feed"
+                className="text-[#ff4444] hover:bg-[#ff444415] p-1 rounded-lg"
+                title="Delete"
               >
-                <Trash2 size={13} />
+                <Trash2 size={14} />
               </button>
             </div>
           </div>
@@ -621,9 +703,10 @@ function RssTab() {
 }
 
 /* =========================================================================
-   6. PRIVACY & SECURITY TAB
+   7. PRIVACY & SECURITY TAB
    ========================================================================= */
 function SecurityTab() {
+  const t = useT()
   const { data: settings } = useQuery({
     queryKey: ["settings"],
     queryFn: () => api.get<any>("/settings"),
@@ -636,99 +719,83 @@ function SecurityTab() {
   })
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 animate-fadeIn">
       <div>
-        <h2 className="text-lg font-medium flex items-center gap-2">
-          <Shield size={18} />
-          <span>Privacy & Security Defenses</span>
+        <h2 className="text-xl font-semibold text-[var(--text-main)] flex items-center gap-2">
+          <Shield size={20} />
+          <span>{t("privacy_security")}</span>
         </h2>
-        <p className="text-xs text-[#666] mt-0.5">Control email trackers and proxy protections.</p>
+        <p className="text-xs text-[var(--text-muted)] mt-1">Control email beacons and image proxy defenses</p>
       </div>
 
-      <div className="p-5 rounded-xl bg-[#111] border border-[#222] flex items-center justify-between">
+      <div className="p-6 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-between">
         <div>
-          <span className="text-sm font-medium text-white block">Spy Pixel & Tracker Proxy</span>
-          <span className="text-xs text-[#666] max-w-lg block mt-0.5">
-            Routes all embedded images through the Dispatch backend server proxy with SSRF protections. Senders will only see the server IP and will never track your physical device or location. Known tracking beacons are neutralized.
+          <span className="text-sm font-semibold text-[var(--text-main)] block">Spy Pixel & Tracker Proxy</span>
+          <span className="text-xs text-[var(--text-muted)] max-w-lg block mt-1 leading-relaxed">
+            Routes all embedded images through the Dispatch backend server proxy with SSRF protections. Senders will never track your IP address or physical location.
           </span>
         </div>
         <input
           type="checkbox"
           checked={settings?.spy_pixel_blocking ?? true}
           onChange={e => toggleSpy.mutate(e.target.checked)}
-          className="w-5 h-5 accent-white cursor-pointer"
+          className="w-5 h-5 accent-[var(--text-main)] cursor-pointer"
         />
-      </div>
-
-      <div className="p-5 rounded-xl bg-[#111] border border-[#1a1a1a]">
-        <span className="text-xs font-semibold text-[#888] uppercase tracking-wider block mb-2">
-          Neutralized Tracker Domains (Active List)
-        </span>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 font-mono text-[11px] text-[#777]">
-          <span>• tracking.mailchimp.com</span>
-          <span>• click.sendgrid.net</span>
-          <span>• trk.klaviyo.com</span>
-          <span>• open.convertkit.com</span>
-          <span>• t.dripemail.com</span>
-          <span>• pixel.hubspot.com</span>
-          <span>• mailtrack.io</span>
-          <span>• t.sidekickopen.com</span>
-          <span>• track.customer.io</span>
-        </div>
       </div>
     </div>
   )
 }
 
 /* =========================================================================
-   7. CLOUDFLARE & DNS TAB
+   8. CLOUDFLARE & DNS TAB
    ========================================================================= */
 function DnsTab({ copyText, copiedKey }: { copyText: (val: string, k: string) => void; copiedKey: string | null }) {
+  const t = useT()
   const { data: dnsData } = useQuery({
     queryKey: ["dns-records"],
     queryFn: () => api.get<any>("/setup/dns"),
   })
 
-  if (!dnsData) return <div className="text-xs text-[#555]">Loading DNS records...</div>
+  if (!dnsData) return <div className="text-xs text-[var(--text-dim)]">Loading DNS records...</div>
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 animate-fadeIn">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-medium">Cloudflare & DNS Records</h2>
-          <p className="text-xs text-[#666] mt-0.5">Configured for <strong>{dnsData.domain}</strong></p>
+          <h2 className="text-xl font-semibold text-[var(--text-main)]">{t("dns_settings")}</h2>
+          <p className="text-xs text-[var(--text-muted)] mt-1">Configured for <strong>{dnsData.domain}</strong></p>
         </div>
         <button
           onClick={() => copyText(dnsData.bind_zone, "bind_zone")}
-          className="px-3 py-1.5 rounded-lg bg-[#1a1a1a] hover:bg-[#252525] text-xs text-[#bbb] hover:text-white flex items-center gap-1.5 transition-colors"
+          className="px-3.5 py-2 rounded-lg bg-[var(--bg-secondary)] hover:bg-[var(--bg-card)] border border-[var(--border-color)] text-xs text-[var(--text-main)] flex items-center gap-1.5 transition-colors font-medium"
         >
-          {copiedKey === "bind_zone" ? <Check size={12} className="text-[#44ff88]" /> : <Copy size={12} />}
+          {copiedKey === "bind_zone" ? <Check size={13} className="text-[#44ff88]" /> : <Copy size={13} />}
           <span>Copy Zone File</span>
         </button>
       </div>
 
       <div className="flex flex-col gap-3">
         {dnsData.records?.map((r: any, i: number) => (
-          <div key={i} className="p-3.5 rounded-lg bg-[#111] border border-[#1a1a1a] flex flex-col gap-2">
+          <div key={i} className="p-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex flex-col gap-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded bg-[#1f1f1f] text-white text-[11px] font-mono font-semibold">
+                <span className="px-2 py-0.5 rounded bg-[var(--bg-card)] text-[var(--text-main)] text-[11px] font-mono font-bold">
                   {r.type}
                 </span>
-                <span className="text-xs font-mono text-[#ccc]">{r.name}</span>
-                {r.priority !== undefined && <span className="text-[10px] text-[#888]">Priority: {r.priority}</span>}
+                <span className="text-xs font-mono text-[var(--text-main)] font-medium">{r.name}</span>
+                {r.priority !== undefined && <span className="text-[10px] text-[var(--text-dim)]">Priority: {r.priority}</span>}
               </div>
               <button
                 onClick={() => copyText(r.content, `rec_${i}`)}
-                className="text-[#666] hover:text-white text-xs flex items-center gap-1 p-1 rounded hover:bg-[#1a1a1a]"
+                className="text-[var(--text-dim)] hover:text-[var(--text-main)] text-xs flex items-center gap-1 p-1 rounded-md"
               >
-                {copiedKey === `rec_${i}` ? <Check size={12} className="text-[#44ff88]" /> : <Copy size={12} />}
+                {copiedKey === `rec_${i}` ? <Check size={13} className="text-[#44ff88]" /> : <Copy size={13} />}
               </button>
             </div>
-            <div className="bg-[#0a0a0a] p-2 rounded border border-[#1a1a1a] font-mono text-[11px] text-[#aaa] break-all select-all">
+            <div className="bg-[var(--bg-primary)] p-2.5 rounded-lg border border-[var(--border-color)] font-mono text-[11px] text-[var(--text-muted)] break-all select-all">
               {r.content}
             </div>
-            <span className="text-[10px] text-[#555]">{r.description}</span>
+            <span className="text-[10px] text-[var(--text-dim)]">{r.description}</span>
           </div>
         ))}
       </div>
