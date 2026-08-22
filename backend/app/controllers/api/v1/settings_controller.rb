@@ -40,7 +40,7 @@ class Api::V1::SettingsController < Api::V1::BaseController
                 end
     end
 
-    return render json: { error: "Lütfen önce geçerli bir API anahtarı girin" }, status: :bad_request if api_key.blank?
+    return render json: { success: false, error: "Lütfen önce geçerli bir API anahtarı girin", message: "Lütfen önce geçerli bir API anahtarı girin" }, status: :bad_request if api_key.blank?
 
     # Fetch live models from provider's official API
     result = Ai::FetchModelsService.call(provider, api_key)
@@ -57,16 +57,17 @@ class Api::V1::SettingsController < Api::V1::BaseController
       current_user.save(validate: false)
 
       render json: {
+        success: true,
         message: "Bağlantı başarılı!",
         provider: current_user.ai_provider,
         model: current_user.ai_model || result.models.first&.dig(:id),
         models: result.models
       }
     else
-      render json: { error: result.error }, status: :unprocessable_entity
+      render json: { success: false, error: result.error, message: result.error }, status: :unprocessable_entity
     end
   rescue => e
-    render json: { error: "Yapay zeka servisine bağlanırken hata oluştu: #{e.message}" }, status: :unprocessable_entity
+    render json: { success: false, error: "Yapay zeka servisine bağlanırken hata oluştu: #{e.message}", message: "Yapay zeka servisine bağlanırken hata oluştu: #{e.message}" }, status: :unprocessable_entity
   end
 
   def upload_avatar
@@ -88,6 +89,18 @@ class Api::V1::SettingsController < Api::V1::BaseController
   end
 
   def settings_json
+    models = []
+    if current_user.ai_configured?
+      begin
+        provider = current_user.ai_provider.presence || "gemini"
+        key = current_user.active_ai_key
+        res = Ai::FetchModelsService.call(provider, key)
+        models = res.models if res.success?
+      rescue => e
+        Rails.logger.warn "Failed to auto-fetch models for settings: #{e.message}"
+      end
+    end
+
     {
       name: current_user.name,
       email: current_user.email,
@@ -99,9 +112,11 @@ class Api::V1::SettingsController < Api::V1::BaseController
       ai_provider: current_user.ai_provider,
       ai_model: current_user.ai_model,
       ai_configured: current_user.ai_configured?,
+      available_models: models,
       has_gemini_key: current_user.gemini_key.present?,
       has_claude_key: current_user.claude_key.present?,
       has_openai_key: current_user.openai_key.present?
     }
   end
 end
+

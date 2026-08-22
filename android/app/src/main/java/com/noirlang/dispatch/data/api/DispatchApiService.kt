@@ -139,10 +139,10 @@ interface DispatchApiService {
 
     // ─── Settings ───
     @GET("api/v1/settings")
-    suspend fun getSettings(): Response<Map<String, Any>>
+    suspend fun getSettings(): Response<SettingsResponse>
 
     @PATCH("api/v1/settings")
-    suspend fun updateSettings(@Body request: UpdateSettingsRequest): Response<Map<String, Any>>
+    suspend fun updateSettings(@Body request: UpdateSettingsRequest): Response<SettingsResponse>
 
     @POST("api/v1/settings/ai/test")
     suspend fun testAiConnection(@Body request: Map<String, String>): Response<Map<String, Any>>

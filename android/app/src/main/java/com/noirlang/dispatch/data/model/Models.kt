@@ -151,3 +151,26 @@ data class ServerStatus(
     val ipv4: String,
     val mode: String
 )
+
+data class AiModelItem(
+    val id: String,
+    val name: String? = null
+)
+
+data class SettingsResponse(
+    val name: String? = null,
+    val email: String? = null,
+    @SerializedName("avatar_path") val avatarPath: String? = null,
+    val bio: String? = null,
+    @SerializedName("approval_system_enabled") val approvalSystemEnabled: Boolean = true,
+    @SerializedName("spy_pixel_blocking") val spyPixelBlocking: Boolean = true,
+    @SerializedName("default_signature") val defaultSignature: String? = null,
+    @SerializedName("ai_provider") val aiProvider: String? = "gemini",
+    @SerializedName("ai_model") val aiModel: String? = null,
+    @SerializedName("ai_configured") val aiConfigured: Boolean = false,
+    @SerializedName("available_models") val availableModels: List<AiModelItem>? = null,
+    @SerializedName("has_gemini_key") val hasGeminiKey: Boolean = false,
+    @SerializedName("has_claude_key") val hasClaudeKey: Boolean = false,
+    @SerializedName("has_openai_key") val hasOpenaiKey: Boolean = false
+)
+

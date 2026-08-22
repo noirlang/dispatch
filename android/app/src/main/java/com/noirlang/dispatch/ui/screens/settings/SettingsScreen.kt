@@ -10,7 +10,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
-
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,8 +22,26 @@ import androidx.compose.ui.unit.sp
 import com.noirlang.dispatch.data.api.ApiClient
 import com.noirlang.dispatch.data.local.SessionManager
 import com.noirlang.dispatch.data.model.UpdateSettingsRequest
+import com.noirlang.dispatch.data.model.User
 import com.noirlang.dispatch.ui.theme.*
 import kotlinx.coroutines.launch
+
+private val DEFAULT_MODELS_BY_PROVIDER = mapOf(
+    "gemini" to listOf(
+        "gemini-2.0-flash" to "Gemini 2.0 Flash (Önerilen & Çok Hızlı)",
+        "gemini-1.5-flash" to "Gemini 1.5 Flash",
+        "gemini-1.5-pro" to "Gemini 1.5 Pro (Gelişmiş)"
+    ),
+    "openai" to listOf(
+        "gpt-4o-mini" to "GPT-4o Mini (Hızlı & Ekonomik)",
+        "gpt-4o" to "GPT-4o (Gelişmiş)",
+        "o3-mini" to "o3-mini (Akıl Yürütme)"
+    ),
+    "claude" to listOf(
+        "claude-3-5-sonnet-latest" to "Claude 3.5 Sonnet (En Yetenekli)",
+        "claude-3-5-haiku-latest" to "Claude 3.5 Haiku (Ultra Hızlı)"
+    )
+)
 
 @Composable
 fun SettingsScreen(
@@ -36,7 +53,7 @@ fun SettingsScreen(
 
     var signature by remember { mutableStateOf(session.currentUser?.defaultSignature ?: "") }
     var selectedProvider by remember { mutableStateOf(session.currentUser?.aiProvider ?: "gemini") }
-    var selectedModel by remember { mutableStateOf(session.currentUser?.aiModel ?: "gemini-2.0-flash") }
+    var selectedModel by remember { mutableStateOf(session.currentUser?.aiModel ?: "") }
     var apiKeyInput by remember { mutableStateOf("") }
     var approvalEnabled by remember { mutableStateOf(session.currentUser?.approvalSystemEnabled ?: true) }
     var spyPixelEnabled by remember { mutableStateOf(session.currentUser?.spyPixelBlocking ?: true) }
@@ -44,26 +61,29 @@ fun SettingsScreen(
     var isSaving by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     var isError by remember { mutableStateOf(false) }
+    var liveFetchedModels by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
+    var isTestingAi by remember { mutableStateOf(false) }
+    var aiTestResult by remember { mutableStateOf<String?>(null) }
+    var aiTestSuccess by remember { mutableStateOf(false) }
 
-    val geminiModels = listOf(
-        "gemini-2.0-flash" to "Gemini 2.0 Flash (Önerilen)",
-        "gemini-1.5-flash" to "Gemini 1.5 Flash",
-        "gemini-1.5-pro" to "Gemini 1.5 Pro"
-    )
-    val openAiModels = listOf(
-        "gpt-4o-mini" to "GPT-4o Mini (Hızlı)",
-        "gpt-4o" to "GPT-4o (Gelişmiş)",
-        "o3-mini" to "o3-mini (Akıl Yürütme)"
-    )
-    val claudeModels = listOf(
-        "claude-3-5-sonnet-latest" to "Claude 3.5 Sonnet (Yetenekli)",
-        "claude-3-5-haiku-latest" to "Claude 3.5 Haiku (Hızlı)"
-    )
-
-    val currentModelList = when (selectedProvider) {
-        "openai" -> openAiModels
-        "claude" -> claudeModels
-        else -> geminiModels
+    // Fetch fresh settings on mount
+    LaunchedEffect(Unit) {
+        try {
+            val res = ApiClient.getService(context).getSettings()
+            if (res.isSuccessful) {
+                val body = res.body()
+                if (body != null) {
+                    body.defaultSignature?.let { signature = it }
+                    body.aiProvider?.let { selectedProvider = it }
+                    body.aiModel?.let { selectedModel = it }
+                    approvalEnabled = body.approvalSystemEnabled
+                    spyPixelEnabled = body.spyPixelBlocking
+                    if (!body.availableModels.isNullOrEmpty()) {
+                        liveFetchedModels = body.availableModels.map { it.id to (it.name ?: it.id) }
+                    }
+                }
+            }
+        } catch (e: Exception) {}
     }
 
     Column(
@@ -182,11 +202,8 @@ fun SettingsScreen(
                                 .border(1.dp, if (isSelected) TextPrimary else BorderColor, RoundedCornerShape(10.dp))
                                 .clickable {
                                     selectedProvider = provKey
-                                    selectedModel = when (provKey) {
-                                        "openai" -> "gpt-4o-mini"
-                                        "claude" -> "claude-3-5-sonnet-latest"
-                                        else -> "gemini-2.0-flash"
-                                    }
+                                    liveFetchedModels = emptyList()
+                                    selectedModel = DEFAULT_MODELS_BY_PROVIDER[provKey]?.firstOrNull()?.first ?: ""
                                 }
                                 .padding(vertical = 10.dp),
                             contentAlignment = Alignment.Center
@@ -223,11 +240,6 @@ fun SettingsScreen(
                 )
 
                 // Test & Fetch Models Button
-                var isTestingAi by remember { mutableStateOf(false) }
-                var aiTestResult by remember { mutableStateOf<String?>(null) }
-                var aiTestSuccess by remember { mutableStateOf(false) }
-                var liveFetchedModels by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
-
                 OutlinedButton(
                     onClick = {
                         isTestingAi = true
@@ -245,6 +257,7 @@ fun SettingsScreen(
                                     if (isOk) {
                                         aiTestSuccess = true
                                         aiTestResult = body?.get("message")?.toString() ?: "Bağlantı başarılı!"
+                                        val chosenModel = body?.get("model")?.toString()
                                         val rawModels = body?.get("models") as? List<*>
                                         if (!rawModels.isNullOrEmpty()) {
                                             val parsed = rawModels.mapNotNull { item ->
@@ -260,12 +273,19 @@ fun SettingsScreen(
                                             }
                                             if (parsed.isNotEmpty()) {
                                                 liveFetchedModels = parsed
-                                                selectedModel = parsed.first().first
+                                                selectedModel = chosenModel ?: parsed.first().first
                                             }
+                                        } else if (!chosenModel.isNullOrBlank()) {
+                                            selectedModel = chosenModel
                                         }
+                                        session.currentUser = session.currentUser?.copy(
+                                            aiConfigured = true,
+                                            aiProvider = selectedProvider,
+                                            aiModel = selectedModel
+                                        )
                                     } else {
                                         aiTestSuccess = false
-                                        aiTestResult = body?.get("message")?.toString() ?: "Bağlantı başarısız."
+                                        aiTestResult = body?.get("message")?.toString() ?: body?.get("error")?.toString() ?: "Bağlantı başarısız."
                                     }
                                 } else {
                                     aiTestSuccess = false
@@ -303,21 +323,38 @@ fun SettingsScreen(
                     )
                 }
 
-                // Dynamic Model Selection
-                val availableModels = if (liveFetchedModels.isNotEmpty()) liveFetchedModels else listOf(selectedModel to selectedModel)
+                // Dynamic Model Selection List
+                val currentProviderDefaults = DEFAULT_MODELS_BY_PROVIDER[selectedProvider] ?: emptyList()
+                val availableModels = if (liveFetchedModels.isNotEmpty()) liveFetchedModels else currentProviderDefaults
 
-                if (liveFetchedModels.isNotEmpty()) {
-                    Text("Seçilen Model", color = TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                if (availableModels.isNotEmpty()) {
+                    Text("Kullanılacak Model", color = TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         availableModels.take(8).forEach { (mId, mLabel) ->
-                            val isModelSelected = selectedModel == mId
+                            val isModelSelected = selectedModel == mId || (selectedModel.isBlank() && mId == availableModels.first().first)
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(10.dp))
                                     .background(if (isModelSelected) BgTertiary else BgPrimary)
                                     .border(1.dp, if (isModelSelected) AccentBlue else BorderColor, RoundedCornerShape(10.dp))
-                                    .clickable { selectedModel = mId }
+                                    .clickable {
+                                        selectedModel = mId
+                                        // Auto-save model selection
+                                        scope.launch {
+                                            try {
+                                                val autoReq = UpdateSettingsRequest(
+                                                    aiProvider = selectedProvider,
+                                                    aiModel = mId
+                                                )
+                                                ApiClient.getService(context).updateSettings(autoReq)
+                                                session.currentUser = session.currentUser?.copy(
+                                                    aiProvider = selectedProvider,
+                                                    aiModel = mId
+                                                )
+                                            } catch (e: Exception) {}
+                                        }
+                                    }
                                     .padding(horizontal = 12.dp, vertical = 10.dp)
                             ) {
                                 Row(
@@ -382,20 +419,37 @@ fun SettingsScreen(
                 message = null
                 scope.launch {
                     try {
+                        val effectiveModel = selectedModel.ifBlank {
+                            DEFAULT_MODELS_BY_PROVIDER[selectedProvider]?.firstOrNull()?.first ?: ""
+                        }
                         val req = UpdateSettingsRequest(
                             defaultSignature = signature,
                             aiProvider = selectedProvider,
-                            aiModel = selectedModel,
+                            aiModel = effectiveModel,
                             geminiKey = if (selectedProvider == "gemini") apiKeyInput.takeIf { it.isNotBlank() } else null,
                             openaiKey = if (selectedProvider == "openai") apiKeyInput.takeIf { it.isNotBlank() } else null,
                             claudeKey = if (selectedProvider == "claude") apiKeyInput.takeIf { it.isNotBlank() } else null,
                             approvalSystemEnabled = approvalEnabled,
                             spyPixelBlocking = spyPixelEnabled
                         )
-                        ApiClient.getService(context).updateSettings(req)
-                        message = "Tüm ayarlar başarıyla kaydedildi ✓"
-                        isError = false
-                        apiKeyInput = ""
+                        val updateRes = ApiClient.getService(context).updateSettings(req)
+                        if (updateRes.isSuccessful) {
+                            val respBody = updateRes.body()
+                            session.currentUser = (session.currentUser ?: User(id = 0, name = "", email = "")).copy(
+                                defaultSignature = signature,
+                                aiProvider = selectedProvider,
+                                aiModel = effectiveModel,
+                                approvalSystemEnabled = approvalEnabled,
+                                spyPixelBlocking = spyPixelEnabled,
+                                aiConfigured = respBody?.aiConfigured ?: (session.currentUser?.aiConfigured ?: false)
+                            )
+                            message = "Tüm ayarlar başarıyla kaydedildi ✓"
+                            isError = false
+                            apiKeyInput = ""
+                        } else {
+                            message = "Kaydedilemedi (HTTP ${updateRes.code()})"
+                            isError = true
+                        }
                     } catch (e: Exception) {
                         message = "Kaydedilemedi: ${e.message}"
                         isError = true
@@ -469,5 +523,3 @@ fun SettingsScreen(
         }
     }
 }
-
-

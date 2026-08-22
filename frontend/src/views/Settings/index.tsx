@@ -982,7 +982,6 @@ function SpeakeasyTab({ copyText, copiedKey }: { copyText: (v: string, k: string
    5. AI TAB
    ========================================================================= */
 const DEFAULT_MODELS: Record<string, Array<{ id: string; name: string }>> = {
-
   gemini: [
     { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash (Önerilen & Çok Hızlı)" },
     { id: "gemini-1.5-flash", name: "Gemini 1.5 Flash" },
@@ -1019,15 +1018,39 @@ function AiTab() {
   const activeProvider = selectedProvider || settings?.ai_provider || "gemini"
   const currentKey = activeProvider === "gemini" ? settings?.has_gemini_key : activeProvider === "claude" ? settings?.has_claude_key : settings?.has_openai_key
 
-  const modelsList = fetchedModels.length > 0 ? fetchedModels : (DEFAULT_MODELS[activeProvider] || [])
+  // Keep selectedModel synced with settings from backend
+  useEffect(() => {
+    if (settings?.ai_model && !selectedModel) {
+      setSelectedModel(settings.ai_model)
+    }
+    if (settings?.available_models && Array.isArray(settings.available_models) && fetchedModels.length === 0) {
+      setFetchedModels(settings.available_models)
+    }
+  }, [settings?.ai_model, settings?.available_models])
 
-  async function handleModelChange(newModel: string) {
+  // Build model list from live fetched models or backend available_models, with DEFAULT_MODELS fallback
+  const rawList = fetchedModels.length > 0
+    ? fetchedModels
+    : (settings?.available_models && Array.isArray(settings.available_models) && settings.available_models.length > 0
+        ? settings.available_models
+        : (DEFAULT_MODELS[activeProvider] || []))
+
+  const modelsList = [...rawList]
+  const currentModelId = selectedModel || settings?.ai_model || (DEFAULT_MODELS[activeProvider]?.[0]?.id ?? "")
+  if (currentModelId && !modelsList.some((m: any) => m.id === currentModelId)) {
+    modelsList.unshift({ id: currentModelId, name: currentModelId })
+  }
+
+  async function handleModelChange(newModel: string, provOverride?: string) {
+    if (!newModel) return
     setSelectedModel(newModel)
+    const prov = provOverride || activeProvider
     try {
       await api.patch("/settings", {
-        ai_provider: activeProvider,
+        ai_provider: prov,
         ai_model: newModel
       })
+      qc.setQueryData(["settings"], (old: any) => old ? { ...old, ai_provider: prov, ai_model: newModel } : old)
       qc.invalidateQueries({ queryKey: ["settings"] })
       setModelSavedNotice(true)
       setTimeout(() => setModelSavedNotice(false), 2500)
@@ -1043,15 +1066,19 @@ function AiTab() {
       const res = await api.post<any>("/settings/ai/test", {
         provider: activeProvider,
         api_key: apiKeyInput.trim() ? apiKeyInput.trim() : undefined,
-        ai_model: selectedModel.trim() ? selectedModel.trim() : undefined
+        ai_model: selectedModel || settings?.ai_model || undefined
       })
-      setTestResult({ success: true, msg: res.message || "Bağlantı başarılı!" })
-      if (res.models && Array.isArray(res.models)) {
-        setFetchedModels(res.models)
-        const chosen = res.model || res.models[0]?.id
-        if (chosen) {
-          setSelectedModel(chosen)
+      if (res.success || res.models) {
+        setTestResult({ success: true, msg: res.message || "Bağlantı başarılı!" })
+        if (res.models && Array.isArray(res.models)) {
+          setFetchedModels(res.models)
+          const chosen = selectedModel || settings?.ai_model || res.model || res.models[0]?.id
+          if (chosen) {
+            setSelectedModel(chosen)
+          }
         }
+      } else {
+        setTestResult({ success: false, msg: res.message || res.error || "Bağlantı başarısız." })
       }
       qc.invalidateQueries({ queryKey: ["settings"] })
     } catch (err: any) {
@@ -1061,11 +1088,18 @@ function AiTab() {
     }
   }
 
+  // Auto test / load models if key exists and list is empty
+  useEffect(() => {
+    if (currentKey && fetchedModels.length === 0 && (!settings?.available_models || settings.available_models.length === 0)) {
+      testConnectionAndFetchModels()
+    }
+  }, [currentKey, activeProvider])
+
   const saveAi = useMutation({
     mutationFn: () => {
       const payload: any = {
         ai_provider: activeProvider,
-        ai_model: selectedModel || settings?.ai_model,
+        ai_model: selectedModel || settings?.ai_model || DEFAULT_MODELS[activeProvider]?.[0]?.id,
       }
       if (apiKeyInput.trim()) {
         if (activeProvider === "gemini") payload.gemini_key = apiKeyInput.trim()
@@ -1108,6 +1142,9 @@ function AiTab() {
             setSelectedProvider("gemini")
             setFetchedModels([])
             setTestResult(null)
+            const defModel = DEFAULT_MODELS["gemini"]?.[0]?.id || "gemini-2.0-flash"
+            setSelectedModel(defModel)
+            handleModelChange(defModel, "gemini")
           }}
           className={`p-4 rounded-2xl border flex flex-col items-center gap-2.5 transition-all ${
             activeProvider === "gemini"
@@ -1134,6 +1171,9 @@ function AiTab() {
             setSelectedProvider("claude")
             setFetchedModels([])
             setTestResult(null)
+            const defModel = DEFAULT_MODELS["claude"]?.[0]?.id || "claude-3-5-sonnet-latest"
+            setSelectedModel(defModel)
+            handleModelChange(defModel, "claude")
           }}
           className={`p-4 rounded-2xl border flex flex-col items-center gap-2.5 transition-all ${
             activeProvider === "claude"
@@ -1160,6 +1200,9 @@ function AiTab() {
             setSelectedProvider("openai")
             setFetchedModels([])
             setTestResult(null)
+            const defModel = DEFAULT_MODELS["openai"]?.[0]?.id || "gpt-4o-mini"
+            setSelectedModel(defModel)
+            handleModelChange(defModel, "openai")
           }}
           className={`p-4 rounded-2xl border flex flex-col items-center gap-2.5 transition-all ${
             activeProvider === "openai"
@@ -1195,15 +1238,15 @@ function AiTab() {
         </div>
 
         {/* Dynamic Model ComboBox Selector */}
-        {modelsList.length > 0 && (
+        {modelsList.length > 0 ? (
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-xs font-semibold text-[var(--text-muted)]">
-                Varsayılan AI Modeli
+                Varsayılan AI Modeli ({modelsList.length} Model Bulundu)
               </label>
               {modelSavedNotice && (
                 <span className="text-[10px] font-bold text-[#22c55e] bg-[#22c55e15] px-2 py-0.5 rounded-full border border-[#22c55e30] animate-fadeIn">
-                  Otomatik Kaydedildi ✓
+                  Model Kaydedildi ✓
                 </span>
               )}
             </div>
@@ -1222,8 +1265,11 @@ function AiTab() {
               Gelen e-postalardan seyahat, kargo, OTP ve faturaları otomatik ayıklamak ve özet çıkarmak için bu model kullanılır.
             </span>
           </div>
+        ) : (
+          <div className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)] text-xs text-[var(--text-dim)] text-center">
+            Modelleri listelemek için lütfen API anahtarınızı girip <strong>"Bağlantıyı Test Et & Modelleri Getir"</strong> butonuna basın.
+          </div>
         )}
-
 
         {testResult && (
           <div
@@ -1262,6 +1308,7 @@ function AiTab() {
     </motion.div>
   )
 }
+
 
 /* =========================================================================
    6. RSS FEEDS TAB
