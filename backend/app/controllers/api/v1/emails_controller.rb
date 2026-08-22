@@ -42,21 +42,46 @@ class Api::V1::EmailsController < Api::V1::BaseController
   end
 
   def contacts
-    sent_addrs = current_user.emails.where(folder: "sent").order(created_at: :desc).pluck(:to_address).map { |a| a.to_s.downcase.strip }.reject(&:blank?)
-    rule_addrs = current_user.sender_rules.where.not(status: "blocked").pluck(:email_address).map { |a| a.to_s.downcase.strip }.reject(&:blank?)
-    all_addrs = (sent_addrs + rule_addrs).uniq.first(25)
+    sent_addrs = current_user.emails.where(folder: "sent").order(created_at: :desc).pluck(:to_address).flat_map { |a| a.to_s.split(",") }.map { |a| a.to_s.downcase.strip }.reject { |a| a.blank? || a.start_with?("@") }
+    inbox_addrs = current_user.emails.pluck(:from_address).map { |a| a.to_s.downcase.strip }.reject(&:blank?)
+    rule_addrs = current_user.sender_rules.pluck(:email_address).map { |a| a.to_s.downcase.strip }.reject(&:blank?)
+    all_addrs = (sent_addrs + inbox_addrs + rule_addrs).uniq
 
     list = all_addrs.map do |addr|
       profile = Email::SenderAvatarService.for(addr)
       rule = current_user.sender_rules.find_by(email_address: addr)
+      
+      recent_emails = current_user.emails
+                                  .where("lower(from_address) = ? OR lower(to_address) LIKE ?", addr, "%#{addr}%")
+                                  .order(created_at: :desc)
+                                  .limit(10)
+                                  .map do |e|
+        {
+          id: e.id,
+          subject: e.subject,
+          snippet: e.body_text.to_s.truncate(80),
+          from: e.from_address,
+          to: e.to_address,
+          folder: e.folder,
+          created_at: e.created_at
+        }
+      end
+
       {
         email: addr,
         name: profile[:name].presence || addr.split("@").first.capitalize,
         avatar_url: profile[:avatar_url],
         initials: profile[:initials],
-        is_important: rule&.status == "important"
+        status: rule&.status || "approved",
+        is_important: rule&.status == "important",
+        is_blocked: rule&.status == "blocked",
+        emails_count: recent_emails.size,
+        last_contact_at: recent_emails.first&.dig(:created_at),
+        recent_emails: recent_emails
       }
     end
+
+    list.sort_by! { |c| [c[:is_important] ? 0 : 1, c[:last_contact_at] ? -Time.zone.parse(c[:last_contact_at].to_s).to_i : 0] }
     render json: list
   end
 

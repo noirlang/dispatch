@@ -8,8 +8,9 @@ import { Inbox, Send, FileText, Trash2, Clock, Plus, Mail, Users } from "lucide-
 import EmailList from "./EmailList"
 import EmailReader from "./EmailReader"
 import ComposeView from "./ComposeView"
+import ContactsPageView from "./ContactsPageView"
 
-export type Folder = "inbox" | "approvals" | "sent" | "drafts" | "trash"
+export type Folder = "inbox" | "approvals" | "sent" | "drafts" | "trash" | "contacts"
 
 export default function EmailView() {
   const t = useT()
@@ -40,17 +41,10 @@ export default function EmailView() {
     refetchInterval: 3000,
   })
 
-  // Contact Groups
+  // Contact Groups count
   const { data: groups = [] } = useQuery({
     queryKey: ["contact-groups"],
     queryFn: () => api.get<any[]>("/contact_groups"),
-    refetchInterval: 5000,
-  })
-
-  // Recent Sent & Approved Contacts
-  const { data: contacts = [] } = useQuery({
-    queryKey: ["email-contacts"],
-    queryFn: () => api.get<any[]>("/emails/contacts"),
     refetchInterval: 5000,
   })
 
@@ -129,6 +123,7 @@ export default function EmailView() {
     { id: "sent" as const,      label: t("sent"),      icon: <Send size={15} />,  badge: 0 },
     { id: "drafts" as const,    label: t("drafts"),    icon: <FileText size={15} />, badge: 0 },
     { id: "trash" as const,     label: t("trash"),     icon: <Trash2 size={15} />, badge: 0 },
+    { id: "contacts" as const,  label: lang === "tr" ? "Kişiler & Gruplar" : "Contacts & Groups", icon: <Users size={15} />, badge: groups.length },
   ]
 
   // If composing fullscreen, replace the entire email panel with animated ComposeView
@@ -201,137 +196,74 @@ export default function EmailView() {
             )
           })}
         </div>
-
-        {/* Contacts & Groups Section */}
-        <div className="mt-4 pt-3 border-t border-[var(--border-color)] flex flex-col flex-1 min-h-0 overflow-hidden">
-          <div className="px-2 pb-2 flex items-center justify-between text-[10px] font-bold text-[var(--text-muted)] tracking-wider uppercase shrink-0">
-            <span>{lang === "tr" ? "Kişiler & Gruplar" : "Contacts & Groups"}</span>
-            <Users size={12} />
-          </div>
-
-          <div className="flex-1 overflow-y-auto space-y-1 pr-0.5">
-            {/* Groups List */}
-            {groups.map((g: any) => (
-              <motion.button
-                key={`grp-${g.id}`}
-                whileTap={{ scale: 0.97 }}
-                whileHover={{ x: 2 }}
-                onClick={() => {
-                  const rawSig = settings?.default_signature ?? user?.default_signature ?? ""
-                  const cleanSig = String(rawSig).replace(/\\n/g, "\n").trim()
-                  const signature = cleanSig ? `\n\n--\n${cleanSig}` : ""
-                  setComposeConfig({
-                    to: g.alias,
-                    subject: "",
-                    body: signature,
-                    isReply: false
-                  })
-                  setComposing(true)
-                }}
-                className="w-full flex items-center justify-between p-1.5 rounded-xl text-xs hover:bg-[var(--bg-card)] transition-all text-left group bg-[#3b82f608] border border-[#3b82f620]"
-                title={`${g.alias} (${g.member_count} üye) - Gruba E-posta Gönder`}
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-5 h-5 rounded-full bg-[#3b82f620] text-[#3b82f6] border border-[#3b82f640] flex items-center justify-center font-bold text-[9px] shrink-0 font-mono">
-                    @
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[11px] font-bold text-[#3b82f6] truncate">
-                      {g.alias}
-                    </div>
-                    <div className="text-[9px] text-[var(--text-dim)] truncate">{g.member_count} kişi</div>
-                  </div>
-                </div>
-                <Plus size={11} className="text-[#3b82f6] opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-1" />
-              </motion.button>
-            ))}
-
-            {/* Individual Contacts */}
-            {contacts.map((c: any) => (
-              <motion.button
-                key={c.email}
-                whileTap={{ scale: 0.97 }}
-                whileHover={{ x: 2 }}
-                onClick={() => {
-                  const rawSig = settings?.default_signature ?? user?.default_signature ?? ""
-                  const cleanSig = String(rawSig).replace(/\\n/g, "\n").trim()
-                  const signature = cleanSig ? `\n\n--\n${cleanSig}` : ""
-                  setComposeConfig({
-                    to: c.email,
-                    subject: "",
-                    body: signature,
-                    isReply: false
-                  })
-                  setComposing(true)
-                }}
-                className="w-full flex items-center justify-between p-1.5 rounded-xl text-xs hover:bg-[var(--bg-card)] transition-all text-left group"
-                title={`${c.name} (${c.email}) - Tıkla ve E-posta Yaz`}
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-5 h-5 rounded-full bg-[var(--bg-primary)] border border-[var(--border-color)] flex items-center justify-center font-bold text-[9px] text-[var(--text-main)] shrink-0">
-                    {c.initials || c.name[0]?.toUpperCase() || "?"}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[11px] font-medium text-[var(--text-main)] truncate flex items-center gap-1">
-                      <span className="truncate">{c.name}</span>
-                      {c.is_important && <span className="text-[9px] shrink-0" title="Önemli Kişi">⭐</span>}
-                    </div>
-                    <div className="text-[9px] text-[var(--text-dim)] font-mono truncate">{c.email}</div>
-                  </div>
-                </div>
-                <Plus size={11} className="text-[var(--text-dim)] opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-1" />
-              </motion.button>
-            ))}
-
-            {groups.length === 0 && contacts.length === 0 && (
-              <div className="px-2 py-2 text-[11px] text-[var(--text-dim)] italic">
-                {lang === "tr" ? "Henüz kişi veya grup yok" : "No contacts or groups yet"}
-              </div>
-            )}
-          </div>
-        </div>
       </aside>
 
-      {/* Email List column */}
-      <div className="w-80 border-r border-[var(--border-color)] bg-[var(--bg-primary)] shrink-0 overflow-hidden flex flex-col">
-        <EmailList folder={folder} selectedId={selectedId} onSelect={setSelectedId} />
-      </div>
+      {/* Main Panel: Contacts Page vs Email List & Reader */}
+      {folder === "contacts" ? (
+        <div className="flex-1 overflow-hidden">
+          <ContactsPageView
+            onCompose={(target) => {
+              const rawSig = settings?.default_signature ?? user?.default_signature ?? ""
+              const cleanSig = String(rawSig).replace(/\\n/g, "\n").trim()
+              const signature = cleanSig ? `\n\n--\n${cleanSig}` : ""
+              setComposeConfig({
+                to: target,
+                subject: "",
+                body: signature,
+                isReply: false
+              })
+              setComposing(true)
+            }}
+            onOpenEmail={(emailId) => {
+              setFolder("inbox")
+              setSelectedId(emailId)
+            }}
+          />
+        </div>
+      ) : (
+        <>
+          {/* Email List column */}
+          <div className="w-80 border-r border-[var(--border-color)] bg-[var(--bg-primary)] shrink-0 overflow-hidden flex flex-col">
+            <EmailList folder={folder} selectedId={selectedId} onSelect={setSelectedId} />
+          </div>
 
-      {/* Email Reader View with Fluid Slide/Fade Transitions */}
-      <main className="flex-1 bg-[var(--bg-primary)] overflow-hidden">
-        <AnimatePresence mode="wait">
-          {selectedId ? (
-            <motion.div
-              key={selectedId}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.18, ease: "easeOut" }}
-              className="h-full w-full"
-            >
-              <EmailReader
-                id={selectedId}
-                folder={folder}
-                onReply={handleReply}
-                onForward={handleForward}
-              />
-            </motion.div>
-          ) : (
-            <motion.div
-              key="empty-state"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="h-full flex flex-col items-center justify-center text-[var(--text-dim)] gap-3 select-none"
-            >
-              <div className="w-12 h-12 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-center text-[var(--text-muted)]">
-                <Mail size={22} />
-              </div>
-              <span className="text-xs font-medium">{t("select_email")}</span>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </main>
+          {/* Email Reader View with Fluid Slide/Fade Transitions */}
+          <main className="flex-1 bg-[var(--bg-primary)] overflow-hidden">
+            <AnimatePresence mode="wait">
+              {selectedId ? (
+                <motion.div
+                  key={selectedId}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.18, ease: "easeOut" }}
+                  className="h-full w-full"
+                >
+                  <EmailReader
+                    id={selectedId}
+                    folder={folder}
+                    onReply={handleReply}
+                    onForward={handleForward}
+                  />
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="empty-state"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="h-full flex flex-col items-center justify-center text-[var(--text-dim)] gap-3 select-none"
+                >
+                  <div className="w-12 h-12 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-center text-[var(--text-muted)]">
+                    <Mail size={22} />
+                  </div>
+                  <span className="text-xs font-medium">{t("select_email")}</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </main>
+        </>
+      )}
     </div>
   )
 }
