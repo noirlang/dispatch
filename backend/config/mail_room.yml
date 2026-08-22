@@ -1,0 +1,12 @@
+:mailboxes:
+  - :host: <%= ENV.fetch("MAIL_HOST", "localhost") %>
+    :port: 993
+    :ssl: true
+    :start_tls: false
+    :email: <%= ENV["MAIL_USER"] %>
+    :password: <%= ENV["MAIL_PASSWORD"] %>
+    :name: INBOX
+    :delivery_method: postback
+    :delivery_options:
+      :url: <%= ENV.fetch("APP_URL", "http://localhost:3000") %>/rails/action_mailbox/relay/inbound_emails
+      :token: <%= ENV["RAILS_INBOUND_EMAIL_TOKEN"] %>
