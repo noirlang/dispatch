@@ -8,13 +8,18 @@ interface Props {
   emailPanel: React.ReactNode
   calendarPanel: React.ReactNode
   feedPanel: React.ReactNode
+  dashboardPanel: React.ReactNode
+  settingsPanel: React.ReactNode
 }
 
-export default function AppLayout({ emailPanel, calendarPanel, feedPanel }: Props) {
+export default function AppLayout({
+  emailPanel,
+  calendarPanel,
+  feedPanel,
+  dashboardPanel,
+  settingsPanel
+}: Props) {
   const [active, setActive] = useState<Panel>("email")
-
-  // On wider screens: 3 panel layout. On narrow: single panel
-  const isFull = active === "email"
 
   return (
     <div className="h-screen flex flex-col bg-[#0a0a0a] overflow-hidden">
@@ -61,10 +66,17 @@ export default function AppLayout({ emailPanel, calendarPanel, feedPanel }: Prop
           {feedPanel}
         </aside>
 
-        {/* Dashboard / Settings take full width */}
-        {(active === "dashboard" || active === "settings") && (
-          <main className="flex-1 overflow-auto p-6">
-            <div className="text-[#999] text-sm">{active} — coming soon</div>
+        {/* Dashboard View */}
+        {active === "dashboard" && (
+          <main className="flex-1 overflow-auto">
+            {dashboardPanel}
+          </main>
+        )}
+
+        {/* Settings View */}
+        {active === "settings" && (
+          <main className="flex-1 overflow-auto">
+            {settingsPanel}
           </main>
         )}
       </div>
