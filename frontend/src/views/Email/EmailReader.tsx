@@ -31,6 +31,8 @@ interface EmailDetail {
   to: string
   subject: string
   body: string
+  body_text?: string
+  body_html?: string
   folder: string
   is_read: boolean
   created_at: string
@@ -160,7 +162,9 @@ export default function EmailReader({ id, folder, onReply, onForward }: Props) {
   async function handleGenerateAiReply() {
     setGeneratingReply(true)
     try {
-      const res = await api.post<{ reply_body: string }>(`/emails/${id}/ai_reply`, {
+      const res = await api.post<{ reply_body: string
+  body_text?: string
+  body_html?: string }>(`/emails/${id}/ai_reply`, {
         instructions: userInstructions,
         tone: aiTone
       })
@@ -216,8 +220,9 @@ export default function EmailReader({ id, folder, onReply, onForward }: Props) {
     )
   }
 
-  const isHtml = email.body?.trim().startsWith("<")
-  const safeHtml = isHtml ? DOMPurify.sanitize(email.body || "") : ""
+  const isHtml = Boolean(email.body_html || email.body?.trim().startsWith("<"))
+  const rawHtml = email.body_html || (email.body?.trim().startsWith("<") ? email.body : "")
+  const safeHtml = isHtml ? DOMPurify.sanitize(rawHtml) : ""
 
   return (
     <div

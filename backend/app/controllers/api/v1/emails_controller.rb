@@ -122,15 +122,21 @@ class Api::V1::EmailsController < Api::V1::BaseController
   end
 
   def email_json(email)
-    body = email.body_html.presence || email.body_text
-    body = Email::ImageProxyService.rewrite_html(body) if email.body_html.present? && current_user.spy_pixel_blocking
+    raw_html = email.body_html.presence
+    safe_html = if raw_html.present? && current_user.spy_pixel_blocking
+                  Email::ImageProxyService.rewrite_html(raw_html)
+                else
+                  raw_html
+                end
     profile = Email::SenderAvatarService.for(email.from_address)
     {
       id: email.id,
       from: email.from_address,
       to: email.to_address,
       subject: email.subject,
-      body: body,
+      body: email.body_text.presence || ActionController::Base.helpers.strip_tags(email.body_html.to_s),
+      body_text: email.body_text.presence || ActionController::Base.helpers.strip_tags(email.body_html.to_s),
+      body_html: safe_html,
       folder: email.folder,
       is_read: email.is_read,
       created_at: email.created_at,

@@ -56,11 +56,23 @@ export default function EmailView() {
     const rawSig = settings?.default_signature ?? user?.default_signature ?? ""
     const cleanSig = String(rawSig).replace(/\\n/g, "\n").trim()
     const signature = cleanSig ? `\n\n--\n${cleanSig}` : ""
-    const defaultQuoted = `\n\n> On ${new Date(email.created_at).toLocaleString()}, ${email.from} wrote:\n> ${email.body?.replace(/\n/g, "\n> ")}`
+
+    const rawQuoted = email.body_text || email.body || ""
+    const cleanQuoted = rawQuoted
+      .replace(/<!DOCTYPE.*?>/gi, "")
+      .replace(/<html.*?>/gi, "")
+      .replace(/<\/html>/gi, "")
+      .replace(/<body.*?>/gi, "")
+      .replace(/<\/body>/gi, "")
+      .replace(/<head>[\s\S]*?<\/head>/gi, "")
+      .replace(/<style>[\s\S]*?<\/style>/gi, "")
+      .trim()
+
+    const defaultQuoted = `\n\n> On ${new Date(email.created_at).toLocaleString()}, ${email.from} wrote:\n> ${cleanQuoted.replace(/\n/g, "\n> ")}`
     
     setComposeConfig({
       to: email.from,
-      subject: email.subject?.startsWith("Re:") ? email.subject : `Re: ${email.subject}`,
+      subject: email.subject?.startsWith("Re:") ? email.subject : `Re: ${email.subject || ""}`,
       body: (customBody ? `${customBody}${signature}` : "") + defaultQuoted,
       isReply: true,
       replyEmailId: email.id,

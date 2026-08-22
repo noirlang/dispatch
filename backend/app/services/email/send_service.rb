@@ -3,6 +3,7 @@ class Email::SendService
 
   def self.call(user, params)
     raw_body = params[:body].to_s
+    to_email = params[:to].to_s.downcase.strip
     html_body = markdown_to_html(raw_body)
 
     styled_html = <<~HTML
@@ -25,6 +26,12 @@ class Email::SendService
       </body>
       </html>
     HTML
+
+    # Auto-approve this recipient for the sender (since user initiated contact)
+    user.sender_rules.find_or_create_by(email_address: to_email) do |r|
+      r.status = "approved"
+      r.approved_at = Time.current
+    end
 
     # Try sending via SMTP
     begin
@@ -70,8 +77,8 @@ class Email::SendService
       is_read: true
     )
 
-    # If recipient is a local user on this server, deliver to their inbox with Speakeasy & Approval check!
-    recipient_user = User.find_by(email: params[:to]&.downcase&.strip)
+    # If recipient is a local user on this server, deliver to their inbox
+    recipient_user = User.find_by(email: to_email)
     if recipient_user
       full_content = "#{params[:subject]} #{raw_body}"
       
@@ -83,17 +90,17 @@ class Email::SendService
         end
       end
 
-      recipient_folder = if speakeasy_matched
+      # 2. Check if recipient previously sent an email to this user (Mutual Contact Bypass)
+      has_previous_sent = recipient_user.emails.where(folder: "sent", to_address: user.email.downcase.strip).exists?
+
+      rule = recipient_user.sender_rules.find_by(email_address: user.email.downcase.strip)
+      
+      recipient_folder = if speakeasy_matched || has_previous_sent || rule&.status == "approved" || rule&.status == "important"
         "inbox"
+      elsif rule&.status == "blocked"
+        "trash"
       else
-        rule = recipient_user.sender_rules.find_by(email_address: user.email.downcase)
-        if rule&.status == "approved" || rule&.status == "important"
-          "inbox"
-        elsif rule&.status == "blocked"
-          "trash"
-        else
-          recipient_user.approval_system_enabled ? "approvals" : "inbox"
-        end
+        recipient_user.approval_system_enabled ? "approvals" : "inbox"
       end
 
       recipient_email = recipient_user.emails.create!(
