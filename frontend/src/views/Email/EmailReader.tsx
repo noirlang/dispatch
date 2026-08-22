@@ -47,6 +47,10 @@ interface EmailDetail {
   avatar_initials?: string
   is_known_company?: boolean
   is_dispatch_user?: boolean
+  recipient_name?: string
+  recipient_avatar_url?: string | null
+  recipient_initials?: string
+  is_recipient_dispatch_user?: boolean
 }
 
 interface Props {
@@ -486,31 +490,45 @@ export default function EmailReader({ id, folder, onReply, onForward }: Props) {
               user.email.toLowerCase().trim() !== email.from.toLowerCase().trim()
             )
             return (
-              <div
-                onClick={() => {
-                  if (isOtherDispatchUser) {
-                    alert("Bu kullanıcı kayıtlı bir Dispatch kullanıcısıdır. Profil fotoğrafı yalnızca hesap sahibi tarafından değiştirilebilir.")
-                    return
-                  }
-                  setAvatarModalOpen(true)
-                }}
-                className={`relative group ${isOtherDispatchUser ? "cursor-default" : "cursor-pointer"}`}
-                title={
-                  isOtherDispatchUser
-                    ? "Dispatch Kullanıcısı — Profil fotoğrafı hesap sahibi tarafından yönetilmektedir."
-                    : "Kişi fotoğrafını ayarla / değiştir"
-                }
-              >
-                <SenderAvatar
-                  avatarUrl={email.avatar_url}
-                  initials={email.avatar_initials || email.from[0]?.toUpperCase()}
-                  name={email.sender_name || email.from}
-                  size={40}
-                  isKnownCompany={email.is_known_company}
-                />
-                {!isOtherDispatchUser && (
-                  <div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Camera size={14} />
+              <div className="flex items-center">
+                {/* Sender Avatar (Left) */}
+                <div
+                  onClick={() => {
+                    if (isOtherDispatchUser) {
+                      alert("Bu kullanıcı kayıtlı bir Dispatch kullanıcısıdır. Profil fotoğrafı yalnızca hesap sahibi tarafından değiştirilebilir.")
+                      return
+                    }
+                    setAvatarModalOpen(true)
+                  }}
+                  className={`relative z-10 group ${isOtherDispatchUser ? "cursor-default" : "cursor-pointer"}`}
+                  title={`Gönderen: ${email.sender_name || email.from}`}
+                >
+                  <SenderAvatar
+                    avatarUrl={email.avatar_url}
+                    initials={email.avatar_initials || email.from[0]?.toUpperCase()}
+                    name={email.sender_name || email.from}
+                    size={40}
+                    isKnownCompany={email.is_known_company}
+                  />
+                  {!isOtherDispatchUser && (
+                    <div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Camera size={14} />
+                    </div>
+                  )}
+                </div>
+
+                {/* Recipient Avatar (Overlapping on right - half-shifted) */}
+                {email.to && (
+                  <div
+                    className="relative z-20 -ml-4 rounded-full ring-2 ring-[var(--bg-secondary)] shadow-xs shrink-0 select-none"
+                    title={`Alıcı: ${email.recipient_name || email.to}`}
+                  >
+                    <SenderAvatar
+                      avatarUrl={email.recipient_avatar_url}
+                      initials={email.recipient_initials || email.to[0]?.toUpperCase()}
+                      name={email.recipient_name || email.to}
+                      size={40}
+                    />
                   </div>
                 )}
               </div>

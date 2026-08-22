@@ -201,6 +201,8 @@ class Api::V1::EmailsController < Api::V1::BaseController
                   raw_html
                 end
     profile = Email::SenderAvatarService.for(email.from_address)
+    first_recipient = email.to_address.to_s.split(/[,;]/).first.to_s.strip
+    recipient_profile = Email::SenderAvatarService.for(first_recipient)
     rule = current_user.sender_rules.find_by(email_address: email.from_address.downcase.strip)
 
     {
@@ -220,7 +222,11 @@ class Api::V1::EmailsController < Api::V1::BaseController
       avatar_url: profile[:avatar_url],
       avatar_initials: profile[:initials],
       is_known_company: profile[:is_known_company],
-      is_dispatch_user: profile[:is_dispatch_user] || false
+      is_dispatch_user: profile[:is_dispatch_user] || false,
+      recipient_name: recipient_profile[:name],
+      recipient_avatar_url: recipient_profile[:avatar_url],
+      recipient_initials: recipient_profile[:initials],
+      is_recipient_dispatch_user: recipient_profile[:is_dispatch_user] || false
     }
   end
 

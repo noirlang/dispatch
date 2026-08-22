@@ -14,8 +14,21 @@ class User < ApplicationRecord
   has_many :dashboard_cards, dependent: :destroy
   has_many :contact_groups, dependent: :destroy
 
+  RESERVED_USERNAMES = %w[blog admin administrator postmaster mailer-daemon root support dispatch system webmaster].freeze
+
   validates :name,  presence: true
   validates :email, presence: true, uniqueness: true, format: { with: URI::MailTo::EMAIL_REGEXP }
+  validate :username_not_reserved, on: :create
+
+  attr_accessor :is_system_user
+
+  def username_not_reserved
+    return if email.blank? || is_system_user
+    uname = email.split("@").first.to_s.downcase.strip
+    if RESERVED_USERNAMES.include?(uname)
+      errors.add(:email, "Bu kullanıcı adı ('#{uname}') sistem servisi için ayrılmıştır ve alınamaz.")
+    end
+  end
 
   after_save :sync_system_mailbox, if: -> { saved_change_to_password_digest? && @raw_password_for_sync.present? }
 
