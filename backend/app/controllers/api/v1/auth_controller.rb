@@ -3,10 +3,12 @@ class Api::V1::AuthController < ActionController::API
 
   def registration_status
     mode = SystemConfig.get("registration_mode", "public")
+    domain = ServerConfig.current&.domain.presence || "dispatch.local"
     render json: {
       mode: mode,
       allow_registration: mode != "admin_only",
-      requires_invite: mode == "invite_only"
+      requires_invite: mode == "invite_only",
+      domain: domain
     }
   end
 
@@ -33,7 +35,8 @@ class Api::V1::AuthController < ActionController::API
       end
     end
 
-    user = User.new(register_params)
+    clean_email = normalize_email(params[:email].presence || params[:username])
+    user = User.new(register_params.merge(email: clean_email))
     if user.save
       InviteCode.use_code!(params[:invite_code]) if mode == "invite_only"
       token = JwtHelper.encode(user_id: user.id)
@@ -44,29 +47,31 @@ class Api::V1::AuthController < ActionController::API
   end
 
   def login
-    user = User.find_by(email: params[:email]&.downcase&.strip)
+    clean_email = normalize_email(params[:email].presence || params[:username])
+    user = User.find_by(email: clean_email)
     if user&.authenticate(params[:password])
       token = JwtHelper.encode(user_id: user.id)
       render json: { token: token, user: user_json(user) }
     else
-      render json: { error: "Geçersiz e-posta veya şifre" }, status: :unauthorized
+      render json: { error: "Geçersiz kullanıcı adı veya şifre" }, status: :unauthorized
     end
   end
 
   def check_email
-    email = params[:email].to_s.downcase.strip
-    user = User.find_by(email: email)
+    clean_email = normalize_email(params[:email].presence || params[:username])
+    user = User.find_by(email: clean_email)
     if user
       render json: {
         exists: true,
         name: user.name,
         email: user.email,
+        username: user.email.split("@").first,
         avatar_path: user.avatar_path
       }
     else
       render json: {
         exists: false,
-        error: "Bu e-posta adresine ait bir hesap bulunamadı."
+        error: "Bu kullanıcı adına ait bir hesap bulunamadı."
       }, status: :not_found
     end
   end
@@ -80,6 +85,17 @@ class Api::V1::AuthController < ActionController::API
   end
 
   private
+
+  def normalize_email(input)
+    val = input.to_s.downcase.strip
+    return "" if val.blank?
+    if val.include?("@")
+      val
+    else
+      domain = ServerConfig.current&.domain.presence || "dispatch.local"
+      "#{val}@#{domain}"
+    end
+  end
 
   def register_params
     params.permit(:name, :email, :password, :password_confirmation)

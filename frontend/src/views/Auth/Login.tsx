@@ -31,22 +31,22 @@ export default function Login() {
   const stepIdx = steps.indexOf(step)
 
   const labelsTR: Record<Step, string> = {
-    email: "E-posta adresiniz nedir?",
+    email: "Kullanıcı adınız nedir?",
     password: "Şifrenizi girin",
   }
 
   const labelsEN: Record<Step, string> = {
-    email: "What's your email address?",
+    email: "What's your username?",
     password: "Enter your password",
   }
 
   const placeholdersTR: Record<Step, string> = {
-    email: "kullanici@dispatch.local",
+    email: "kullanici_adi",
     password: "••••••••",
   }
 
   const placeholdersEN: Record<Step, string> = {
-    email: "username@dispatch.local",
+    email: "username",
     password: "••••••••",
   }
 
@@ -58,23 +58,23 @@ export default function Login() {
     setError("")
 
     if (step === "email") {
-      const cleanEmail = email.trim().toLowerCase()
-      if (!cleanEmail) {
-        setError(lang === "tr" ? "Lütfen e-posta adresinizi girin" : "Please enter your email address")
+      const cleanUser = email.trim().toLowerCase().replace(/^@+/, "")
+      if (!cleanUser) {
+        setError(lang === "tr" ? "Lütfen kullanıcı adınızı girin" : "Please enter your username")
         return
       }
 
       setLoading(true)
       try {
-        const res = await api.post<CheckedUser>("/auth/check_email", { email: cleanEmail })
+        const res = await api.post<CheckedUser>("/auth/check_email", { email: cleanUser })
         if (res.exists) {
           setCheckedUser(res)
           setStep("password")
         } else {
-          setError(lang === "tr" ? "Bu e-posta adresine ait bir hesap bulunamadı" : "No account found with this email")
+          setError(lang === "tr" ? "Bu kullanıcı adına ait bir hesap bulunamadı" : "No account found with this username")
         }
       } catch {
-        setError(lang === "tr" ? "Bu e-posta adresine ait bir hesap bulunamadı" : "No account found with this email")
+        setError(lang === "tr" ? "Bu kullanıcı adına ait bir hesap bulunamadı" : "No account found with this username")
       } finally {
         setLoading(false)
       }
@@ -198,8 +198,8 @@ export default function Login() {
             <p className="text-xs text-[var(--text-muted)] mb-8 text-center">
               {step === "email"
                 ? lang === "tr"
-                  ? "Devam etmek için sistemde kayıtlı e-posta adresinizi yazın."
-                  : "Enter your registered email address to proceed."
+                  ? "Devam etmek için kullanıcı adınızı yazın."
+                  : "Enter your username to proceed."
                 : lang === "tr"
                 ? "Hesabınıza erişmek için şifrenizi girin."
                 : "Enter your password to access your mailbox."}
@@ -207,15 +207,20 @@ export default function Login() {
 
             <form onSubmit={handleNext} className="flex flex-col gap-4">
               {step === "email" ? (
-                <input
-                  type="email"
-                  autoFocus
-                  placeholder={placeholders.email}
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-main)] px-5 py-4 rounded-2xl text-base text-center focus:outline-none focus:border-[var(--text-main)] transition-colors shadow-xs"
-                  required
-                />
+                <div className="relative flex items-center bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl shadow-xs overflow-hidden focus-within:border-[var(--text-main)] transition-colors">
+                  <input
+                    type="text"
+                    autoFocus
+                    placeholder={placeholders.email}
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    className="flex-1 bg-transparent text-[var(--text-main)] pl-5 pr-2 py-4 text-base focus:outline-none font-mono"
+                    required
+                  />
+                  <span className="pr-4 text-xs font-mono font-semibold text-[var(--text-dim)] select-none shrink-0 bg-[var(--bg-card)] py-1.5 px-2.5 rounded-xl mr-3 border border-[var(--border-color)]">
+                    @dispatch.local
+                  </span>
+                </div>
               ) : (
                 <input
                   type="password"

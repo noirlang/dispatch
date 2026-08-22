@@ -42,28 +42,28 @@ export default function Register() {
   const labelsTR: Record<string, string> = {
     invite: "Davet Kodunuzu Girin",
     name: "Adınız ve Soyadınız?",
-    email: "E-posta adresinizi belirleyin",
+    email: "Kullanıcı adınızı belirleyin",
     password: "Güçlü bir şifre oluşturun",
   }
 
   const labelsEN: Record<string, string> = {
     invite: "Enter Your Invite Code",
     name: "What's your full name?",
-    email: "Choose your email address",
+    email: "Choose your username",
     password: "Create a secure password",
   }
 
   const placeholdersTR: Record<string, string> = {
     invite: "INV-XXXXXXXX",
     name: "örn: Ahmet Yılmaz",
-    email: "kullanici@dispatch.local",
+    email: "kullanici_adi",
     password: "En az 8 karakter",
   }
 
   const placeholdersEN: Record<string, string> = {
     invite: "INV-XXXXXXXX",
     name: "e.g. John Doe",
-    email: "username@dispatch.local",
+    email: "username",
     password: "Min 8 characters",
   }
 
@@ -235,18 +235,35 @@ export default function Register() {
             )}
           </div>
 
-          <input
-            autoFocus
-            type={step === "password" ? "password" : step === "email" ? "email" : "text"}
-            placeholder={placeholders[step]}
-            value={form[step]}
-            onChange={e => setForm(f => ({ ...f, [step]: e.target.value }))}
-            required
-            minLength={step === "password" ? 8 : 1}
-            className={`w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-base px-4 py-3 rounded-xl text-center focus:outline-none focus:border-[var(--text-main)] transition-colors font-medium ${
-              step === "invite" ? "font-mono tracking-widest uppercase text-lg" : ""
-            }`}
-          />
+          {step === "email" ? (
+            <div className="w-full relative flex items-center bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl shadow-xs overflow-hidden focus-within:border-[var(--text-main)] transition-colors">
+              <input
+                autoFocus
+                type="text"
+                placeholder={placeholders.email}
+                value={form.email}
+                onChange={e => setForm(f => ({ ...f, email: e.target.value.replace(/^@+/, "") }))}
+                required
+                className="flex-1 bg-transparent text-[var(--text-main)] pl-5 pr-2 py-3.5 text-sm focus:outline-none font-mono"
+              />
+              <span className="pr-4 text-xs font-mono font-semibold text-[var(--text-dim)] select-none shrink-0 bg-[var(--bg-card)] py-1.5 px-2.5 rounded-xl mr-3 border border-[var(--border-color)]">
+                @dispatch.local
+              </span>
+            </div>
+          ) : (
+            <input
+              autoFocus
+              type={step === "password" ? "password" : "text"}
+              placeholder={placeholders[step]}
+              value={form[step]}
+              onChange={e => setForm(f => ({ ...f, [step]: e.target.value }))}
+              required
+              minLength={step === "password" ? 8 : 1}
+              className={`w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-base px-4 py-3 rounded-xl text-center focus:outline-none focus:border-[var(--text-main)] transition-colors font-medium ${
+                step === "invite" ? "font-mono tracking-widest uppercase text-lg" : ""
+              }`}
+            />
+          )}
 
           {error && <p className="text-[#ef4444] text-xs font-medium">{error}</p>}
 
