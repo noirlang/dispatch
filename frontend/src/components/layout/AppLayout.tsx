@@ -297,7 +297,7 @@ export default function AppLayout({
 
               <div className="flex-1 min-w-0">
                 <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--accent)] mb-0.5">
-                  {t("new_mail_notification")}
+                  {toast.title || t("new_mail_notification")}
                 </div>
                 <div className="text-xs font-bold text-[var(--text-main)] truncate">
                   {toast.from}

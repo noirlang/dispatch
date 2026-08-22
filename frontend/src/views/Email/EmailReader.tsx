@@ -122,7 +122,8 @@ export default function EmailReader({ id, folder, onReply, onForward }: Props) {
       setSelectionPos(null)
       qc.invalidateQueries({ queryKey: ["dashboard-cards"] })
       addToast({
-        from: "Pano",
+        title: "Pano",
+        from: "Pano Notu",
         subject: "Seçilen metin başarıyla Panoya eklendi! ✓"
       })
     }

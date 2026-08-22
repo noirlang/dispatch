@@ -738,7 +738,7 @@ function SpeakeasyTab({ copyText, copiedKey }: { copyText: (val: string, k: stri
                 </button>
               </div>
               <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                {c.label} · {c.single_use ? "Tek Kullanımlık" : "Çoklu Kullanım"} · Son Geçerlilik: {new Date(c.expires_at).toLocaleDateString()}
+            {c.label} · {c.single_use ? "Tek Kullanımlık" : "Çoklu Kullanım"} · Son Geçerlilik: {new Date(c.expires_at).toLocaleDateString()}
               </div>
             </div>
             <button
@@ -755,7 +755,7 @@ function SpeakeasyTab({ copyText, copiedKey }: { copyText: (val: string, k: stri
 }
 
 /* =========================================================================
-   5. ARTIFICIAL INTELLIGENCE TAB (OFFICIAL SVGS & LIVE MODEL FETCH)
+   5. ARTIFICIAL INTELLIGENCE TAB (OFFICIAL SVGS & LIVE DYNAMIC MODEL FETCH)
    ========================================================================= */
 function AiTab() {
   const t = useT()
@@ -801,16 +801,28 @@ function AiTab() {
     setTesting(true)
     setTestResult(null)
     try {
-      if (apiKeyInput) {
-        await saveAi.mutateAsync()
-      }
-      const res = await api.post<any>("/settings/ai/test", { provider: activeProvider, ai_model: selectedModel })
-      if (res.models) {
+      const res = await api.post<any>("/settings/ai/test", {
+        provider: activeProvider,
+        api_key: apiKeyInput || undefined,
+        ai_model: selectedModel || undefined
+      })
+      if (res.models && res.models.length > 0) {
         setFetchedModels(res.models)
+        if (!selectedModel) {
+          setSelectedModel(res.model || res.models[0].id)
+        }
       }
-      setTestResult({ success: true, msg: `${res.provider.toUpperCase()} (${res.model || "Varsayılan Model"}) bağlantısı doğrulandı! Modeller hazır ✓` })
+      setApiKeyInput("")
+      qc.invalidateQueries({ queryKey: ["settings"] })
+      setTestResult({
+        success: true,
+        msg: `${res.provider.toUpperCase()} API bağlantısı kuruldu. ${res.models?.length || 0} model canlı olarak yüklendi! ✓`
+      })
     } catch (err: any) {
-      setTestResult({ success: false, msg: err.message || "Bağlantı testi başarısız oldu. API Key'i kontrol edin." })
+      setTestResult({
+        success: false,
+        msg: err.message || "Bağlantı testi başarısız oldu. API Anahtarınızı kontrol edin."
+      })
     } finally {
       setTesting(false)
     }
@@ -829,7 +841,7 @@ function AiTab() {
           <span>{t("ai_settings")}</span>
         </h2>
         <p className="text-xs text-[var(--text-muted)] mt-1">
-          Kullanmak istediğin yapay zeka modelini seç, API Key'ini gir ve bağlantıyı test et.
+          Kullanmak istediğin yapay zeka sağlayıcısını seç, API anahtarını bağla ve resmi API üzerinden canlı modelleri getir.
         </p>
       </div>
 
@@ -841,7 +853,8 @@ function AiTab() {
           whileTap={{ scale: 0.96 }}
           onClick={() => {
             setSelectedProvider("gemini")
-            setSelectedModel(settings?.ai_model || "gemini-1.5-flash")
+            setFetchedModels([])
+            setTestResult(null)
           }}
           className={`p-4 rounded-2xl border flex flex-col items-center gap-2.5 transition-all ${
             activeProvider === "gemini"
@@ -865,7 +878,6 @@ function AiTab() {
           </svg>
           <div className="text-center">
             <span className="text-xs font-bold block text-[var(--text-main)]">Google Gemini</span>
-            <span className="text-[10px] text-[var(--text-dim)]">Flash / Pro 2.0</span>
           </div>
           {settings?.has_gemini_key && (
             <span className="px-1.5 py-0.5 rounded text-[10px] bg-[#22c55e15] text-[#22c55e] border border-[#22c55e30]">
@@ -880,7 +892,8 @@ function AiTab() {
           whileTap={{ scale: 0.96 }}
           onClick={() => {
             setSelectedProvider("claude")
-            setSelectedModel(settings?.ai_model || "claude-3-5-sonnet-latest")
+            setFetchedModels([])
+            setTestResult(null)
           }}
           className={`p-4 rounded-2xl border flex flex-col items-center gap-2.5 transition-all ${
             activeProvider === "claude"
@@ -889,12 +902,11 @@ function AiTab() {
           }`}
         >
           {/* Claude Official Emblem */}
-          <div className="w-8 h-8 rounded-full bg-[#cc785c] text-white flex items-center justify-center font-bold text-sm shadow-xs">
+          <div className="w-8 h-8 rounded-full bg-[#cc785c] text-white flex items-center justify-center font-bold text-base shadow-xs">
             ✳
           </div>
           <div className="text-center">
             <span className="text-xs font-bold block text-[var(--text-main)]">Anthropic Claude</span>
-            <span className="text-[10px] text-[var(--text-dim)]">Sonnet / Haiku</span>
           </div>
           {settings?.has_claude_key && (
             <span className="px-1.5 py-0.5 rounded text-[10px] bg-[#22c55e15] text-[#22c55e] border border-[#22c55e30]">
@@ -909,7 +921,8 @@ function AiTab() {
           whileTap={{ scale: 0.96 }}
           onClick={() => {
             setSelectedProvider("openai")
-            setSelectedModel(settings?.ai_model || "gpt-4o-mini")
+            setFetchedModels([])
+            setTestResult(null)
           }}
           className={`p-4 rounded-2xl border flex flex-col items-center gap-2.5 transition-all ${
             activeProvider === "openai"
@@ -923,7 +936,6 @@ function AiTab() {
           </svg>
           <div className="text-center">
             <span className="text-xs font-bold block text-[var(--text-main)]">OpenAI</span>
-            <span className="text-[10px] text-[var(--text-dim)]">GPT-4o / o3-mini</span>
           </div>
           {settings?.has_openai_key && (
             <span className="px-1.5 py-0.5 rounded text-[10px] bg-[#22c55e15] text-[#22c55e] border border-[#22c55e30]">
@@ -964,10 +976,10 @@ function AiTab() {
         </div>
 
         {/* Dynamic Model ComboBox Selector */}
-        {(currentKey || fetchedModels.length > 0) && (
+        {modelsList.length > 0 && (
           <div>
             <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">
-              Varsayılan AI Modeli (ComboBox)
+              Varsayılan AI Modeli (API'den Canlı Çekilen)
             </label>
             <select
               value={selectedModel || settings?.ai_model || modelsList[0]?.id || ""}
@@ -976,7 +988,7 @@ function AiTab() {
             >
               {modelsList.map((m: any) => (
                 <option key={m.id} value={m.id}>
-                  {m.name}
+                  {m.name || m.id}
                 </option>
               ))}
             </select>
@@ -998,23 +1010,26 @@ function AiTab() {
           </div>
         )}
 
-        <div className="flex items-center gap-3 pt-2">
-          <motion.button
-            whileTap={{ scale: 0.96 }}
-            onClick={() => saveAi.mutate()}
-            className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs px-6 py-2.5 rounded-xl font-bold hover:opacity-90 shadow-sm"
-          >
-            Ayarları Kaydet
-          </motion.button>
-          <motion.button
-            whileTap={{ scale: 0.96 }}
+        {/* Action Buttons */}
+        <div className="flex items-center justify-between pt-3 border-t border-[var(--border-color)] gap-2">
+          <button
+            type="button"
+            disabled={testing || (!apiKeyInput && !currentKey)}
             onClick={testConnectionAndFetchModels}
-            disabled={testing}
-            className="border border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-main)] text-xs px-4 py-2.5 rounded-xl font-semibold hover:bg-[var(--bg-card)] flex items-center gap-1.5 transition-colors shadow-xs"
+            className="border border-[var(--border-color)] bg-[var(--bg-primary)] hover:bg-[var(--bg-card)] text-[var(--text-main)] text-xs px-4 py-2.5 rounded-xl font-semibold flex items-center gap-1.5 disabled:opacity-40 transition-colors shadow-xs"
           >
-            {testing ? <RefreshCw size={13} className="animate-spin" /> : <Sparkles size={13} />}
-            <span>Bağlantıyı Test Et & Modelleri Getir</span>
-          </motion.button>
+            <Sparkles size={14} className={testing ? "animate-spin text-[#f59e0b]" : "text-[#f59e0b]"} />
+            <span>{testing ? "Modeller API'den Çekiliyor..." : "Bağlantıyı Test Et & Modelleri Getir"}</span>
+          </button>
+
+          <button
+            type="button"
+            disabled={saveAi.isPending}
+            onClick={() => saveAi.mutate()}
+            className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs px-5 py-2.5 rounded-xl font-bold hover:opacity-90 disabled:opacity-40 shadow-sm"
+          >
+            {saveAi.isPending ? "Kaydediliyor..." : "Ayarları Kaydet"}
+          </button>
         </div>
       </div>
     </motion.div>

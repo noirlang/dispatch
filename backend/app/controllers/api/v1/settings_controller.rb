@@ -28,24 +28,45 @@ class Api::V1::SettingsController < Api::V1::BaseController
   end
 
   def test_ai
-    provider = params[:provider].presence || current_user.ai_provider
-    current_user.ai_provider = provider if provider.present?
-    current_user.ai_model = params[:ai_model] if params[:ai_model].present?
+    provider = params[:provider].presence || current_user.ai_provider || "gemini"
+    
+    # Resolve API key (from params if being set now, or stored)
+    api_key = params[:api_key].presence
+    if api_key.blank?
+      api_key = case provider
+                when "gemini" then current_user.gemini_key
+                when "claude" then current_user.claude_key
+                when "openai" then current_user.openai_key
+                end
+    end
 
-    return render json: { error: "No AI provider configured" }, status: :bad_request unless current_user.ai_configured?
+    return render json: { error: "Lütfen önce geçerli bir API anahtarı girin" }, status: :bad_request if api_key.blank?
 
-    result = Ai::TestService.call(current_user)
+    # Fetch live models from provider's official API
+    result = Ai::FetchModelsService.call(provider, api_key)
+    
     if result.success?
-      models = Ai::AnalyzeService.models_for(current_user.ai_provider)
+      # Save key and provider to user
+      case provider
+      when "gemini" then current_user.gemini_key = api_key
+      when "claude" then current_user.claude_key = api_key
+      when "openai" then current_user.openai_key = api_key
+      end
+      current_user.ai_provider = provider
+      current_user.ai_model = params[:ai_model] if params[:ai_model].present?
+      current_user.save(validate: false)
+
       render json: {
-        message: "Connection successful",
+        message: "Bağlantı başarılı!",
         provider: current_user.ai_provider,
-        model: current_user.ai_model,
-        models: models
+        model: current_user.ai_model || result.models.first&.dig(:id),
+        models: result.models
       }
     else
       render json: { error: result.error }, status: :unprocessable_entity
     end
+  rescue => e
+    render json: { error: "Yapay zeka servisine bağlanırken hata oluştu: #{e.message}" }, status: :unprocessable_entity
   end
 
   def upload_avatar
@@ -67,7 +88,6 @@ class Api::V1::SettingsController < Api::V1::BaseController
   end
 
   def settings_json
-    provider = current_user.ai_provider || "gemini"
     {
       name: current_user.name,
       email: current_user.email,
@@ -77,12 +97,6 @@ class Api::V1::SettingsController < Api::V1::BaseController
       default_signature: current_user.default_signature,
       ai_provider: current_user.ai_provider,
       ai_model: current_user.ai_model,
-      available_models: Ai::AnalyzeService.models_for(provider),
-      all_models: {
-        gemini: Ai::AnalyzeService.models_for("gemini"),
-        claude: Ai::AnalyzeService.models_for("claude"),
-        openai: Ai::AnalyzeService.models_for("openai")
-      },
       ai_configured: current_user.ai_configured?,
       has_gemini_key: current_user.gemini_key.present?,
       has_claude_key: current_user.claude_key.present?,

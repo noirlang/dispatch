@@ -5,6 +5,7 @@ export type Theme = "system" | "dark" | "light"
 export type Lang = "tr" | "en"
 
 export interface ToastItem {
+  title?: string
   id: string
   from: string
   subject: string
