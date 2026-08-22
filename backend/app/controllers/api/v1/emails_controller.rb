@@ -17,11 +17,12 @@ class Api::V1::EmailsController < Api::V1::BaseController
   def create
     result = Email::SendService.call(current_user, email_params)
     if result.success?
-      render json: result.email, status: :created
+      render json: email_json(result.email), status: :created
     else
       render json: { error: result.error }, status: :unprocessable_entity
     end
   end
+
 
   def destroy
     @email.update!(folder: "trash")
@@ -95,13 +96,14 @@ class Api::V1::EmailsController < Api::V1::BaseController
         r.approved_at = Time.current
       end
     end
-    render json: result.email, status: :created
+    render json: email_json(result.email), status: :created
   end
 
   def forward
     result = Email::SendService.call(current_user, forward_params(@email))
-    render json: result.email, status: :created
+    render json: email_json(result.email), status: :created
   end
+
 
   def approve
     rule = SenderRule.find_or_initialize_by(user: current_user, email_address: @email.from_address)
@@ -248,13 +250,15 @@ class Api::V1::EmailsController < Api::V1::BaseController
     recipient_profile = Email::SenderAvatarService.for(first_recipient)
     rule = current_user.sender_rules.find_by(email_address: email.from_address.downcase.strip)
 
+    plain_body = clean_plain_text(email)
+
     {
       id: email.id,
       from: email.from_address,
       to: email.to_address,
       subject: email.subject,
-      body: email.body_text.presence || ActionController::Base.helpers.strip_tags(email.body_html.to_s),
-      body_text: email.body_text.presence || ActionController::Base.helpers.strip_tags(email.body_html.to_s),
+      body: plain_body,
+      body_text: plain_body,
       body_html: safe_html,
       folder: email.folder,
       is_read: email.is_read,
@@ -274,6 +278,15 @@ class Api::V1::EmailsController < Api::V1::BaseController
       is_recipient_dispatch_user: recipient_profile[:is_dispatch_user] || false
     }
   end
+
+  def clean_plain_text(email)
+    return email.body_text.to_s.strip if email.body_text.present?
+    return "" if email.body_html.blank?
+    doc = Nokogiri::HTML(email.body_html)
+    doc.xpath('//style|//script|//head').remove
+    doc.text.gsub(/\r\n?/, "\n").gsub(/[ \t]+/, " ").strip
+  end
+
 
   def email_list_json(email)
     profile = Email::SenderAvatarService.for(email.from_address)
