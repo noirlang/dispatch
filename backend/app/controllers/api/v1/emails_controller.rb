@@ -1,5 +1,5 @@
 class Api::V1::EmailsController < Api::V1::BaseController
-  before_action :set_email, only: [:show, :destroy, :reply, :forward, :approve, :reject, :block_sender, :ai_summary, :ai_reply]
+  before_action :set_email, only: [:show, :destroy, :reply, :forward, :approve, :reject, :block_sender, :toggle_flag, :toggle_important_sender, :ai_summary, :ai_reply]
 
   def index
     folder = params[:folder] || "inbox"
@@ -24,6 +24,40 @@ class Api::V1::EmailsController < Api::V1::BaseController
   def destroy
     @email.update!(folder: "trash")
     render json: { message: "Moved to trash" }
+  end
+
+  def toggle_flag
+    @email.update!(is_flagged: !@email.is_flagged)
+    render json: { is_flagged: @email.is_flagged }
+  end
+
+  def toggle_important_sender
+    clean_from = @email.from_address.downcase.strip
+    rule = current_user.sender_rules.find_or_initialize_by(email_address: clean_from)
+    new_status = (rule.status == "important") ? "approved" : "important"
+    rule.status = new_status
+    rule.approved_at ||= Time.current
+    rule.save!
+    render json: { is_important: new_status == "important", sender_status: new_status }
+  end
+
+  def contacts
+    sent_addrs = current_user.emails.where(folder: "sent").order(created_at: :desc).pluck(:to_address).map { |a| a.to_s.downcase.strip }.reject(&:blank?)
+    rule_addrs = current_user.sender_rules.where.not(status: "blocked").pluck(:email_address).map { |a| a.to_s.downcase.strip }.reject(&:blank?)
+    all_addrs = (sent_addrs + rule_addrs).uniq.first(25)
+
+    list = all_addrs.map do |addr|
+      profile = Email::SenderAvatarService.for(addr)
+      rule = current_user.sender_rules.find_by(email_address: addr)
+      {
+        email: addr,
+        name: profile[:name].presence || addr.split("@").first.capitalize,
+        avatar_url: profile[:avatar_url],
+        initials: profile[:initials],
+        is_important: rule&.status == "important"
+      }
+    end
+    render json: list
   end
 
   def reply
@@ -129,6 +163,8 @@ class Api::V1::EmailsController < Api::V1::BaseController
                   raw_html
                 end
     profile = Email::SenderAvatarService.for(email.from_address)
+    rule = current_user.sender_rules.find_by(email_address: email.from_address.downcase.strip)
+
     {
       id: email.id,
       from: email.from_address,
@@ -139,6 +175,8 @@ class Api::V1::EmailsController < Api::V1::BaseController
       body_html: safe_html,
       folder: email.folder,
       is_read: email.is_read,
+      is_flagged: email.is_flagged || false,
+      is_important_sender: rule&.status == "important",
       created_at: email.created_at,
       sender_name: profile[:name],
       avatar_url: profile[:avatar_url],
@@ -149,11 +187,15 @@ class Api::V1::EmailsController < Api::V1::BaseController
 
   def email_list_json(email)
     profile = Email::SenderAvatarService.for(email.from_address)
+    rule = current_user.sender_rules.find_by(email_address: email.from_address.downcase.strip)
+
     {
       id:           email.id,
       from:         email.from_address,
       subject:      email.subject,
       is_read:      email.is_read,
+      is_flagged:   email.is_flagged || false,
+      is_important_sender: rule&.status == "important",
       folder:       email.folder,
       created_at:   email.created_at,
       sender_name:  profile[:name],

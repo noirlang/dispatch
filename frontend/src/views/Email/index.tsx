@@ -4,7 +4,7 @@ import { api } from "../../lib/api"
 import { useAuth } from "../../store/auth"
 import { useT, useAppStore } from "../../store/themeAndLocale"
 import { motion, AnimatePresence } from "framer-motion"
-import { Inbox, Send, FileText, Trash2, Clock, Plus, Mail } from "lucide-react"
+import { Inbox, Send, FileText, Trash2, Clock, Plus, Mail, Users } from "lucide-react"
 import EmailList from "./EmailList"
 import EmailReader from "./EmailReader"
 import ComposeView from "./ComposeView"
@@ -38,6 +38,13 @@ export default function EmailView() {
     queryKey: ["emails", "approvals"],
     queryFn: () => api.get<any[]>("/emails?folder=approvals"),
     refetchInterval: 3000,
+  })
+
+  // Recent Sent & Approved Contacts
+  const { data: contacts = [] } = useQuery({
+    queryKey: ["email-contacts"],
+    queryFn: () => api.get<any[]>("/emails/contacts"),
+    refetchInterval: 5000,
   })
 
   function startCompose() {
@@ -145,46 +152,100 @@ export default function EmailView() {
   return (
     <div className="h-full flex bg-[var(--bg-primary)] overflow-hidden">
       {/* Sidebar Folders */}
-      <aside className="w-56 border-r border-[var(--border-color)] bg-[var(--bg-secondary)] flex flex-col p-3 gap-1 shrink-0">
+      <aside className="w-56 border-r border-[var(--border-color)] bg-[var(--bg-secondary)] flex flex-col p-3 gap-1 shrink-0 overflow-hidden">
         <motion.button
           whileTap={{ scale: 0.96 }}
           whileHover={{ scale: 1.02 }}
           onClick={startCompose}
-          className="mb-4 w-full bg-[var(--accent)] text-[var(--accent-invert)] text-xs font-bold py-3 px-4 rounded-xl hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-sm"
+          className="mb-3 w-full bg-[var(--accent)] text-[var(--accent-invert)] text-xs font-bold py-3 px-4 rounded-xl hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-sm shrink-0"
         >
           <Plus size={16} />
           <span>{t("compose")}</span>
         </motion.button>
 
-        {folders.map((f) => {
-          const isActive = folder === f.id
-          return (
-            <motion.button
-              key={f.id}
-              whileTap={{ scale: 0.97 }}
-              whileHover={{ x: 2 }}
-              onClick={() => {
-                setFolder(f.id)
-                setSelectedId(null)
-              }}
-              className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all text-left ${
-                isActive
-                  ? "bg-[var(--bg-card)] text-[var(--text-main)] shadow-xs font-bold border border-[var(--border-color)]"
-                  : "text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-card)]"
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                {f.icon}
-                <span>{f.label}</span>
+        <div className="flex flex-col gap-1 shrink-0">
+          {folders.map((f) => {
+            const isActive = folder === f.id
+            return (
+              <motion.button
+                key={f.id}
+                whileTap={{ scale: 0.97 }}
+                whileHover={{ x: 2 }}
+                onClick={() => {
+                  setFolder(f.id)
+                  setSelectedId(null)
+                }}
+                className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all text-left ${
+                  isActive
+                    ? "bg-[var(--bg-card)] text-[var(--text-main)] shadow-xs font-bold border border-[var(--border-color)]"
+                    : "text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-card)]"
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  {f.icon}
+                  <span>{f.label}</span>
+                </div>
+                {f.badge > 0 && (
+                  <span className="px-2 py-0.5 text-[10px] font-extrabold rounded-full bg-[#f59e0b20] text-[#f59e0b] border border-[#f59e0b40]">
+                    {f.badge}
+                  </span>
+                )}
+              </motion.button>
+            )
+          })}
+        </div>
+
+        {/* Contacts Section (Kişiler) */}
+        <div className="mt-4 pt-3 border-t border-[var(--border-color)] flex flex-col flex-1 min-h-0 overflow-hidden">
+          <div className="px-2 pb-2 flex items-center justify-between text-[10px] font-bold text-[var(--text-muted)] tracking-wider uppercase shrink-0">
+            <span>{lang === "tr" ? "Kişiler" : "Contacts"}</span>
+            <Users size={12} />
+          </div>
+
+          <div className="flex-1 overflow-y-auto space-y-0.5 pr-0.5">
+            {contacts.length === 0 ? (
+              <div className="px-2 py-2 text-[11px] text-[var(--text-dim)] italic">
+                {lang === "tr" ? "Henüz kişi yok" : "No contacts yet"}
               </div>
-              {f.badge > 0 && (
-                <span className="px-2 py-0.5 text-[10px] font-extrabold rounded-full bg-[#f59e0b20] text-[#f59e0b] border border-[#f59e0b40]">
-                  {f.badge}
-                </span>
-              )}
-            </motion.button>
-          )
-        })}
+            ) : (
+              contacts.map((c: any) => (
+                <motion.button
+                  key={c.email}
+                  whileTap={{ scale: 0.97 }}
+                  whileHover={{ x: 2 }}
+                  onClick={() => {
+                    const rawSig = settings?.default_signature ?? user?.default_signature ?? ""
+                    const cleanSig = String(rawSig).replace(/\\n/g, "\n").trim()
+                    const signature = cleanSig ? `\n\n--\n${cleanSig}` : ""
+                    setComposeConfig({
+                      to: c.email,
+                      subject: "",
+                      body: signature,
+                      isReply: false
+                    })
+                    setComposing(true)
+                  }}
+                  className="w-full flex items-center justify-between p-1.5 rounded-xl text-xs hover:bg-[var(--bg-card)] transition-all text-left group"
+                  title={`${c.name} (${c.email}) - Tıkla ve E-posta Yaz`}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-5 h-5 rounded-full bg-[var(--bg-primary)] border border-[var(--border-color)] flex items-center justify-center font-bold text-[9px] text-[var(--text-main)] shrink-0">
+                      {c.initials || c.name[0]?.toUpperCase() || "?"}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[11px] font-medium text-[var(--text-main)] truncate flex items-center gap-1">
+                        <span className="truncate">{c.name}</span>
+                        {c.is_important && <span className="text-[9px] shrink-0" title="Önemli Kişi">⭐</span>}
+                      </div>
+                      <div className="text-[9px] text-[var(--text-dim)] font-mono truncate">{c.email}</div>
+                    </div>
+                  </div>
+                  <Plus size={11} className="text-[var(--text-dim)] opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-1" />
+                </motion.button>
+              ))
+            )}
+          </div>
+        </div>
       </aside>
 
       {/* Email List column */}
@@ -193,15 +254,15 @@ export default function EmailView() {
       </div>
 
       {/* Email Reader View with Fluid Slide/Fade Transitions */}
-      <div className="flex-1 overflow-hidden relative">
+      <main className="flex-1 bg-[var(--bg-primary)] overflow-hidden">
         <AnimatePresence mode="wait">
           {selectedId ? (
             <motion.div
-              key={`reader-${selectedId}`}
-              initial={{ opacity: 0, x: 25, filter: "blur(4px)" }}
-              animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
-              exit={{ opacity: 0, x: -25, filter: "blur(4px)" }}
-              transition={{ type: "spring", damping: 25, stiffness: 280 }}
+              key={selectedId}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
               className="h-full w-full"
             >
               <EmailReader
@@ -213,18 +274,20 @@ export default function EmailView() {
             </motion.div>
           ) : (
             <motion.div
-              key="empty-email"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="h-full flex flex-col items-center justify-center text-[var(--text-dim)] gap-3"
+              key="empty-state"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="h-full flex flex-col items-center justify-center text-[var(--text-dim)] gap-3 select-none"
             >
-              <Mail size={42} className="opacity-30" />
+              <div className="w-12 h-12 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-center text-[var(--text-muted)]">
+                <Mail size={22} />
+              </div>
               <span className="text-xs font-medium">{t("select_email")}</span>
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
+      </main>
     </div>
   )
 }

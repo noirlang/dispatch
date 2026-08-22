@@ -18,7 +18,8 @@ import {
   MessageSquareQuote,
   Camera,
   Upload,
-  BookmarkPlus
+  BookmarkPlus,
+  Star
 } from "lucide-react"
 import DOMPurify from "dompurify"
 import ReactMarkdown from "react-markdown"
@@ -35,6 +36,8 @@ interface EmailDetail {
   body_html?: string
   folder: string
   is_read: boolean
+  is_flagged?: boolean
+  is_important_sender?: boolean
   created_at: string
   sender_name?: string
   avatar_url?: string | null
@@ -108,6 +111,20 @@ export default function EmailReader({ id, folder, onReply, onForward }: Props) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["emails"] })
       qc.invalidateQueries({ queryKey: ["sender-rules"] })
+    }
+  })
+
+  const toggleImportant = useMutation({
+    mutationFn: () => api.post<{ is_important: boolean }>(`/emails/${id}/toggle_important_sender`),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["email", id] })
+      qc.invalidateQueries({ queryKey: ["emails"] })
+      qc.invalidateQueries({ queryKey: ["email-contacts"] })
+      addToast({
+        title: "Kişi Durumu",
+        from: email?.from || "Kişi",
+        subject: data.is_important ? "Önemli kişi olarak işaretlendi ⭐" : "Önemli kişi listesinden çıkarıldı"
+      })
     }
   })
 
@@ -307,6 +324,20 @@ export default function EmailReader({ id, folder, onReply, onForward }: Props) {
           >
             <Forward size={14} />
             <span>{t("forward")}</span>
+          </motion.button>
+
+          {/* Important Sender Toggle Button */}
+          <motion.button
+            whileTap={{ scale: 0.92 }}
+            onClick={() => toggleImportant.mutate()}
+            className={`p-2 rounded-xl transition-colors ${
+              email.is_important_sender
+                ? "text-[#f59e0b] bg-[#f59e0b15] border border-[#f59e0b30]"
+                : "text-[var(--text-dim)] hover:text-[#f59e0b] hover:bg-[var(--bg-card)]"
+            }`}
+            title={email.is_important_sender ? "Önemli Kişiden Çıkar" : "Önemli Kişi Yap ⭐"}
+          >
+            <Star size={15} className={email.is_important_sender ? "fill-[#f59e0b]" : ""} />
           </motion.button>
 
           {/* Block Sender Button */}

@@ -5,13 +5,15 @@ import { useT, useDateLocale } from "../../store/themeAndLocale"
 import { motion, AnimatePresence } from "framer-motion"
 import { formatDistanceToNow } from "date-fns"
 import SenderAvatar from "../../components/ui/SenderAvatar"
-import { Search, GitMerge, CheckSquare, Square } from "lucide-react"
+import { Search, GitMerge, CheckSquare, Square, Flag, Star } from "lucide-react"
 
 interface Email {
   id: number
   from: string
   subject: string
   is_read: boolean
+  is_flagged?: boolean
+  is_important_sender?: boolean
   created_at: string
   sender_name?: string
   avatar_url?: string | null
@@ -37,6 +39,13 @@ export default function EmailList({ folder, selectedId, onSelect }: Props) {
     queryKey: ["emails", folder],
     queryFn: () => api.get<Email[]>(`/emails?folder=${folder}`),
     refetchInterval: 3000,
+  })
+
+  const toggleFlag = useMutation({
+    mutationFn: (emailId: number) => api.post(`/emails/${emailId}/toggle_flag`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["emails"] })
+    }
   })
 
   const mergeThreads = useMutation({
@@ -117,6 +126,7 @@ export default function EmailList({ folder, selectedId, onSelect }: Props) {
           {filtered.map((email, idx) => {
             const isChecked = selectedIds.includes(email.id)
             const isSelected = selectedId === email.id
+            const showWhiteBar = isSelected || email.is_flagged
 
             return (
               <motion.div
@@ -125,14 +135,19 @@ export default function EmailList({ folder, selectedId, onSelect }: Props) {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.15, delay: idx * 0.02 }}
-                whileHover={{ x: 3 }}
+                whileHover={{ x: 2 }}
                 onClick={() => onSelect(email.id)}
-                className={`flex items-start gap-3 p-3.5 border-b border-[var(--border-color)] cursor-pointer transition-all select-none ${
+                className={`flex items-start gap-3 p-3.5 border-b border-[var(--border-color)] cursor-pointer transition-all select-none group relative ${
                   isSelected
-                    ? "bg-[var(--bg-secondary)] border-l-4 border-l-[var(--accent)]"
+                    ? "bg-[var(--bg-secondary)]"
                     : "hover:bg-[var(--bg-secondary)]"
                 }`}
               >
+                {/* Crisp Left White Bar Indicator (Look at photo 2 & 3) */}
+                {showWhiteBar && (
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-white" />
+                )}
+
                 {multiSelectMode && (
                   <button
                     type="button"
@@ -161,15 +176,43 @@ export default function EmailList({ folder, selectedId, onSelect }: Props) {
                 {/* Content */}
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-start gap-1">
-                    <span className={`text-xs truncate ${email.is_read ? "text-[var(--text-muted)] font-normal" : "text-[var(--text-main)] font-bold"}`}>
-                      {email.sender_name || email.from}
+                    <span className={`text-xs truncate flex items-center gap-1 ${email.is_read ? "text-[var(--text-muted)] font-normal" : "text-[var(--text-main)] font-bold"}`}>
+                      <span>{email.sender_name || email.from}</span>
+                      {email.is_important_sender && (
+                        <span title="Önemli Kişi" className="shrink-0 flex items-center">
+                          <Star size={11} className="fill-[#f59e0b] text-[#f59e0b]" />
+                        </span>
+                      )}
                     </span>
                     <span className="text-[var(--text-dim)] text-[10px] shrink-0 font-mono">
                       {formatDistanceToNow(new Date(email.created_at), { addSuffix: true, locale: dateLocale })}
                     </span>
                   </div>
-                  <div className={`text-xs mt-1 truncate ${email.is_read ? "text-[var(--text-dim)]" : "text-[var(--text-main)] font-medium"}`}>
-                    {email.subject || "(No Subject)"}
+
+                  <div className="flex items-center justify-between gap-1 mt-1">
+                    <span className={`text-xs truncate ${email.is_read ? "text-[var(--text-dim)]" : "text-[var(--text-main)] font-medium"}`}>
+                      {email.subject || "(No Subject)"}
+                    </span>
+
+                    {/* Flag Icon (Below timestamp, turns yellow on click) */}
+                    <button
+                      type="button"
+                      onClick={e => {
+                        e.stopPropagation()
+                        toggleFlag.mutate(email.id)
+                      }}
+                      className="p-0.5 text-[var(--text-dim)] hover:text-[#f59e0b] transition-colors shrink-0"
+                      title={email.is_flagged ? "Bayrağı Kaldır" : "Bayrak Ekle"}
+                    >
+                      <Flag
+                        size={12}
+                        className={
+                          email.is_flagged
+                            ? "fill-[#f59e0b] text-[#f59e0b]"
+                            : "text-[var(--text-dim)] hover:text-[#f59e0b] opacity-0 group-hover:opacity-100 transition-opacity"
+                        }
+                      />
+                    </button>
                   </div>
                 </div>
 

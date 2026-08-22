@@ -25,11 +25,14 @@ Rails.application.routes.draw do
           post :approve
           post :reject
           post :block_sender
+          post :toggle_flag
+          post :toggle_important_sender
           post :ai_summary
           post :ai_reply
         end
         collection do
           post :merge_threads
+          get  :contacts
         end
       end
 
