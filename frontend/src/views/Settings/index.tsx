@@ -165,13 +165,16 @@ function ProfileTab({ user, onUpdate }: { user: any; onUpdate: () => void }) {
   const qc = useQueryClient()
 
   useEffect(() => {
+    if (user?.name !== undefined && user?.name !== null) {
+      setName(user.name)
+    }
     if (user?.default_signature !== undefined) {
       setSignature(user.default_signature || "")
     }
     if (user?.bio !== undefined) {
       setBio(user.bio || "")
     }
-  }, [user?.default_signature, user?.bio])
+  }, [user?.name, user?.default_signature, user?.bio])
 
   const updateProfile = useMutation({
     mutationFn: () => {
@@ -981,23 +984,6 @@ function SpeakeasyTab({ copyText, copiedKey }: { copyText: (v: string, k: string
 /* =========================================================================
    5. AI TAB
    ========================================================================= */
-const DEFAULT_MODELS: Record<string, Array<{ id: string; name: string }>> = {
-  gemini: [
-    { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash (Önerilen & Çok Hızlı)" },
-    { id: "gemini-1.5-flash", name: "Gemini 1.5 Flash" },
-    { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro (Gelişmiş)" },
-  ],
-  openai: [
-    { id: "gpt-4o-mini", name: "GPT-4o Mini (Hızlı & Ekonomik)" },
-    { id: "gpt-4o", name: "GPT-4o (Gelişmiş)" },
-    { id: "o3-mini", name: "o3-mini (Akıl Yürütme)" },
-  ],
-  claude: [
-    { id: "claude-3-5-sonnet-latest", name: "Claude 3.5 Sonnet (En Yetenekli)" },
-    { id: "claude-3-5-haiku-latest", name: "Claude 3.5 Haiku (Ultra Hızlı)" },
-  ]
-}
-
 function AiTab() {
   const t = useT()
   const { data: settings } = useQuery<any>({
@@ -1028,18 +1014,10 @@ function AiTab() {
     }
   }, [settings?.ai_model, settings?.available_models])
 
-  // Build model list from live fetched models or backend available_models, with DEFAULT_MODELS fallback
-  const rawList = fetchedModels.length > 0
+  // Build model list strictly from live fetched models or backend saved available_models
+  const modelsList = fetchedModels.length > 0
     ? fetchedModels
-    : (settings?.available_models && Array.isArray(settings.available_models) && settings.available_models.length > 0
-        ? settings.available_models
-        : (DEFAULT_MODELS[activeProvider] || []))
-
-  const modelsList = [...rawList]
-  const currentModelId = selectedModel || settings?.ai_model || (DEFAULT_MODELS[activeProvider]?.[0]?.id ?? "")
-  if (currentModelId && !modelsList.some((m: any) => m.id === currentModelId)) {
-    modelsList.unshift({ id: currentModelId, name: currentModelId })
-  }
+    : (settings?.available_models && Array.isArray(settings.available_models) && settings.ai_provider === activeProvider ? settings.available_models : [])
 
   async function handleModelChange(newModel: string, provOverride?: string) {
     if (!newModel) return
@@ -1072,9 +1050,13 @@ function AiTab() {
         setTestResult({ success: true, msg: res.message || "Bağlantı başarılı!" })
         if (res.models && Array.isArray(res.models)) {
           setFetchedModels(res.models)
-          const chosen = selectedModel || settings?.ai_model || res.model || res.models[0]?.id
+          const chosen = selectedModel || res.model || res.models[0]?.id
           if (chosen) {
             setSelectedModel(chosen)
+            await api.patch("/settings", {
+              ai_provider: activeProvider,
+              ai_model: chosen
+            })
           }
         }
       } else {
@@ -1099,7 +1081,7 @@ function AiTab() {
     mutationFn: () => {
       const payload: any = {
         ai_provider: activeProvider,
-        ai_model: selectedModel || settings?.ai_model || DEFAULT_MODELS[activeProvider]?.[0]?.id,
+        ai_model: selectedModel || settings?.ai_model,
       }
       if (apiKeyInput.trim()) {
         if (activeProvider === "gemini") payload.gemini_key = apiKeyInput.trim()
@@ -1142,9 +1124,6 @@ function AiTab() {
             setSelectedProvider("gemini")
             setFetchedModels([])
             setTestResult(null)
-            const defModel = DEFAULT_MODELS["gemini"]?.[0]?.id || "gemini-2.0-flash"
-            setSelectedModel(defModel)
-            handleModelChange(defModel, "gemini")
           }}
           className={`p-4 rounded-2xl border flex flex-col items-center gap-2.5 transition-all ${
             activeProvider === "gemini"
@@ -1171,9 +1150,6 @@ function AiTab() {
             setSelectedProvider("claude")
             setFetchedModels([])
             setTestResult(null)
-            const defModel = DEFAULT_MODELS["claude"]?.[0]?.id || "claude-3-5-sonnet-latest"
-            setSelectedModel(defModel)
-            handleModelChange(defModel, "claude")
           }}
           className={`p-4 rounded-2xl border flex flex-col items-center gap-2.5 transition-all ${
             activeProvider === "claude"
@@ -1200,9 +1176,6 @@ function AiTab() {
             setSelectedProvider("openai")
             setFetchedModels([])
             setTestResult(null)
-            const defModel = DEFAULT_MODELS["openai"]?.[0]?.id || "gpt-4o-mini"
-            setSelectedModel(defModel)
-            handleModelChange(defModel, "openai")
           }}
           className={`p-4 rounded-2xl border flex flex-col items-center gap-2.5 transition-all ${
             activeProvider === "openai"
