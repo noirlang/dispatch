@@ -1,9 +1,9 @@
 import { useState } from "react"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "../../lib/api"
 import { useT } from "../../store/themeAndLocale"
 import ReactMarkdown from "react-markdown"
-import { Send, X, Eye, Edit3 } from "lucide-react"
+import { Send, X, Eye, Edit3, Users } from "lucide-react"
 
 interface Props {
   initialTo?: string
@@ -31,6 +31,11 @@ export default function ComposeView({
   const [subject, setSubject] = useState(initialSubject)
   const [body, setBody] = useState(initialBody)
   const [mode, setMode] = useState<"edit" | "preview">("edit")
+
+  const { data: groups = [] } = useQuery({
+    queryKey: ["contact-groups"],
+    queryFn: () => api.get<any[]>("/contact_groups"),
+  })
 
   const sendEmail = useMutation({
     mutationFn: async () => {
@@ -115,12 +120,12 @@ export default function ComposeView({
         <div className="flex items-center gap-3">
           <span className="text-xs font-medium text-[var(--text-muted)] w-14 shrink-0">{t("to")}:</span>
           <input
-            type="email"
+            type="text"
             value={to}
             onChange={(e) => setTo(e.target.value)}
-            placeholder="recipient@example.com"
+            placeholder="kullanici@dispatch.local veya @grup_adi"
             disabled={isReply}
-            className="flex-1 bg-transparent text-[var(--text-main)] text-sm border-b border-[var(--border-color)] pb-1.5 focus:outline-none focus:border-[var(--text-main)] transition-colors"
+            className="flex-1 bg-transparent text-[var(--text-main)] text-sm border-b border-[var(--border-color)] pb-1.5 focus:outline-none focus:border-[var(--text-main)] transition-colors font-mono"
           />
           {!isReply && (
             <button
@@ -132,6 +137,31 @@ export default function ComposeView({
             </button>
           )}
         </div>
+
+        {/* Quick Group Selector Chips */}
+        {groups.length > 0 && !isReply && (
+          <div className="flex items-center gap-1.5 pl-17 overflow-x-auto py-0.5">
+            <span className="text-[10px] text-[var(--text-dim)] font-semibold flex items-center gap-1">
+              <Users size={10} />
+              <span>Gruplar:</span>
+            </span>
+            {groups.map((g: any) => (
+              <button
+                key={g.id}
+                type="button"
+                onClick={() => {
+                  if (to.includes(g.alias)) return
+                  setTo(prev => prev ? `${prev}, ${g.alias}` : g.alias)
+                }}
+                className="px-2 py-0.5 rounded-md bg-[#3b82f615] text-[#3b82f6] border border-[#3b82f630] font-mono text-[10px] font-bold hover:bg-[#3b82f625] transition-colors shrink-0 flex items-center gap-1"
+                title={`${g.description || g.alias} (${g.member_count} üye)`}
+              >
+                <span>{g.alias}</span>
+                <span className="text-[9px] opacity-60">({g.member_count})</span>
+              </button>
+            ))}
+          </div>
+        )}
 
         {showCc && !isReply && (
           <div className="flex items-center gap-3">

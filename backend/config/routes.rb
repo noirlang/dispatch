@@ -39,8 +39,9 @@ Rails.application.routes.draw do
       # Image proxy (spy pixel blocker)
       get "image_proxy", to: "image_proxy#show"
 
-      # Sender rules
+      # Sender rules & Contact groups
       resources :sender_rules, only: [:index, :create, :update, :destroy]
+      resources :contact_groups
 
       # Speakeasy codes
       resources :speakeasy_codes, only: [:index, :create, :destroy]
@@ -76,6 +77,10 @@ Rails.application.routes.draw do
       patch "settings",              to: "settings#update"
       post "settings/ai/test",       to: "settings#test_ai"
       post "settings/upload_avatar", to: "settings#upload_avatar"
+
+      # Updates (noirlang/dispatch safe updater)
+      get  "updates/check",          to: "updates#check"
+      post "updates/apply",          to: "updates#apply"
     end
   end
 

@@ -3,8 +3,26 @@ class Email::SendService
 
   def self.call(user, params)
     raw_body = params[:body].to_s
-    to_email = params[:to].to_s.downcase.strip
+    raw_to = params[:to].to_s
     html_body = markdown_to_html(raw_body)
+
+    # Expand any group aliases like @ekip or comma-separated recipients
+    recipient_addresses = []
+    raw_to.split(",").map(&:strip).reject(&:blank?).each do |target|
+      if target.start_with?("@")
+        group_name = target.delete_prefix("@").downcase
+        group = user.contact_groups.find_by("lower(name) = ?", group_name)
+        if group && group.member_list.any?
+          recipient_addresses.concat(group.member_list)
+        else
+          recipient_addresses << target
+        end
+      else
+        recipient_addresses << target
+      end
+    end
+    recipient_addresses = recipient_addresses.map { |a| a.downcase.strip }.uniq
+    return Result.new(false, nil, "Alıcı adresi bulunamadı") if recipient_addresses.empty?
 
     styled_html = <<~HTML
       <!DOCTYPE html>
@@ -27,42 +45,46 @@ class Email::SendService
       </html>
     HTML
 
-    # Auto-approve this recipient for the sender (since user initiated contact)
-    user.sender_rules.find_or_create_by(email_address: to_email) do |r|
-      r.status = "approved"
-      r.approved_at = Time.current
+    # Auto-approve all destination recipients for the sender
+    recipient_addresses.each do |to_addr|
+      user.sender_rules.find_or_create_by(email_address: to_addr) do |r|
+        r.status = "approved"
+        r.approved_at = Time.current
+      end
     end
 
-    # Try sending via SMTP
-    begin
-      mail = Mail.new do
-        from    user.email
-        to      params[:to]
-        cc      params[:cc] if params[:cc].present?
-        subject params[:subject]
+    # Try sending via SMTP to all recipients
+    recipient_addresses.each do |to_addr|
+      begin
+        mail = Mail.new do
+          from    user.email
+          to      to_addr
+          cc      params[:cc] if params[:cc].present?
+          subject params[:subject]
 
-        text_part do
-          content_type 'text/plain; charset=UTF-8'
-          body raw_body
+          text_part do
+            content_type 'text/plain; charset=UTF-8'
+            body raw_body
+          end
+
+          html_part do
+            content_type 'text/html; charset=UTF-8'
+            body styled_html
+          end
         end
 
-        html_part do
-          content_type 'text/html; charset=UTF-8'
-          body styled_html
-        end
+        mail.delivery_method :smtp, {
+          address: ENV.fetch("MAIL_HOST", "127.0.0.1"),
+          port: ENV.fetch("MAIL_PORT", 1025).to_i,
+          user_name: user.email,
+          password: ENV["MAIL_PASSWORD"],
+          authentication: :plain,
+          enable_starttls_auto: false
+        }
+        mail.deliver! rescue nil
+      rescue => e
+        Rails.logger.warn "SMTP delivery warning: #{e.message}"
       end
-
-      mail.delivery_method :smtp, {
-        address: ENV.fetch("MAIL_HOST", "127.0.0.1"),
-        port: ENV.fetch("MAIL_PORT", 1025).to_i,
-        user_name: user.email,
-        password: ENV["MAIL_PASSWORD"],
-        authentication: :plain,
-        enable_starttls_auto: false
-      }
-      mail.deliver! rescue nil
-    rescue => e
-      Rails.logger.warn "SMTP delivery warning (stored locally): #{e.message}"
     end
 
     # Save to sender's Sent folder
@@ -77,12 +99,14 @@ class Email::SendService
       is_read: true
     )
 
-    # If recipient is a local user on this server, deliver to their inbox
-    recipient_user = User.find_by(email: to_email)
-    if recipient_user
+    # Deliver to local recipients if they exist on this system
+    recipient_addresses.each do |to_addr|
+      recipient_user = User.find_by(email: to_addr)
+      next unless recipient_user
+
       full_content = "#{params[:subject]} #{raw_body}"
       
-      # 1. Check Speakeasy Passcode (Highest Priority Bypass)
+      # 1. Check Speakeasy Passcode
       speakeasy_matched = recipient_user.speakeasy_codes.active.any? do |sc|
         if full_content.include?(sc.code) && sc.valid_code?
           sc.update!(used: true) if sc.single_use
@@ -90,9 +114,8 @@ class Email::SendService
         end
       end
 
-      # 2. Check if recipient previously sent an email to this user (Mutual Contact Bypass)
+      # 2. Check if recipient previously sent to this user
       has_previous_sent = recipient_user.emails.where(folder: "sent", to_address: user.email.downcase.strip).exists?
-
       rule = recipient_user.sender_rules.find_by(email_address: user.email.downcase.strip)
       
       recipient_folder = if speakeasy_matched || has_previous_sent || rule&.status == "approved" || rule&.status == "important"
@@ -105,7 +128,7 @@ class Email::SendService
 
       recipient_email = recipient_user.emails.create!(
         from_address: user.email,
-        to_address: params[:to],
+        to_address: to_addr,
         cc: params[:cc],
         subject: params[:subject],
         body_text: raw_body,
@@ -114,7 +137,7 @@ class Email::SendService
         is_read: false
       )
 
-      # Trigger AI analysis for Pano & Calendar extraction immediately!
+      # Trigger AI analysis for recipient
       if recipient_user.ai_configured?
         Thread.new do
           Rails.application.executor.wrap do

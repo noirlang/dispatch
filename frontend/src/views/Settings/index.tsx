@@ -26,16 +26,20 @@ import {
   Search,
   CheckCircle2,
   Camera,
-  Upload,
   LogOut,
-  Lock
+  Lock,
+  DownloadCloud,
+  ShieldCheck,
+  ExternalLink,
+  UsersRound
 } from "lucide-react"
 
-type Tab = "profile" | "appearance" | "contacts" | "speakeasy" | "ai" | "rss" | "security"
+type Tab = "profile" | "appearance" | "contacts" | "speakeasy" | "ai" | "rss" | "security" | "updates"
 
 export default function SettingsView() {
   const [tab, setTab] = useState<Tab>("profile")
   const { user, logout, fetchMe } = useAuth()
+  const { lang } = useAppStore()
   const t = useT()
 
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
@@ -53,13 +57,14 @@ export default function SettingsView() {
           <div className="px-3 py-2 text-[11px] font-bold text-[var(--text-dim)] uppercase tracking-wider">
             {t("settings")}
           </div>
-          <TabBtn id="profile"    icon={<User size={15} />}    label={t("profile")}          active={tab} setTab={setTab} />
-          <TabBtn id="appearance" icon={<Palette size={15} />} label={t("appearance")}       active={tab} setTab={setTab} />
-          <TabBtn id="contacts"   icon={<Users size={15} />}   label={t("contact_rules")}    active={tab} setTab={setTab} />
-          <TabBtn id="speakeasy"  icon={<Key size={15} />}     label={t("speakeasy_codes")}  active={tab} setTab={setTab} />
-          <TabBtn id="ai"         icon={<Bot size={15} />}     label={t("ai_settings")}      active={tab} setTab={setTab} />
-          <TabBtn id="rss"        icon={<Rss size={15} />}     label={t("rss_settings")}     active={tab} setTab={setTab} />
-          <TabBtn id="security"   icon={<Shield size={15} />}  label={t("privacy_security")} active={tab} setTab={setTab} />
+          <TabBtn id="profile"    icon={<User size={15} />}          label={t("profile")}          active={tab} setTab={setTab} />
+          <TabBtn id="appearance" icon={<Palette size={15} />}       label={t("appearance")}       active={tab} setTab={setTab} />
+          <TabBtn id="contacts"   icon={<Users size={15} />}         label={t("contact_rules")}    active={tab} setTab={setTab} />
+          <TabBtn id="speakeasy"  icon={<Key size={15} />}           label={t("speakeasy_codes")}  active={tab} setTab={setTab} />
+          <TabBtn id="ai"         icon={<Bot size={15} />}           label={t("ai_settings")}      active={tab} setTab={setTab} />
+          <TabBtn id="rss"        icon={<Rss size={15} />}           label={t("rss_settings")}     active={tab} setTab={setTab} />
+          <TabBtn id="security"   icon={<Shield size={15} />}        label={t("privacy_security")} active={tab} setTab={setTab} />
+          <TabBtn id="updates"    icon={<DownloadCloud size={15} />} label={lang === "tr" ? "Sistem Güncelleme" : "System Updates"} active={tab} setTab={setTab} />
         </div>
 
         {/* Dock-styled Red Danger Sign Out Button */}
@@ -84,113 +89,119 @@ export default function SettingsView() {
           {tab === "ai"         && <AiTab key="ai" />}
           {tab === "rss"        && <RssTab key="rss" />}
           {tab === "security"   && <SecurityTab key="security" />}
+          {tab === "updates"    && <UpdatesTab key="updates" />}
         </AnimatePresence>
       </main>
     </div>
   )
 }
 
-function TabBtn({ id, icon, label, active, setTab }: {
-  id: Tab; icon: React.ReactNode; label: string; active: Tab; setTab: (t: Tab) => void
+function TabBtn({
+  id,
+  icon,
+  label,
+  active,
+  setTab
+}: {
+  id: Tab
+  icon: React.ReactNode
+  label: string
+  active: Tab
+  setTab: (t: Tab) => void
 }) {
   const isActive = active === id
   return (
     <motion.button
       whileTap={{ scale: 0.97 }}
+      whileHover={{ x: 2 }}
       onClick={() => setTab(id)}
       className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all text-left ${
         isActive
-          ? "bg-[var(--bg-card)] text-[var(--text-main)] shadow-sm font-semibold border border-[var(--border-color)]"
+          ? "bg-[var(--bg-card)] text-[var(--text-main)] shadow-xs font-bold border border-[var(--border-color)]"
           : "text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-card)]"
       }`}
     >
-      {icon}
+      <span className={isActive ? "text-[var(--text-main)]" : "text-[var(--text-dim)]"}>
+        {icon}
+      </span>
       <span>{label}</span>
     </motion.button>
   )
 }
 
 /* =========================================================================
-   1. PROFILE TAB (SYNCED USER DATA + AVATAR + PASSWORD CHANGE + SIGNATURE PREVIEW)
+   1. PROFILE TAB
    ========================================================================= */
 function ProfileTab({ user, onUpdate }: { user: any; onUpdate: () => void }) {
   const t = useT()
   const [name, setName] = useState(user?.name || "")
   const [signature, setSignature] = useState(user?.default_signature || "")
-  const [previewSig, setPreviewSig] = useState(false)
-  const [saved, setSaved] = useState(false)
-  const [uploading, setUploading] = useState(false)
-
-  // Password fields
+  const [sigMode, setSigMode] = useState<"edit" | "preview">("edit")
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [pwError, setPwError] = useState("")
   const [pwSuccess, setPwSuccess] = useState("")
-
-  useEffect(() => {
-    if (user) {
-      setName(user.name || "")
-      setSignature(user.default_signature || "")
-    }
-  }, [user])
-
+  const [saved, setSaved] = useState(false)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const qc = useQueryClient()
 
+  useEffect(() => {
+    if (user?.default_signature !== undefined) {
+      setSignature(user.default_signature || "")
+    }
+  }, [user?.default_signature])
+
   const updateProfile = useMutation({
-    mutationFn: async () => {
+    mutationFn: () => {
       setPwError("")
       setPwSuccess("")
-      const payload: any = { name, default_signature: signature }
-      if (newPassword) {
-        if (newPassword !== confirmPassword) {
-          throw new Error("New passwords do not match")
-        }
-        payload.current_password = currentPassword
-        payload.password = newPassword
-        payload.password_confirmation = confirmPassword
+      if (newPassword && newPassword !== confirmPassword) {
+        throw new Error("Yeni şifreler eşleşmiyor!")
       }
-      return api.patch("/settings", payload)
+      return api.patch("/settings", {
+        name,
+        default_signature: signature,
+        current_password: currentPassword.trim() ? currentPassword.trim() : undefined,
+        new_password: newPassword.trim() ? newPassword.trim() : undefined,
+      })
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["settings"] })
       onUpdate()
-      setSaved(true)
+      qc.invalidateQueries({ queryKey: ["settings"] })
       if (newPassword) {
-        setPwSuccess("Password updated successfully ✓")
+        setPwSuccess("Şifreniz başarıyla değiştirildi.")
         setCurrentPassword("")
         setNewPassword("")
         setConfirmPassword("")
       }
-      setTimeout(() => setSaved(false), 2500)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
     },
     onError: (err: any) => {
-      setPwError(err.message || "Failed to update profile")
+      setPwError(err.message || "Profil güncellenemedi")
     }
   })
 
-  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-
-    const formData = new FormData()
-    formData.append("file", file)
-
-    setUploading(true)
+    setUploadingAvatar(true)
     try {
+      const formData = new FormData()
+      formData.append("avatar", file)
       const token = localStorage.getItem("dispatch_token")
-      const res = await fetch("http://localhost:3000/api/v1/settings/upload_avatar", {
+      await fetch("http://localhost:3000/api/v1/settings/upload_avatar", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData
       })
-      if (res.ok) {
-        onUpdate()
-      }
+      onUpdate()
+      qc.invalidateQueries({ queryKey: ["settings"] })
     } catch {
-      alert("Failed to upload avatar.")
+      alert("Avatar yüklenemedi.")
     } finally {
-      setUploading(false)
+      setUploadingAvatar(false)
     }
   }
 
@@ -199,103 +210,83 @@ function ProfileTab({ user, onUpdate }: { user: any; onUpdate: () => void }) {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      className="flex flex-col gap-8 max-w-xl"
+      className="flex flex-col gap-6 max-w-xl"
     >
       <div>
         <h2 className="text-xl font-bold text-[var(--text-main)]">{t("profile")}</h2>
-        <p className="text-xs text-[var(--text-muted)] mt-1">Manage your identity, profile picture, signature, and security</p>
+        <p className="text-xs text-[var(--text-muted)] mt-1">Kişisel profil ve e-posta tercihlerinizi yönetin</p>
       </div>
 
-      {/* Avatar Section */}
-      <div className="flex items-center gap-5 p-5 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] shadow-xs">
-        <div className="relative group">
-          <div className="w-16 h-16 rounded-full bg-[var(--accent)] text-[var(--accent-invert)] flex items-center justify-center font-bold text-xl overflow-hidden shadow-md">
+      <div className="flex flex-col gap-5">
+        {/* Avatar Upload */}
+        <div className="flex items-center gap-4">
+          <div className="relative group cursor-pointer w-16 h-16 rounded-full overflow-hidden border border-[var(--border-color)] bg-[var(--bg-secondary)] flex items-center justify-center text-xl font-bold">
             {user?.avatar_path ? (
-              <img src={user.avatar_path} alt={user.name} className="w-full h-full object-cover" />
+              <img src={user.avatar_path} alt="Avatar" className="w-full h-full object-cover" />
             ) : (
-              <span>{name?.[0]?.toUpperCase() || user?.name?.[0]?.toUpperCase() || "U"}</span>
+              <span>{user?.name?.[0]?.toUpperCase() || "U"}</span>
             )}
+            <label className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-[10px] text-white cursor-pointer transition-opacity">
+              <Camera size={16} />
+              <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
+            </label>
           </div>
-          <label className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
-            <Camera size={18} />
-            <input type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
-          </label>
+          <div>
+            <div className="text-xs font-bold text-[var(--text-main)]">{user?.name}</div>
+            <div className="text-[11px] text-[var(--text-dim)] font-mono">{user?.email}</div>
+            <label className="mt-1 text-[11px] text-[var(--text-muted)] hover:text-[var(--text-main)] cursor-pointer underline inline-block">
+              {uploadingAvatar ? "Yükleniyor..." : "Profil Fotoğrafı Yükle"}
+              <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
+            </label>
+          </div>
         </div>
 
-        <div className="flex flex-col gap-1">
-          <span className="text-sm font-bold text-[var(--text-main)]">{name || user?.name || "User"}</span>
-          <span className="text-xs font-mono text-[var(--text-muted)]">{user?.email || "user@dispatch.local"}</span>
-          <label className="mt-1 inline-flex items-center gap-1.5 text-xs text-[var(--text-main)] underline font-medium cursor-pointer hover:opacity-80">
-            <Upload size={12} />
-            <span>{uploading ? "Uploading..." : "Change Profile Photo"}</span>
-            <input type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
-          </label>
-        </div>
-      </div>
-
-      {/* Basic Info */}
-      <div className="flex flex-col gap-4">
         <div>
           <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">{t("full_name")}</label>
           <input
             type="text"
             value={name}
             onChange={e => setName(e.target.value)}
-            className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-main)] text-sm px-4 py-2.5 rounded-xl focus:outline-none focus:border-[var(--text-main)] font-medium"
+            className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-4 py-2.5 rounded-xl focus:outline-none"
           />
         </div>
 
+        {/* Signature Box */}
         <div>
-          <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">{t("email_address")}</label>
-          <input
-            type="text"
-            disabled
-            value={user?.email || "user@dispatch.local"}
-            className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-dim)] text-sm px-4 py-2.5 rounded-xl cursor-not-allowed font-mono opacity-70"
-          />
-        </div>
-
-        {/* Signature with Segmented Switch */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-1.5">
             <label className="text-xs font-semibold text-[var(--text-muted)]">{t("signature")}</label>
-            
-            {/* Segmented Button */}
-            <div className="flex p-0.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)]">
+            <div className="flex items-center gap-1 p-0.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)]">
               <button
                 type="button"
-                onClick={() => setPreviewSig(false)}
-                className={`px-3 py-1 rounded-md text-[11px] font-semibold transition-all ${
-                  !previewSig
-                    ? "bg-[var(--bg-card)] text-[var(--text-main)] shadow-xs border border-[var(--border-color)]"
-                    : "text-[var(--text-dim)] hover:text-[var(--text-main)]"
+                onClick={() => setSigMode("edit")}
+                className={`px-2.5 py-1 text-[10px] font-semibold rounded-md transition-colors ${
+                  sigMode === "edit" ? "bg-[var(--bg-card)] text-[var(--text-main)] shadow-xs" : "text-[var(--text-dim)] hover:text-[var(--text-main)]"
                 }`}
               >
-                {t("edit")}
+                Düzenle
               </button>
               <button
                 type="button"
-                onClick={() => setPreviewSig(true)}
-                className={`px-3 py-1 rounded-md text-[11px] font-semibold transition-all ${
-                  previewSig
-                    ? "bg-[var(--bg-card)] text-[var(--text-main)] shadow-xs border border-[var(--border-color)]"
-                    : "text-[var(--text-dim)] hover:text-[var(--text-main)]"
+                onClick={() => setSigMode("preview")}
+                className={`px-2.5 py-1 text-[10px] font-semibold rounded-md transition-colors ${
+                  sigMode === "preview" ? "bg-[var(--bg-card)] text-[var(--text-main)] shadow-xs" : "text-[var(--text-dim)] hover:text-[var(--text-main)]"
                 }`}
               >
-                {t("preview")}
+                Önizleme
               </button>
             </div>
           </div>
 
-          {!previewSig ? (
+          {sigMode === "edit" ? (
             <textarea
+              rows={4}
               value={signature}
               onChange={e => setSignature(e.target.value)}
-              placeholder="e.g. Saygılarımla,&#10;**Ahmet Yılmaz**&#10;Ürün Yöneticisi"
-              className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs p-4 rounded-xl h-28 resize-none focus:outline-none focus:border-[var(--text-main)] font-mono leading-relaxed"
+              placeholder="örn: Saygılarımla,\n**Ahmet Yılmaz**"
+              className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs p-3 rounded-xl focus:outline-none font-mono"
             />
           ) : (
-            <div className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] p-4 rounded-xl min-h-[112px] text-xs text-[var(--text-main)] flex flex-col justify-center">
+            <div className="w-full min-h-[96px] bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs p-3.5 rounded-xl">
               {signature.trim() ? (
                 <div className="prose prose-neutral dark:prose-invert max-w-none text-xs leading-relaxed whitespace-pre-wrap font-sans">
                   <ReactMarkdown>{signature}</ReactMarkdown>
@@ -470,19 +461,30 @@ function AppearanceTab() {
 }
 
 /* =========================================================================
-   3. CONTACT RULES TAB (BLOCKED & IMPORTANT FILTER TABS)
+   3. CONTACTS & GROUPS TAB
    ========================================================================= */
 function ContactsTab() {
   const t = useT()
   const qc = useQueryClient()
+  const [subTab, setSubTab] = useState<"rules" | "groups">("rules")
   const [filterType, setFilterType] = useState<"all" | "blocked" | "important">("all")
   const [search, setSearch] = useState("")
   const [newEmail, setNewEmail] = useState("")
   const [newStatus, setNewStatus] = useState<"approved" | "blocked" | "important">("blocked")
 
+  // Group State
+  const [groupName, setGroupName] = useState("")
+  const [groupDesc, setGroupDesc] = useState("")
+  const [groupMembers, setGroupMembers] = useState("")
+
   const { data: rules = [] } = useQuery({
     queryKey: ["sender-rules"],
     queryFn: () => api.get<any[]>("/sender_rules"),
+  })
+
+  const { data: groups = [] } = useQuery({
+    queryKey: ["contact-groups"],
+    queryFn: () => api.get<any[]>("/contact_groups"),
   })
 
   const addRule = useMutation({
@@ -504,6 +506,29 @@ function ContactsTab() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["sender-rules"] })
   })
 
+  const addGroup = useMutation({
+    mutationFn: () => {
+      const membersArr = groupMembers.split(/[,\n]/).map(m => m.trim().toLowerCase()).filter(Boolean)
+      return api.post("/contact_groups", {
+        name: groupName,
+        description: groupDesc,
+        members: membersArr
+      })
+    },
+    onSuccess: () => {
+      setGroupName("")
+      setGroupDesc("")
+      setGroupMembers("")
+      qc.invalidateQueries({ queryKey: ["contact-groups"] })
+    },
+    onError: (err: any) => alert(err.message || "Grup eklenemedi.")
+  })
+
+  const deleteGroup = useMutation({
+    mutationFn: (id: number) => api.delete(`/contact_groups/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["contact-groups"] })
+  })
+
   const filteredRules = rules
     .filter(r => filterType === "all" ? true : r.status === filterType)
     .filter(r =>
@@ -516,111 +541,396 @@ function ContactsTab() {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      className="flex flex-col gap-6"
+      className="flex flex-col gap-6 max-w-2xl"
     >
       <div>
-        <h2 className="text-xl font-bold text-[var(--text-main)]">{t("contact_rules")}</h2>
-        <p className="text-xs text-[var(--text-muted)] mt-1">Manage blocked senders and VIP starred contacts</p>
+        <h2 className="text-xl font-bold text-[var(--text-main)] flex items-center gap-2">
+          <Users size={22} />
+          <span>Kişiler ve E-posta Grupları</span>
+        </h2>
+        <p className="text-xs text-[var(--text-muted)] mt-1">
+          Engelli veya VIP önemli kişileri yönetin; birden fazla kişiye tek tıkla e-posta atmak için <span className="font-mono text-[var(--text-main)] font-bold">@grup</span> oluşturun.
+        </p>
       </div>
 
-      {/* Filter Tabs: All, Blocked, Important */}
+      {/* Main SubTab Toggle */}
       <div className="flex items-center gap-2 p-1 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] w-fit">
         <button
-          onClick={() => setFilterType("all")}
-          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-            filterType === "all" ? "bg-[var(--bg-card)] text-[var(--text-main)] shadow-xs" : "text-[var(--text-muted)] hover:text-[var(--text-main)]"
+          onClick={() => setSubTab("rules")}
+          className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 ${
+            subTab === "rules" ? "bg-[var(--bg-card)] text-[var(--text-main)] shadow-xs" : "text-[var(--text-muted)] hover:text-[var(--text-main)]"
           }`}
         >
-          Tümü ({rules.length})
+          <Users size={14} />
+          <span>Kişi Kuralları ({rules.length})</span>
         </button>
         <button
-          onClick={() => setFilterType("blocked")}
-          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-            filterType === "blocked" ? "bg-[#ef444420] text-[#ef4444] shadow-xs" : "text-[var(--text-muted)] hover:text-[var(--text-main)]"
+          onClick={() => setSubTab("groups")}
+          className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 ${
+            subTab === "groups" ? "bg-[var(--bg-card)] text-[var(--text-main)] shadow-xs" : "text-[var(--text-muted)] hover:text-[var(--text-main)]"
           }`}
         >
-          🚫 {t("blocked_senders")} ({rules.filter(r => r.status === "blocked").length})
-        </button>
-        <button
-          onClick={() => setFilterType("important")}
-          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-            filterType === "important" ? "bg-[#f59e0b20] text-[#f59e0b] shadow-xs" : "text-[var(--text-muted)] hover:text-[var(--text-main)]"
-          }`}
-        >
-          ⭐ {t("important_senders")} ({rules.filter(r => r.status === "important").length})
+          <UsersRound size={14} />
+          <span>E-posta Grupları @Grup ({groups.length})</span>
         </button>
       </div>
 
-      {/* Add New Rule */}
-      <div className="p-4 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex flex-wrap items-center gap-3">
-        <input
-          type="text"
-          placeholder="email@example.com veya @domain.com"
-          value={newEmail}
-          onChange={e => setNewEmail(e.target.value)}
-          className="flex-1 min-w-[200px] bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-xl focus:outline-none"
-        />
-        <select
-          value={newStatus}
-          onChange={e => setNewStatus(e.target.value as any)}
-          className="bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-xl focus:outline-none font-medium"
-        >
-          <option value="blocked">🚫 Engelle (Spam/Çöp)</option>
-          <option value="important">⭐ Önemli Kişi (VIP)</option>
-          <option value="approved">Onaylı (Gelen Kutusu)</option>
-        </select>
-        <button
-          onClick={() => addRule.mutate()}
-          className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs px-5 py-2.5 rounded-xl font-bold flex items-center gap-1 hover:opacity-90 shadow-sm"
-        >
-          <Plus size={14} />
-          <span>Kural Ekle</span>
-        </button>
-      </div>
+      {subTab === "rules" ? (
+        <div className="flex flex-col gap-4">
+          {/* Filter Tabs */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setFilterType("all")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                filterType === "all" ? "bg-[var(--bg-card)] text-[var(--text-main)] border border-[var(--border-color)] shadow-xs" : "text-[var(--text-muted)] hover:text-[var(--text-main)]"
+              }`}
+            >
+              Tümü ({rules.length})
+            </button>
+            <button
+              onClick={() => setFilterType("blocked")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                filterType === "blocked" ? "bg-[#ef444420] text-[#ef4444] border border-[#ef444440] shadow-xs" : "text-[var(--text-muted)] hover:text-[var(--text-main)]"
+              }`}
+            >
+              🚫 {t("blocked_senders")} ({rules.filter(r => r.status === "blocked").length})
+            </button>
+            <button
+              onClick={() => setFilterType("important")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                filterType === "important" ? "bg-[#f59e0b20] text-[#f59e0b] border border-[#f59e0b40] shadow-xs" : "text-[var(--text-muted)] hover:text-[var(--text-main)]"
+              }`}
+            >
+              ⭐ {t("important_senders")} ({rules.filter(r => r.status === "important").length})
+            </button>
+          </div>
 
-      {/* Search Input for Rules */}
-      <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs">
-        <Search size={14} className="text-[var(--text-dim)]" />
-        <input
-          type="text"
-          placeholder="Kişi kurallarında ara..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="w-full bg-transparent text-[var(--text-main)] placeholder-[var(--text-dim)] focus:outline-none text-xs"
-        />
-      </div>
+          {/* Add New Rule */}
+          <div className="p-4 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex flex-wrap items-center gap-3">
+            <input
+              type="text"
+              placeholder="email@example.com veya @domain.com"
+              value={newEmail}
+              onChange={e => setNewEmail(e.target.value)}
+              className="flex-1 min-w-[200px] bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-xl focus:outline-none"
+            />
+            <select
+              value={newStatus}
+              onChange={e => setNewStatus(e.target.value as any)}
+              className="bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-xl focus:outline-none font-medium"
+            >
+              <option value="blocked">🚫 Engelle (Spam/Çöp)</option>
+              <option value="important">⭐ Önemli Kişi (VIP)</option>
+              <option value="approved">Onaylı (Gelen Kutusu)</option>
+            </select>
+            <button
+              onClick={() => addRule.mutate()}
+              className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs px-5 py-2.5 rounded-xl font-bold flex items-center gap-1 hover:opacity-90 shadow-sm"
+            >
+              <Plus size={14} />
+              <span>Kural Ekle</span>
+            </button>
+          </div>
 
-      {/* Rules list */}
-      <div className="flex flex-col gap-2">
-        {filteredRules.length === 0 && (
-          <div className="text-xs text-[var(--text-dim)] py-6 text-center">Bu filtreye uygun kişi kuralı bulunamadı.</div>
-        )}
-        {filteredRules.map(r => (
-          <div
-            key={r.id}
-            className="flex items-center justify-between p-4 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs shadow-xs"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-[var(--bg-primary)] border border-[var(--border-color)] flex items-center justify-center font-bold text-xs">
-                {r.email_address[0]?.toUpperCase()}
+          {/* Search Input for Rules */}
+          <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs">
+            <Search size={14} className="text-[var(--text-dim)]" />
+            <input
+              type="text"
+              placeholder="Kişi kurallarında ara..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full bg-transparent text-[var(--text-main)] placeholder-[var(--text-dim)] focus:outline-none text-xs"
+            />
+          </div>
+
+          {/* Rules list */}
+          <div className="flex flex-col gap-2">
+            {filteredRules.length === 0 && (
+              <div className="text-xs text-[var(--text-dim)] py-6 text-center">Bu filtreye uygun kişi kuralı bulunamadı.</div>
+            )}
+            {filteredRules.map(r => (
+              <div
+                key={r.id}
+                className="p-3.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-between gap-3 text-xs"
+              >
+                <span className="font-mono text-[var(--text-main)] font-semibold truncate">{r.email_address}</span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <select
+                    value={r.status}
+                    onChange={e => updateStatus.mutate({ id: r.id, status: e.target.value })}
+                    className="bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-[11px] px-2.5 py-1 rounded-lg focus:outline-none"
+                  >
+                    <option value="approved">Onaylı</option>
+                    <option value="important">⭐ Önemli</option>
+                    <option value="blocked">🚫 Engelli</option>
+                  </select>
+                  <button
+                    onClick={() => deleteRule.mutate(r.id)}
+                    className="text-[#ef4444] hover:bg-[#ef444415] p-1.5 rounded-lg transition-colors"
+                    title="Kuralı Sil"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
               </div>
-              <span className="font-mono text-[var(--text-main)] font-semibold">{r.email_address}</span>
+            ))}
+          </div>
+        </div>
+      ) : (
+        /* Groups SubTab */
+        <div className="flex flex-col gap-5">
+          {/* Create Group Box */}
+          <div className="p-5 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex flex-col gap-3 shadow-xs">
+            <div className="flex items-center gap-2 pb-2 border-b border-[var(--border-color)]">
+              <Plus size={14} className="text-[var(--text-dim)]" />
+              <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-main)]">
+                Yeni E-posta Grubu Oluştur
+              </span>
             </div>
 
-            <div className="flex items-center gap-3">
-              <select
-                value={r.status}
-                onChange={e => updateStatus.mutate({ id: r.id, status: e.target.value })}
-                className="bg-[var(--bg-primary)] border border-[var(--border-color)] text-xs px-3 py-1.5 rounded-lg text-[var(--text-main)] font-medium"
-              >
-                <option value="blocked">🚫 Engellendi</option>
-                <option value="important">⭐ Önemli</option>
-                <option value="approved">Onaylı</option>
-              </select>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[11px] font-semibold text-[var(--text-muted)] block mb-1">
+                  Grup Adı (örn: <span className="font-mono text-[var(--text-main)]">ekip</span>)
+                </label>
+                <div className="flex items-center bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl px-3 py-2">
+                  <span className="text-[var(--text-dim)] font-mono text-xs">@</span>
+                  <input
+                    type="text"
+                    placeholder="ekip"
+                    value={groupName}
+                    onChange={e => setGroupName(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ""))}
+                    className="w-full bg-transparent text-[var(--text-main)] text-xs focus:outline-none ml-1 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-semibold text-[var(--text-muted)] block mb-1">
+                  Açıklama (Opsiyonel)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Yazılım ve Ürün Ekibi"
+                  value={groupDesc}
+                  onChange={e => setGroupDesc(e.target.value)}
+                  className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3 py-2 rounded-xl focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[11px] font-semibold text-[var(--text-muted)] block mb-1">
+                Grup Üyeleri (Virgülle veya alt alta e-posta adresleri yazın)
+              </label>
+              <textarea
+                rows={3}
+                placeholder="ahmet@dispatch.local, mehmet@dispatch.local, ayse@dispatch.local"
+                value={groupMembers}
+                onChange={e => setGroupMembers(e.target.value)}
+                className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs p-3 rounded-xl focus:outline-none font-mono"
+              />
+            </div>
+
+            <div className="flex justify-end pt-2">
               <button
-                onClick={() => deleteRule.mutate(r.id)}
-                className="text-[var(--text-dim)] hover:text-[#ef4444] p-1.5 transition-colors"
-                title="Kuralı Sil"
+                type="button"
+                disabled={!groupName.trim() || !groupMembers.trim() || addGroup.isPending}
+                onClick={() => addGroup.mutate()}
+                className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs px-5 py-2.5 rounded-xl font-bold hover:opacity-90 disabled:opacity-40 shadow-sm flex items-center gap-1.5"
+              >
+                <Plus size={14} />
+                <span>{addGroup.isPending ? "Ekleniyor..." : "Grubu Kaydet"}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Groups List */}
+          <div className="flex flex-col gap-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
+              Aktif Gruplar ({groups.length})
+            </h3>
+
+            {groups.length === 0 ? (
+              <div className="text-xs text-[var(--text-dim)] py-8 text-center bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl">
+                Henüz oluşturulmuş bir e-posta grubu yok. Yukarıdan <span className="font-mono text-[var(--text-main)] font-bold">@ekip</span> gibi bir grup tanımlayabilirsiniz.
+              </div>
+            ) : (
+              groups.map((g: any) => (
+                <div
+                  key={g.id}
+                  className="p-4 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex flex-col gap-3 shadow-xs"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-1 rounded-lg bg-[#3b82f615] text-[#3b82f6] border border-[#3b82f630] font-mono text-xs font-bold">
+                        {g.alias}
+                      </span>
+                      {g.description && (
+                        <span className="text-xs text-[var(--text-main)] font-semibold">{g.description}</span>
+                      )}
+                      <span className="text-[11px] text-[var(--text-dim)]">({g.member_count} üye)</span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => deleteGroup.mutate(g.id)}
+                      className="text-[#ef4444] hover:bg-[#ef444415] p-1.5 rounded-lg transition-colors"
+                      title="Grubu Sil"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5 pt-2 border-t border-[var(--border-color)]">
+                    {g.members?.map((m: string) => (
+                      <span
+                        key={m}
+                        className="px-2 py-0.5 rounded-md bg-[var(--bg-primary)] border border-[var(--border-color)] font-mono text-[10px] text-[var(--text-muted)]"
+                      >
+                        {m}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </motion.div>
+  )
+}
+
+/* =========================================================================
+   4. SPEAKEASY TAB
+   ========================================================================= */
+function SpeakeasyTab({ copyText, copiedKey }: { copyText: (v: string, k: string) => void; copiedKey: string | null }) {
+  const t = useT()
+  const qc = useQueryClient()
+  const [label, setLabel] = useState("")
+  const [expiresDays, setExpiresDays] = useState(7)
+  const [singleUse, setSingleUse] = useState(false)
+
+  const { data: codes = [] } = useQuery({
+    queryKey: ["speakeasy-codes"],
+    queryFn: () => api.get<any[]>("/speakeasy_codes"),
+  })
+
+  const createCode = useMutation({
+    mutationFn: () => api.post("/speakeasy_codes", { label, expires_in_days: expiresDays, single_use: singleUse }),
+    onSuccess: () => {
+      setLabel("")
+      qc.invalidateQueries({ queryKey: ["speakeasy-codes"] })
+    }
+  })
+
+  const deleteCode = useMutation({
+    mutationFn: (id: number) => api.delete(`/speakeasy_codes/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["speakeasy-codes"] })
+  })
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      className="flex flex-col gap-6 max-w-xl"
+    >
+      <div>
+        <h2 className="text-xl font-bold text-[var(--text-main)] flex items-center gap-2">
+          <Key size={22} />
+          <span>{t("speakeasy_codes")}</span>
+        </h2>
+        <p className="text-xs text-[var(--text-muted)] mt-1">
+          Bilinmeyen göndericilere vereceğiniz tek kullanımlık veya süreli kodlar. Bu kodu içeren mailler onay kuyruğunu atlayarak doğrudan Gelen Kutunuza düşer.
+        </p>
+      </div>
+
+      <div className="p-5 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex flex-col gap-4 shadow-sm">
+        <div>
+          <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">Kod Etiketi</label>
+          <input
+            type="text"
+            placeholder="örn: Müşteri Projesi, Freelance İletişim"
+            value={label}
+            onChange={e => setLabel(e.target.value)}
+            className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-xl focus:outline-none"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">Geçerlilik Süresi</label>
+            <select
+              value={expiresDays}
+              onChange={e => setExpiresDays(Number(e.target.value))}
+              className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3 py-2.5 rounded-xl focus:outline-none font-medium"
+            >
+              <option value={1}>1 Gün</option>
+              <option value={7}>1 Hafta</option>
+              <option value={30}>1 Ay</option>
+              <option value={365}>1 Yıl</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2.5 mt-6">
+            <input
+              type="checkbox"
+              id="singleUse"
+              checked={singleUse}
+              onChange={e => setSingleUse(e.target.checked)}
+              className="w-4 h-4 accent-[var(--text-main)] rounded cursor-pointer"
+            />
+            <label htmlFor="singleUse" className="text-xs font-semibold text-[var(--text-main)] cursor-pointer select-none">
+              Tek Kullanımlık Kod
+            </label>
+          </div>
+        </div>
+
+        <div className="pt-2">
+          <button
+            onClick={() => createCode.mutate()}
+            disabled={createCode.isPending}
+            className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs px-5 py-2.5 rounded-xl font-bold flex items-center gap-1.5 hover:opacity-90 shadow-sm"
+          >
+            <Plus size={14} />
+            <span>Yeni Speakeasy Kodu Üret</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-3">
+        {codes.map(c => (
+          <div
+            key={c.id}
+            className="p-4 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-between gap-4 shadow-2xs"
+          >
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2">
+                <span className="font-mono font-bold text-xs text-[var(--text-main)] bg-[var(--bg-primary)] px-2.5 py-1 rounded-lg border border-[var(--border-color)]">
+                  {c.code}
+                </span>
+                <span className="text-xs text-[var(--text-main)] font-semibold">{c.label}</span>
+              </div>
+              <span className="text-[10px] text-[var(--text-dim)] font-mono">
+                {c.single_use ? "Tek kullanımlık" : "Süreli"} · {c.used ? "Kullanıldı" : "Aktif"}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => copyText(c.code, `c-${c.id}`)}
+                className="text-xs flex items-center gap-1 text-[var(--text-muted)] hover:text-[var(--text-main)] border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 py-1.5 rounded-xl font-semibold shadow-xs"
+              >
+                {copiedKey === `c-${c.id}` ? <Check size={13} className="text-[#22c55e]" /> : <Copy size={13} />}
+                <span>{copiedKey === `c-${c.id}` ? "Kopyalandı" : "Kopyala"}</span>
+              </button>
+              <button
+                onClick={() => deleteCode.mutate(c.id)}
+                className="text-[#ef4444] hover:bg-[#ef444415] p-2 rounded-xl transition-colors"
+                title="Kodu Sil"
               >
                 <Trash2 size={14} />
               </button>
@@ -633,170 +943,27 @@ function ContactsTab() {
 }
 
 /* =========================================================================
-   4. ÖZEL KODLAR TAB (SPEAKEASY PASSCODES)
-   ========================================================================= */
-function SpeakeasyTab({ copyText, copiedKey }: { copyText: (val: string, k: string) => void; copiedKey: string | null }) {
-  const t = useT()
-  const qc = useQueryClient()
-  const [label, setLabel] = useState("")
-  const [singleUse, setSingleUse] = useState(false)
-  const [expiryDays, setExpiryDays] = useState(7)
-
-  const { data: codes = [] } = useQuery({
-    queryKey: ["speakeasy-codes"],
-    queryFn: () => api.get<any[]>("/speakeasy_codes"),
-  })
-
-  const createCode = useMutation({
-    mutationFn: () => {
-      const exp = new Date()
-      exp.setDate(exp.getDate() + Number(expiryDays))
-      return api.post("/speakeasy_codes", {
-        label: label || "VIP Özel Kod",
-        single_use: singleUse,
-        expires_at: exp.toISOString()
-      })
-    },
-    onSuccess: () => {
-      setLabel("")
-      qc.invalidateQueries({ queryKey: ["speakeasy-codes"] })
-    }
-  })
-
-  const revokeCode = useMutation({
-    mutationFn: (id: number) => api.delete(`/speakeasy_codes/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["speakeasy-codes"] })
-  })
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
-      className="flex flex-col gap-6"
-    >
-      <div>
-        <h2 className="text-xl font-bold text-[var(--text-main)]">{t("speakeasy_codes")}</h2>
-        <p className="text-xs text-[var(--text-muted)] mt-1">
-          Geçici güvenli erişim kodları. Gelen e-posta bu kodu içeriyorsa, onay kuyruğuna takılmadan doğrudan Gelen Kutusu'na düşer.
-        </p>
-      </div>
-
-      <div className="p-5 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex flex-col gap-3">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <input
-            type="text"
-            placeholder="Etiket (örn: Müşteri Projesi, VIP)"
-            value={label}
-            onChange={e => setLabel(e.target.value)}
-            className="bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-xl"
-          />
-          <select
-            value={expiryDays}
-            onChange={e => setExpiryDays(Number(e.target.value))}
-            className="bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-xl font-medium"
-          >
-            <option value={1}>1 Gün Geçerli</option>
-            <option value={7}>7 Gün Geçerli</option>
-            <option value={30}>30 Gün Geçerli</option>
-            <option value={365}>1 Yıl Geçerli</option>
-          </select>
-          <label className="flex items-center gap-2 text-xs text-[var(--text-muted)] cursor-pointer">
-            <input
-              type="checkbox"
-              checked={singleUse}
-              onChange={e => setSingleUse(e.target.checked)}
-              className="accent-[var(--text-main)] w-4 h-4 rounded"
-            />
-            <span>Tek kullanımlık kod</span>
-          </label>
-        </div>
-        <div className="flex justify-end">
-          <button
-            onClick={() => createCode.mutate()}
-            className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs px-5 py-2.5 rounded-xl font-bold flex items-center gap-1 hover:opacity-90 shadow-sm"
-          >
-            <Plus size={14} />
-            <span>Yeni Kod Oluştur</span>
-          </button>
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-2">
-        {codes.map(c => (
-          <div
-            key={c.id}
-            className="p-4 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-between shadow-xs"
-          >
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-[var(--text-main)] text-xs font-bold select-all">{c.code}</span>
-                <button
-                  onClick={() => copyText(c.code, `code_${c.id}`)}
-                  className="text-[var(--text-dim)] hover:text-[var(--text-main)] p-1"
-                >
-                  {copiedKey === `code_${c.id}` ? <Check size={13} className="text-[#22c55e]" /> : <Copy size={13} />}
-                </button>
-              </div>
-              <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
-            {c.label} · {c.single_use ? "Tek Kullanımlık" : "Çoklu Kullanım"} · Son Geçerlilik: {new Date(c.expires_at).toLocaleDateString()}
-              </div>
-            </div>
-            <button
-              onClick={() => revokeCode.mutate(c.id)}
-              className="text-[#ef4444] hover:bg-[#ef444415] px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
-            >
-              İptal Et
-            </button>
-          </div>
-        ))}
-      </div>
-    </motion.div>
-  )
-}
-
-/* =========================================================================
-   5. ARTIFICIAL INTELLIGENCE TAB (OFFICIAL SVGS & LIVE DYNAMIC MODEL FETCH)
+   5. AI TAB
    ========================================================================= */
 function AiTab() {
   const t = useT()
-  const qc = useQueryClient()
   const { data: settings } = useQuery({
     queryKey: ["settings"],
     queryFn: () => api.get<any>("/settings"),
   })
+  const qc = useQueryClient()
 
-  const [selectedProvider, setSelectedProvider] = useState<"gemini" | "claude" | "openai">("gemini")
+  const [selectedProvider, setSelectedProvider] = useState<string | null>(null)
   const [apiKeyInput, setApiKeyInput] = useState("")
   const [selectedModel, setSelectedModel] = useState("")
   const [fetchedModels, setFetchedModels] = useState<any[]>([])
-  const [testResult, setTestResult] = useState<{ success: boolean; msg: string } | null>(null)
   const [testing, setTesting] = useState(false)
+  const [testResult, setTestResult] = useState<{ success: boolean; msg: string } | null>(null)
 
-  const activeProvider = selectedProvider || (settings?.ai_provider as any) || "gemini"
+  const activeProvider = selectedProvider || settings?.ai_provider || "gemini"
   const currentKey = activeProvider === "gemini" ? settings?.has_gemini_key : activeProvider === "claude" ? settings?.has_claude_key : settings?.has_openai_key
 
-  const modelsList = fetchedModels.length > 0 ? fetchedModels : settings?.all_models?.[activeProvider] || []
-
-  const saveAi = useMutation({
-    mutationFn: () => {
-      const payload: any = {
-        ai_provider: activeProvider,
-        ai_model: selectedModel || undefined,
-      }
-      if (apiKeyInput) {
-        if (activeProvider === "gemini") payload.gemini_key = apiKeyInput
-        if (activeProvider === "claude") payload.claude_key = apiKeyInput
-        if (activeProvider === "openai") payload.openai_key = apiKeyInput
-      }
-      return api.patch("/settings", payload)
-    },
-    onSuccess: () => {
-      setApiKeyInput("")
-      qc.invalidateQueries({ queryKey: ["settings"] })
-      setTestResult({ success: true, msg: "Yapay zeka ayarları ve varsayılan model kaydedildi! ✓" })
-    }
-  })
+  const modelsList = fetchedModels
 
   async function testConnectionAndFetchModels() {
     setTesting(true)
@@ -804,30 +971,43 @@ function AiTab() {
     try {
       const res = await api.post<any>("/settings/ai/test", {
         provider: activeProvider,
-        api_key: apiKeyInput || undefined,
-        ai_model: selectedModel || undefined
+        api_key: apiKeyInput.trim() ? apiKeyInput.trim() : undefined,
+        ai_model: selectedModel.trim() ? selectedModel.trim() : undefined
       })
-      if (res.models && res.models.length > 0) {
+      setTestResult({ success: true, msg: res.message || "Bağlantı başarılı!" })
+      if (res.models && Array.isArray(res.models)) {
         setFetchedModels(res.models)
-        if (!selectedModel) {
-          setSelectedModel(res.model || res.models[0].id)
+        if (res.models[0]?.id && !selectedModel) {
+          setSelectedModel(res.models[0].id)
         }
       }
-      setApiKeyInput("")
       qc.invalidateQueries({ queryKey: ["settings"] })
-      setTestResult({
-        success: true,
-        msg: `${res.provider.toUpperCase()} API bağlantısı kuruldu. ${res.models?.length || 0} model canlı olarak yüklendi! ✓`
-      })
     } catch (err: any) {
-      setTestResult({
-        success: false,
-        msg: err.message || "Bağlantı testi başarısız oldu. API Anahtarınızı kontrol edin."
-      })
+      setTestResult({ success: false, msg: err.message || "Bağlantı başarısız. Lütfen API anahtarını kontrol edin." })
     } finally {
       setTesting(false)
     }
   }
+
+  const saveAi = useMutation({
+    mutationFn: () => {
+      const payload: any = {
+        ai_provider: activeProvider,
+        ai_model: selectedModel || settings?.ai_model,
+      }
+      if (apiKeyInput.trim()) {
+        if (activeProvider === "gemini") payload.gemini_key = apiKeyInput.trim()
+        if (activeProvider === "claude") payload.claude_key = apiKeyInput.trim()
+        if (activeProvider === "openai") payload.openai_key = apiKeyInput.trim()
+      }
+      return api.patch("/settings", payload)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["settings"] })
+      setApiKeyInput("")
+      alert("AI ayarları başarıyla kaydedildi.")
+    }
+  })
 
   return (
     <motion.div
@@ -846,7 +1026,7 @@ function AiTab() {
         </p>
       </div>
 
-      {/* Official Provider SVG Cards */}
+      {/* Official Provider Cards */}
       <div className="grid grid-cols-3 gap-3">
         {/* Google Gemini */}
         <motion.button
@@ -927,26 +1107,11 @@ function AiTab() {
         </motion.button>
       </div>
 
-      {/* Active Provider Configuration Form */}
-      <div className="p-6 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex flex-col gap-4 shadow-sm">
-        <div className="flex items-center justify-between pb-3 border-b border-[var(--border-color)]">
-          <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-main)]">
-            {activeProvider.toUpperCase()} Yapılandırması
-          </span>
-          {currentKey ? (
-            <span className="text-[11px] text-[#22c55e] font-semibold flex items-center gap-1">
-              <CheckCircle2 size={13} />
-              <span>Anahtar Kayıtlı</span>
-            </span>
-          ) : (
-            <span className="text-[11px] text-[var(--text-dim)]">Anahtar Yok</span>
-          )}
-        </div>
-
-        {/* API Key Input */}
+      {/* Selected Provider Config Box */}
+      <div className="p-5 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex flex-col gap-4 shadow-sm">
         <div>
           <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">
-            {activeProvider.toUpperCase()} API Anahtarı
+            {activeProvider.toUpperCase()} API Key
           </label>
           <input
             type="password"
@@ -1019,7 +1184,7 @@ function AiTab() {
 }
 
 /* =========================================================================
-   6. RSS FEEDS TAB (FULL TURKISH SUPPORT)
+   6. RSS FEEDS TAB
    ========================================================================= */
 function RssTab() {
   const t = useT()
@@ -1047,7 +1212,7 @@ function RssTab() {
 
   const refreshFeed = useMutation({
     mutationFn: (id: number) => api.post(`/rss/feeds/${id}/refresh`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["rss-items"] })
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["rss-feeds"] })
   })
 
   return (
@@ -1055,48 +1220,73 @@ function RssTab() {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      className="flex flex-col gap-6"
+      className="flex flex-col gap-6 max-w-xl"
     >
       <div>
-        <h2 className="text-xl font-bold text-[var(--text-main)]">{t("rss_settings")}</h2>
-        <p className="text-xs text-[var(--text-muted)] mt-1">Takip etmek istediğin RSS haber kaynaklarını ve blogları yönet</p>
+        <h2 className="text-xl font-bold text-[var(--text-main)] flex items-center gap-2">
+          <Rss size={22} />
+          <span>{t("rss_settings")}</span>
+        </h2>
+        <p className="text-xs text-[var(--text-muted)] mt-1">Takip ettiğiniz haber ve bülten RSS kaynaklarını ekleyin</p>
       </div>
 
-      <div className="p-4 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex flex-wrap items-center gap-3">
-        <input
-          type="text"
-          placeholder="https://ornek.com/feed.xml"
-          value={newUrl}
-          onChange={e => setNewUrl(e.target.value)}
-          className="flex-1 min-w-[200px] bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-xl"
-        />
-        <input
-          type="text"
-          placeholder="Kategori (örn: Teknoloji)"
-          value={category}
-          onChange={e => setCategory(e.target.value)}
-          className="w-36 bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-xl"
-        />
-        <button
-          onClick={() => addFeed.mutate()}
-          className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs px-5 py-2.5 rounded-xl font-bold flex items-center gap-1 hover:opacity-90 shadow-sm"
-        >
-          <Plus size={14} />
-          <span>Ekle</span>
-        </button>
+      <div className="p-5 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex flex-col gap-4 shadow-sm">
+        <div>
+          <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">RSS Akış URL'si</label>
+          <input
+            type="url"
+            placeholder="https://news.ycombinator.com/rss"
+            value={newUrl}
+            onChange={e => setNewUrl(e.target.value)}
+            className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-xl focus:outline-none"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">Kategori</label>
+            <select
+              value={category}
+              onChange={e => setCategory(e.target.value)}
+              className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3 py-2.5 rounded-xl focus:outline-none font-medium"
+            >
+              <option value="Teknoloji">Teknoloji</option>
+              <option value="Haberler">Haberler</option>
+              <option value="Finans">Finans</option>
+              <option value="Yazılım">Yazılım</option>
+              <option value="Genel">Genel</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="pt-2">
+          <button
+            onClick={() => addFeed.mutate()}
+            disabled={addFeed.isPending || !newUrl}
+            className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs px-5 py-2.5 rounded-xl font-bold flex items-center gap-1.5 hover:opacity-90 shadow-sm disabled:opacity-40"
+          >
+            <Plus size={14} />
+            <span>{addFeed.isPending ? "Ekleniyor..." : "RSS Kaynağını Ekle"}</span>
+          </button>
+        </div>
       </div>
 
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-3">
         {feeds.map(f => (
-          <div key={f.id} className="p-4 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-between text-xs shadow-xs">
-            <div>
-              <div className="text-[var(--text-main)] font-bold">{f.title || f.url}</div>
-              <div className="text-[11px] text-[var(--text-dim)] truncate max-w-md">{f.url}</div>
+          <div
+            key={f.id}
+            className="p-4 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-between gap-4 shadow-2xs"
+          >
+            <div className="flex flex-col gap-0.5 truncate">
+              <span className="text-xs font-bold text-[var(--text-main)] truncate">{f.title || f.url}</span>
+              <span className="text-[10px] text-[var(--text-dim)] font-mono truncate">{f.url}</span>
+              <span className="text-[10px] text-[var(--text-muted)] mt-1">Kategori: {f.category}</span>
             </div>
-            <div className="flex items-center gap-2">
+
+            <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={() => refreshFeed.mutate(f.id)}
-                className="text-[var(--text-dim)] hover:text-[var(--text-main)] p-1.5"
+                className="text-[var(--text-dim)] hover:text-[var(--text-main)] p-1.5 rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)]"
                 title="Yenile"
               >
                 <RefreshCw size={14} />
@@ -1117,7 +1307,7 @@ function RssTab() {
 }
 
 /* =========================================================================
-   7. PRIVACY & SECURITY TAB (CLEAN TOGGLE ONLY)
+   7. PRIVACY & SECURITY TAB
    ========================================================================= */
 function SecurityTab() {
   const t = useT()
@@ -1162,6 +1352,168 @@ function SecurityTab() {
           onChange={e => toggleSpy.mutate(e.target.checked)}
           className="w-5 h-5 accent-[var(--text-main)] cursor-pointer"
         />
+      </div>
+    </motion.div>
+  )
+}
+
+/* =========================================================================
+   8. UPDATES TAB (NOIRLANG/DISPATCH SAFE UPDATER)
+   ========================================================================= */
+function UpdatesTab() {
+  const { addToast } = useAppStore()
+  const qc = useQueryClient()
+
+  const { data: updateInfo, isLoading, refetch, isRefetching } = useQuery({
+    queryKey: ["system-updates"],
+    queryFn: () => api.get<any>("/updates/check"),
+  })
+
+  const applyUpdate = useMutation({
+    mutationFn: () => api.post<any>("/updates/apply"),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ["system-updates"] })
+      addToast({
+        title: "Sistem Güncelleme",
+        from: "Dispatch Updater",
+        subject: res.message || "Sistem başarıyla güncellendi! ✓"
+      })
+    },
+    onError: (err: any) => {
+      alert(`Güncelleme hatası: ${err.message || "Bilinmeyen hata"}`)
+    }
+  })
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      className="flex flex-col gap-6 max-w-xl"
+    >
+      <div>
+        <h2 className="text-xl font-bold text-[var(--text-main)] flex items-center gap-2">
+          <DownloadCloud size={22} />
+          <span>Sistem Güncelleme</span>
+        </h2>
+        <p className="text-xs text-[var(--text-muted)] mt-1">
+          Resmi GitHub deposu (<span className="text-[var(--text-main)] font-mono font-bold">noirlang/dispatch</span>) üzerinden güvenli, sıfır veri kayıplı sistem güncellemeleri.
+        </p>
+      </div>
+
+      {/* Safety Guarantee Card */}
+      <div className="p-4 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-start gap-3 shadow-xs">
+        <div className="p-2 rounded-xl bg-[#22c55e15] text-[#22c55e] border border-[#22c55e30] shrink-0 mt-0.5">
+          <ShieldCheck size={18} />
+        </div>
+        <div>
+          <div className="text-xs font-bold text-[var(--text-main)] mb-1">
+            %100 Güvenli Güncelleme Garantisi
+          </div>
+          <div className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+            Güncelleme işlemi sırasında <strong>veritabanındaki e-postalarınız, şifreleriniz, DNS ayarlarınız ve özel anahtarlarınız asla silinmez veya bozulmaz</strong>. Yalnızca yeni kodlar ve geliştirmeler entegre edilir.
+          </div>
+        </div>
+      </div>
+
+      {/* Version Status Box */}
+      <div className="p-5 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex flex-col gap-4 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)] flex items-center justify-center text-[var(--text-main)] font-mono text-xs font-bold">
+              GIT
+            </div>
+            <div>
+              <div className="text-xs font-bold text-[var(--text-main)]">
+                Mevcut Yerel Sürüm: <span className="font-mono text-[#3b82f6]">#{updateInfo?.current_commit || "dev"}</span>
+              </div>
+              <div className="text-[11px] text-[var(--text-dim)] truncate max-w-sm">
+                {updateInfo?.current_message || "Yerel çalışma kopyası"}
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            disabled={isLoading || isRefetching}
+            onClick={() => refetch()}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] hover:bg-[var(--bg-card)] text-xs font-medium text-[var(--text-main)] transition-colors shadow-xs"
+          >
+            <RefreshCw size={12} className={isLoading || isRefetching ? "animate-spin" : ""} />
+            <span>Kontrol Et</span>
+          </button>
+        </div>
+
+        <div className="pt-3 border-t border-[var(--border-color)] flex items-center justify-between text-xs">
+          <span className="text-[var(--text-muted)]">GitHub Uzak Depo:</span>
+          <a
+            href="https://github.com/noirlang/dispatch"
+            target="_blank"
+            rel="noreferrer"
+            className="font-mono text-xs text-[var(--text-main)] hover:underline flex items-center gap-1 font-bold"
+          >
+            <span>noirlang/dispatch</span>
+            <ExternalLink size={12} />
+          </a>
+        </div>
+
+        {updateInfo?.remote_commit && (
+          <div className="pt-2 border-t border-[var(--border-color)] flex items-center justify-between text-xs">
+            <span className="text-[var(--text-muted)]">Son GitHub Commit:</span>
+            <span className="font-mono text-xs text-[var(--text-main)] font-semibold">
+              #{updateInfo.remote_commit} ({updateInfo.remote_message || "Son güncelleme"})
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Action Update Button */}
+      <div className="flex flex-col gap-3">
+        {updateInfo?.update_available ? (
+          <div className="p-4 rounded-2xl bg-[#f59e0b15] border border-[#f59e0b30] flex flex-col gap-3">
+            <div className="flex items-center gap-2 text-xs font-bold text-[#f59e0b]">
+              <Sparkles size={16} />
+              <span>Yeni bir güncelleme mevcut!</span>
+            </div>
+            <p className="text-[11px] text-[var(--text-muted)]">
+              GitHub üzerindeki son geliştirmeleri ve hata düzeltmelerini tek tıkla güvenle yükleyebilirsiniz.
+            </p>
+            <button
+              type="button"
+              disabled={applyUpdate.isPending}
+              onClick={() => applyUpdate.mutate()}
+              className="w-full bg-[#f59e0b] hover:bg-[#d97706] text-black font-bold text-xs py-3 px-4 rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all"
+            >
+              <DownloadCloud size={15} />
+              <span>{applyUpdate.isPending ? "Sistem Güncelleniyor..." : "Sistemi Güvenle Güncelle"}</span>
+            </button>
+          </div>
+        ) : (
+          <div className="p-4 rounded-2xl bg-[#22c55e15] border border-[#22c55e30] flex items-center justify-between text-xs text-[#22c55e] font-bold">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 size={16} />
+              <span>Sisteminiz en son sürümde (Güncel ✓)</span>
+            </div>
+            <button
+              type="button"
+              disabled={applyUpdate.isPending}
+              onClick={() => {
+                if (confirm("Sistemi zorla tekrar derlemek ve servisleri yenilemek istiyor musunuz?")) {
+                  applyUpdate.mutate()
+                }
+              }}
+              className="text-[11px] text-[var(--text-muted)] hover:text-[var(--text-main)] underline font-normal"
+            >
+              Yeniden Derle / Eşitle
+            </button>
+          </div>
+        )}
+
+        {applyUpdate.data?.logs && (
+          <div className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)] font-mono text-[10px] text-[var(--text-muted)] max-h-40 overflow-y-auto whitespace-pre-wrap">
+            {applyUpdate.data.logs}
+          </div>
+        )}
       </div>
     </motion.div>
   )

@@ -40,6 +40,13 @@ export default function EmailView() {
     refetchInterval: 3000,
   })
 
+  // Contact Groups
+  const { data: groups = [] } = useQuery({
+    queryKey: ["contact-groups"],
+    queryFn: () => api.get<any[]>("/contact_groups"),
+    refetchInterval: 5000,
+  })
+
   // Recent Sent & Approved Contacts
   const { data: contacts = [] } = useQuery({
     queryKey: ["email-contacts"],
@@ -195,54 +202,91 @@ export default function EmailView() {
           })}
         </div>
 
-        {/* Contacts Section (Kişiler) */}
+        {/* Contacts & Groups Section */}
         <div className="mt-4 pt-3 border-t border-[var(--border-color)] flex flex-col flex-1 min-h-0 overflow-hidden">
           <div className="px-2 pb-2 flex items-center justify-between text-[10px] font-bold text-[var(--text-muted)] tracking-wider uppercase shrink-0">
-            <span>{lang === "tr" ? "Kişiler" : "Contacts"}</span>
+            <span>{lang === "tr" ? "Kişiler & Gruplar" : "Contacts & Groups"}</span>
             <Users size={12} />
           </div>
 
-          <div className="flex-1 overflow-y-auto space-y-0.5 pr-0.5">
-            {contacts.length === 0 ? (
-              <div className="px-2 py-2 text-[11px] text-[var(--text-dim)] italic">
-                {lang === "tr" ? "Henüz kişi yok" : "No contacts yet"}
-              </div>
-            ) : (
-              contacts.map((c: any) => (
-                <motion.button
-                  key={c.email}
-                  whileTap={{ scale: 0.97 }}
-                  whileHover={{ x: 2 }}
-                  onClick={() => {
-                    const rawSig = settings?.default_signature ?? user?.default_signature ?? ""
-                    const cleanSig = String(rawSig).replace(/\\n/g, "\n").trim()
-                    const signature = cleanSig ? `\n\n--\n${cleanSig}` : ""
-                    setComposeConfig({
-                      to: c.email,
-                      subject: "",
-                      body: signature,
-                      isReply: false
-                    })
-                    setComposing(true)
-                  }}
-                  className="w-full flex items-center justify-between p-1.5 rounded-xl text-xs hover:bg-[var(--bg-card)] transition-all text-left group"
-                  title={`${c.name} (${c.email}) - Tıkla ve E-posta Yaz`}
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-5 h-5 rounded-full bg-[var(--bg-primary)] border border-[var(--border-color)] flex items-center justify-center font-bold text-[9px] text-[var(--text-main)] shrink-0">
-                      {c.initials || c.name[0]?.toUpperCase() || "?"}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[11px] font-medium text-[var(--text-main)] truncate flex items-center gap-1">
-                        <span className="truncate">{c.name}</span>
-                        {c.is_important && <span className="text-[9px] shrink-0" title="Önemli Kişi">⭐</span>}
-                      </div>
-                      <div className="text-[9px] text-[var(--text-dim)] font-mono truncate">{c.email}</div>
-                    </div>
+          <div className="flex-1 overflow-y-auto space-y-1 pr-0.5">
+            {/* Groups List */}
+            {groups.map((g: any) => (
+              <motion.button
+                key={`grp-${g.id}`}
+                whileTap={{ scale: 0.97 }}
+                whileHover={{ x: 2 }}
+                onClick={() => {
+                  const rawSig = settings?.default_signature ?? user?.default_signature ?? ""
+                  const cleanSig = String(rawSig).replace(/\\n/g, "\n").trim()
+                  const signature = cleanSig ? `\n\n--\n${cleanSig}` : ""
+                  setComposeConfig({
+                    to: g.alias,
+                    subject: "",
+                    body: signature,
+                    isReply: false
+                  })
+                  setComposing(true)
+                }}
+                className="w-full flex items-center justify-between p-1.5 rounded-xl text-xs hover:bg-[var(--bg-card)] transition-all text-left group bg-[#3b82f608] border border-[#3b82f620]"
+                title={`${g.alias} (${g.member_count} üye) - Gruba E-posta Gönder`}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-5 h-5 rounded-full bg-[#3b82f620] text-[#3b82f6] border border-[#3b82f640] flex items-center justify-center font-bold text-[9px] shrink-0 font-mono">
+                    @
                   </div>
-                  <Plus size={11} className="text-[var(--text-dim)] opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-1" />
-                </motion.button>
-              ))
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[11px] font-bold text-[#3b82f6] truncate">
+                      {g.alias}
+                    </div>
+                    <div className="text-[9px] text-[var(--text-dim)] truncate">{g.member_count} kişi</div>
+                  </div>
+                </div>
+                <Plus size={11} className="text-[#3b82f6] opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-1" />
+              </motion.button>
+            ))}
+
+            {/* Individual Contacts */}
+            {contacts.map((c: any) => (
+              <motion.button
+                key={c.email}
+                whileTap={{ scale: 0.97 }}
+                whileHover={{ x: 2 }}
+                onClick={() => {
+                  const rawSig = settings?.default_signature ?? user?.default_signature ?? ""
+                  const cleanSig = String(rawSig).replace(/\\n/g, "\n").trim()
+                  const signature = cleanSig ? `\n\n--\n${cleanSig}` : ""
+                  setComposeConfig({
+                    to: c.email,
+                    subject: "",
+                    body: signature,
+                    isReply: false
+                  })
+                  setComposing(true)
+                }}
+                className="w-full flex items-center justify-between p-1.5 rounded-xl text-xs hover:bg-[var(--bg-card)] transition-all text-left group"
+                title={`${c.name} (${c.email}) - Tıkla ve E-posta Yaz`}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-5 h-5 rounded-full bg-[var(--bg-primary)] border border-[var(--border-color)] flex items-center justify-center font-bold text-[9px] text-[var(--text-main)] shrink-0">
+                    {c.initials || c.name[0]?.toUpperCase() || "?"}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[11px] font-medium text-[var(--text-main)] truncate flex items-center gap-1">
+                      <span className="truncate">{c.name}</span>
+                      {c.is_important && <span className="text-[9px] shrink-0" title="Önemli Kişi">⭐</span>}
+                    </div>
+                    <div className="text-[9px] text-[var(--text-dim)] font-mono truncate">{c.email}</div>
+                  </div>
+                </div>
+                <Plus size={11} className="text-[var(--text-dim)] opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-1" />
+              </motion.button>
+            ))}
+
+            {groups.length === 0 && contacts.length === 0 && (
+              <div className="px-2 py-2 text-[11px] text-[var(--text-dim)] italic">
+                {lang === "tr" ? "Henüz kişi veya grup yok" : "No contacts or groups yet"}
+              </div>
             )}
           </div>
         </div>

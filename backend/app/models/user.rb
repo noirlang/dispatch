@@ -12,6 +12,7 @@ class User < ApplicationRecord
   has_many :calendar_events, dependent: :destroy
   has_many :rss_feeds, dependent: :destroy
   has_many :dashboard_cards, dependent: :destroy
+  has_many :contact_groups, dependent: :destroy
 
   validates :name,  presence: true
   validates :email, presence: true, uniqueness: true, format: { with: URI::MailTo::EMAIL_REGEXP }

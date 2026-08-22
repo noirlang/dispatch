@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_22_153750) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_22_154155) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -44,6 +44,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_22_153750) do
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.index ["user_id"], name: "index_calendar_events_on_user_id"
+  end
+
+  create_table "contact_groups", force: :cascade do |t|
+    t.string "color", default: "#3b82f6"
+    t.datetime "created_at", null: false
+    t.string "description"
+    t.jsonb "members", default: []
+    t.string "name", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["user_id", "name"], name: "index_contact_groups_on_user_id_and_name", unique: true
+    t.index ["user_id"], name: "index_contact_groups_on_user_id"
   end
 
   create_table "dashboard_cards", force: :cascade do |t|
@@ -198,6 +210,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_22_153750) do
   end
 
   add_foreign_key "calendar_events", "users"
+  add_foreign_key "contact_groups", "users"
   add_foreign_key "dashboard_cards", "emails"
   add_foreign_key "dashboard_cards", "users"
   add_foreign_key "email_threads", "users"
