@@ -2,8 +2,9 @@ import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { api } from "../../lib/api"
 import { useAuth } from "../../store/auth"
-import { useNavigate } from "react-router-dom"
-import { Check, Copy, Server, Shield, ArrowRight, ArrowLeft } from "lucide-react"
+import { useAppStore } from "../../store/themeAndLocale"
+import { useNavigate, Link } from "react-router-dom"
+import { Check, Copy, Server, Shield, ArrowRight, ArrowLeft, Lock, Globe } from "lucide-react"
 
 interface DnsRecord {
   type: string
@@ -34,18 +35,20 @@ interface SetupResult {
 }
 
 export default function SetupWizard() {
+  const { lang, setLang } = useAppStore()
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
+  const [isAlreadyConfigured, setIsAlreadyConfigured] = useState(false)
+  const [checkingStatus, setCheckingStatus] = useState(true)
 
   // Form State
-  const [domain, setDomain] = useState("dispatch.local")
+  const [domain, setDomain] = useState("noirlang.tr")
+  const [webSubdomain, setWebSubdomain] = useState("dispatch")
   const [mailSubdomain, setMailSubdomain] = useState("mail")
-  const [mode, setMode] = useState<"local_development" | "production">("local_development")
+  const [mode, setMode] = useState<"production" | "local_development">("production")
   const [ipv4, setIpv4] = useState("127.0.0.1")
-  const [enableIpv6, setEnableIpv6] = useState(false)
-  const [ipv6, setIpv6] = useState("")
 
   // Admin Account
   const [adminName, setAdminName] = useState("Admin")
@@ -60,14 +63,18 @@ export default function SetupWizard() {
 
   useEffect(() => {
     // Check current status
-    api.get<{ domain: string; mail_subdomain: string; ipv4: string; mode: string; detected_ip: string }>("/setup/status")
+    api.get<{ is_configured: boolean; has_users: boolean; domain: string; mail_subdomain: string; ipv4: string; mode: string; detected_ip: string }>("/setup/status")
       .then(res => {
+        if (res.is_configured && res.has_users) {
+          setIsAlreadyConfigured(true)
+        }
         if (res.domain) setDomain(res.domain)
         if (res.mail_subdomain) setMailSubdomain(res.mail_subdomain)
         if (res.detected_ip && res.detected_ip !== "127.0.0.1") setIpv4(res.detected_ip)
         if (res.mode === "production" || res.mode === "local_development") setMode(res.mode as any)
       })
       .catch(() => {})
+      .finally(() => setCheckingStatus(false))
   }, [])
 
   function copyText(text: string, key: string) {
@@ -84,8 +91,6 @@ export default function SetupWizard() {
         domain,
         mail_subdomain: mailSubdomain,
         ipv4,
-        enable_ipv6: enableIpv6,
-        ipv6: enableIpv6 ? ipv6 : undefined,
         mode,
         admin_name: adminName,
         admin_email: `${adminEmailPrefix}@${domain}`,
@@ -99,62 +104,118 @@ export default function SetupWizard() {
       }
       setStep(4)
     } catch (err: any) {
-      setError(err.message || "Failed to configure server")
+      setError(err.message || (lang === "tr" ? "Sunucu yapılandırılamadı" : "Failed to configure server"))
     } finally {
       setLoading(false)
     }
   }
 
-  return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-center p-6">
-      {/* Top Header */}
-      <div className="text-center mb-8">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#161616] border border-[#222] text-xs text-[#888] mb-3">
-          <Server size={13} className="text-white" />
-          <span>Dispatch Mail Server Setup Wizard</span>
+  if (checkingStatus) {
+    return (
+      <div className="h-screen w-screen flex items-center justify-center bg-[var(--bg-primary)] text-[var(--text-dim)] text-xs">
+        {lang === "tr" ? "Durum kontrol ediliyor..." : "Checking status..."}
+      </div>
+    )
+  }
+
+  // If already configured, do NOT allow re-running setup!
+  if (isAlreadyConfigured) {
+    return (
+      <div className="h-screen w-screen flex flex-col items-center justify-center bg-[var(--bg-primary)] text-[var(--text-main)] p-6 relative font-sans">
+        <div className="w-full max-w-md p-8 rounded-3xl bg-[var(--bg-secondary)] border border-[var(--border-color)] shadow-2xl flex flex-col items-center gap-5 text-center">
+          <div className="p-3.5 rounded-2xl bg-[#22c55e15] text-[#22c55e] border border-[#22c55e30]">
+            <Lock size={28} />
+          </div>
+          <div>
+            <h1 className="text-lg font-bold text-[var(--text-main)]">
+              {lang === "tr" ? "Kurulum Zaten Tamamlanmış" : "System Already Configured"}
+            </h1>
+            <p className="text-xs text-[var(--text-muted)] mt-1.5 leading-relaxed">
+              {lang === "tr"
+                ? "Bu sunucunun ilk kurulumu başarıyla yapılmıştır. Güvenlik nedeniyle kurulum sihirbazı kilitlenmiştir. Ayarları yönetmek için Yönetici Paneline giriş yapın."
+                : "This system has already been configured. The setup wizard is locked for security. Please log into the Admin Panel to manage settings."}
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-2 w-full mt-2">
+            <Link
+              to="/admin"
+              className="w-full bg-[var(--accent)] text-[var(--accent-invert)] py-3 rounded-xl text-xs font-bold hover:opacity-90 transition-all shadow-sm"
+            >
+              {lang === "tr" ? "Yönetici Paneline Git (/admin)" : "Go to Admin Panel (/admin)"}
+            </Link>
+            <Link
+              to="/login"
+              className="w-full py-2.5 rounded-xl text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text-main)] border border-[var(--border-color)] bg-[var(--bg-primary)] hover:bg-[var(--bg-card)] transition-colors"
+            >
+              {lang === "tr" ? "Giriş Yap Sayfası" : "Sign In"}
+            </Link>
+          </div>
         </div>
-        <h1 className="text-3xl font-light tracking-tight">System Configuration</h1>
-        <p className="text-[#666] text-sm mt-1">Configure Postfix, Dovecot, and Cloudflare DNS records</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-main)] flex flex-col items-center justify-center p-6 relative font-sans">
+      {/* Top Header Actions: Home & Flags */}
+      <div className="absolute top-6 left-6 right-6 flex items-center justify-between">
+        <Link
+          to="/"
+          className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text-main)] font-semibold transition-colors"
+        >
+          <ArrowLeft size={14} />
+          <span>{lang === "tr" ? "Ana Sayfa" : "Home"}</span>
+        </Link>
+
+        {/* Circular Flags */}
+        <div className="flex items-center gap-1.5 p-1 rounded-full bg-[var(--bg-secondary)] border border-[var(--border-color)] shadow-xs">
+          <button
+            onClick={() => setLang("tr")}
+            className={`w-7 h-7 rounded-full flex items-center justify-center text-sm transition-all select-none ${
+              lang === "tr" ? "ring-2 ring-[var(--text-main)] bg-[var(--bg-card)] shadow-xs" : "opacity-40 hover:opacity-100"
+            }`}
+            title="Türkçe"
+          >
+            🇹🇷
+          </button>
+          <button
+            onClick={() => setLang("en")}
+            className={`w-7 h-7 rounded-full flex items-center justify-center text-sm transition-all select-none ${
+              lang === "en" ? "ring-2 ring-[var(--text-main)] bg-[var(--bg-card)] shadow-xs" : "opacity-40 hover:opacity-100"
+            }`}
+            title="English (UK)"
+          >
+            🇬🇧
+          </button>
+        </div>
       </div>
 
-      {/* Step Indicators */}
-      <div className="flex items-center gap-3 mb-8">
-        {[
-          { num: 1, label: "Environment" },
-          { num: 2, label: "Network & IP" },
-          { num: 3, label: "Admin User" },
-          { num: 4, label: "DNS / Cloudflare" }
-        ].map(s => (
-          <div key={s.num} className="flex items-center gap-2">
-            <div
-              className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium transition-all ${
-                step === s.num
-                  ? "bg-white text-black font-semibold"
-                  : step > s.num
-                  ? "bg-[#222] text-white"
-                  : "bg-[#111] text-[#444] border border-[#222]"
-              }`}
-            >
-              {step > s.num ? <Check size={13} /> : s.num}
-            </div>
-            <span className={`text-xs hidden sm:inline ${step === s.num ? "text-white" : "text-[#555]"}`}>
-              {s.label}
-            </span>
-            {s.num < 4 && <div className="w-4 h-px bg-[#222]" />}
-          </div>
+      {/* Brand Logo */}
+      <div className="text-center mb-6">
+        <img src="/dispatch.png" alt="Dispatch" className="h-9 w-auto object-contain mx-auto mb-3" />
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs text-[var(--text-muted)] shadow-xs">
+          <Server size={13} className="text-[var(--text-main)]" />
+          <span>{lang === "tr" ? "Dispatch E-Posta Sunucusu Kurulum Sihirbazı" : "Dispatch Mail Server Setup Wizard"}</span>
+        </div>
+      </div>
+
+      {/* Steps Indicator */}
+      <div className="flex items-center gap-2 mb-8">
+        {[1, 2, 3, 4].map(s => (
+          <div
+            key={s}
+            className={`h-1.5 rounded-full transition-all duration-300 ${
+              s === step ? "w-10 bg-[var(--accent)]" : s < step ? "w-4 bg-[var(--text-muted)]" : "w-4 bg-[var(--border-color)]"
+            }`}
+          />
         ))}
       </div>
 
-      {/* Main Wizard Card */}
-      <div className="w-full max-w-2xl bg-[#111] border border-[#1f1f1f] rounded-xl p-8 shadow-2xl">
-        {error && (
-          <div className="mb-6 p-3 rounded-lg bg-[#ff444415] border border-[#ff444430] text-[#ff4444] text-xs">
-            {error}
-          </div>
-        )}
-
+      {/* Card Container */}
+      <div className="w-full max-w-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-3xl p-8 shadow-2xl">
         <AnimatePresence mode="wait">
-          {/* STEP 1: Environment & Domain */}
+          {/* STEP 1: Domain & Subdomain Configuration */}
           {step === 1 && (
             <motion.div
               key="step1"
@@ -164,91 +225,90 @@ export default function SetupWizard() {
               className="flex flex-col gap-6"
             >
               <div>
-                <h2 className="text-lg font-medium">Deployment Mode & Domain</h2>
-                <p className="text-xs text-[#666] mt-0.5">Select local testing or a real registered domain for production.</p>
+                <h2 className="text-lg font-bold text-[var(--text-main)]">
+                  {lang === "tr" ? "1. Alan Adı ve Subdomain Yapılandırması" : "1. Domain & Subdomain Configuration"}
+                </h2>
+                <p className="text-xs text-[var(--text-muted)] mt-1">
+                  {lang === "tr"
+                    ? "Ana sitenizi (Cloudflare Pages vb.) bozmadan Dispatch e-posta ve web arayüzünü bağlayın."
+                    : "Configure Dispatch email and webmail without breaking your existing website."}
+                </p>
               </div>
 
-              {/* Mode Toggle */}
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode("local_development")
-                    setDomain("dispatch.local")
-                    setIpv4("127.0.0.1")
-                  }}
-                  className={`p-4 rounded-lg border text-left flex flex-col gap-1 transition-all ${
-                    mode === "local_development"
-                      ? "border-white bg-[#1a1a1a]"
-                      : "border-[#222] bg-[#0d0d0d] text-[#666] hover:border-[#333]"
-                  }`}
-                >
-                  <span className="text-sm font-medium text-white">Local Development</span>
-                  <span className="text-xs text-[#666]">Offline Docker test stack without real domain verification.</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode("production")
-                    if (domain === "dispatch.local") setDomain("example.com")
-                  }}
-                  className={`p-4 rounded-lg border text-left flex flex-col gap-1 transition-all ${
-                    mode === "production"
-                      ? "border-white bg-[#1a1a1a]"
-                      : "border-[#222] bg-[#0d0d0d] text-[#666] hover:border-[#333]"
-                  }`}
-                >
-                  <span className="text-sm font-medium text-white">Production Server</span>
-                  <span className="text-xs text-[#666]">Real VPS with public static IP and Cloudflare DNS management.</span>
-                </button>
+              {/* Ultra-Detailed Architecture Guidance Box */}
+              <div className="p-4 rounded-2xl bg-[var(--bg-primary)] border border-[var(--border-color)] flex flex-col gap-2.5 text-xs">
+                <div className="flex items-center gap-2 font-bold text-[var(--text-main)]">
+                  <Globe size={15} className="text-[#3b82f6]" />
+                  <span>{lang === "tr" ? "Alan Adı Mimarisi Nasıl Çalışır?" : "How Domain Architecture Works"}</span>
+                </div>
+                <div className="text-[11px] text-[var(--text-muted)] leading-relaxed space-y-1.5">
+                  <p>
+                    • <strong>{lang === "tr" ? "Ana Domain (Root / Apex):" : "Root Domain:"}</strong> <code className="text-[var(--text-main)]">{domain}</code> ➔ {lang === "tr" ? "Mevcut web siteniz aynen kalır. E-postalarınız" : "Your existing website stays intact. Email addresses will be"} <strong className="text-[var(--text-main)]">adiniz@{domain}</strong> {lang === "tr" ? "olarak açılır." : "."}
+                  </p>
+                  <p>
+                    • <strong>{lang === "tr" ? "Webmail Subdomain:" : "Webmail Subdomain:"}</strong> <code className="text-[var(--text-main)]">{webSubdomain}.{domain}</code> ➔ {lang === "tr" ? "Dispatch web posta arayüzüne tarayıcıdan girilen adres." : "The URL to access Dispatch webmail."}
+                  </p>
+                  <p>
+                    • <strong>{lang === "tr" ? "Mail Host Subdomain:" : "Mail Host Subdomain:"}</strong> <code className="text-[var(--text-main)]">{mailSubdomain}.{domain}</code> ➔ {lang === "tr" ? "Postfix ve Dovecot'un (Thunderbird, SMTP/IMAP) bağlandığı sunucu hostu." : "Hostname for Postfix and Dovecot (SMTP/IMAP)."}
+                  </p>
+                </div>
               </div>
 
-              {/* Domain inputs */}
-              <div className="flex flex-col gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="text-xs text-[#888] block mb-1.5">Root Domain</label>
+                  <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">
+                    {lang === "tr" ? "Ana Alan Adı (Root TLD)" : "Root Domain (TLD)"}
+                  </label>
                   <input
                     type="text"
                     value={domain}
                     onChange={e => setDomain(e.target.value)}
-                    placeholder="e.g. yourdomain.com or dispatch.local"
-                    className="w-full bg-[#0a0a0a] border border-[#222] text-white text-sm px-4 py-2.5 rounded-lg focus:outline-none focus:border-white transition-colors"
+                    placeholder="noirlang.tr"
+                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-[var(--text-main)] font-mono"
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs text-[#888] block mb-1.5">Mail Subdomain (Hostname)</label>
-                  <div className="flex items-center">
-                    <input
-                      type="text"
-                      value={mailSubdomain}
-                      onChange={e => setMailSubdomain(e.target.value)}
-                      placeholder="mail"
-                      className="w-36 bg-[#0a0a0a] border border-[#222] text-white text-sm px-4 py-2.5 rounded-l-lg focus:outline-none focus:border-white transition-colors"
-                    />
-                    <div className="bg-[#161616] border border-l-0 border-[#222] px-4 py-2.5 rounded-r-lg text-xs text-[#666]">
-                      .{domain}
-                    </div>
-                  </div>
-                  <span className="text-[11px] text-[#555] mt-1 block">Full mail host: {mailSubdomain}.{domain}</span>
+                  <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">
+                    {lang === "tr" ? "Webmail Subdomain" : "Webmail Subdomain"}
+                  </label>
+                  <input
+                    type="text"
+                    value={webSubdomain}
+                    onChange={e => setWebSubdomain(e.target.value)}
+                    placeholder="dispatch"
+                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-[var(--text-main)] font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">
+                    {lang === "tr" ? "Mail Host Subdomain" : "Mail Host Subdomain"}
+                  </label>
+                  <input
+                    type="text"
+                    value={mailSubdomain}
+                    onChange={e => setMailSubdomain(e.target.value)}
+                    placeholder="mail"
+                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-[var(--text-main)] font-mono"
+                  />
                 </div>
               </div>
 
-              <div className="flex justify-end mt-4">
+              <div className="flex justify-end mt-2">
                 <button
                   type="button"
                   onClick={() => setStep(2)}
-                  className="bg-white text-black px-6 py-2 rounded-lg text-xs font-medium flex items-center gap-1.5 hover:bg-[#e0e0e0] transition-colors"
+                  className="bg-[var(--accent)] text-[var(--accent-invert)] px-6 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 hover:opacity-90 transition-all shadow-sm"
                 >
-                  <span>Next: Network</span>
-                  <ArrowRight size={13} />
+                  <span>{lang === "tr" ? "İleri: Sunucu IP & SSL" : "Next: Server IP & SSL"}</span>
+                  <ArrowRight size={14} />
                 </button>
               </div>
             </motion.div>
           )}
 
-          {/* STEP 2: Network & IPv4 / IPv6 */}
+          {/* STEP 2: Server IP & Environment */}
           {step === 2 && (
             <motion.div
               key="step2"
@@ -258,73 +318,84 @@ export default function SetupWizard() {
               className="flex flex-col gap-6"
             >
               <div>
-                <h2 className="text-lg font-medium">Server Networking & IP Addresses</h2>
-                <p className="text-xs text-[#666] mt-0.5">Specify server IP addresses for SPF and A/AAAA records.</p>
+                <h2 className="text-lg font-bold text-[var(--text-main)]">
+                  {lang === "tr" ? "2. Sunucu IP Adresi & Çalışma Ortamı" : "2. Server IP & Environment"}
+                </h2>
+                <p className="text-xs text-[var(--text-muted)] mt-1">
+                  {lang === "tr"
+                    ? "Dispatch sunucunuzun dış statik IPv4 adresi."
+                    : "Public static IPv4 address of your Dispatch server."}
+                </p>
               </div>
 
               <div className="flex flex-col gap-4">
                 <div>
-                  <label className="text-xs text-[#888] block mb-1.5">Server IPv4 Address</label>
+                  <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">
+                    {lang === "tr" ? "Sunucu Statik IPv4 Adresi" : "Server Static IPv4 Address"}
+                  </label>
                   <input
                     type="text"
                     value={ipv4}
                     onChange={e => setIpv4(e.target.value)}
-                    placeholder="e.g. 198.51.100.1 or 127.0.0.1"
-                    className="w-full bg-[#0a0a0a] border border-[#222] text-white text-sm px-4 py-2.5 rounded-lg focus:outline-none focus:border-white transition-colors"
+                    placeholder="123.45.67.89"
+                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-[var(--text-main)] font-mono"
                   />
-                  <span className="text-[11px] text-[#555] mt-1 block">This IP will be used in the 'A' record and SPF whitelist.</span>
                 </div>
 
-                {/* IPv6 Checkbox */}
-                <div className="pt-2 border-t border-[#1a1a1a]">
-                  <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={enableIpv6}
-                      onChange={e => setEnableIpv6(e.target.checked)}
-                      className="w-4 h-4 rounded border-[#333] bg-[#0a0a0a] accent-white"
-                    />
-                    <span className="text-xs font-medium text-white">Enable IPv6 support (optional)</span>
+                <div>
+                  <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">
+                    {lang === "tr" ? "Çalışma Modu" : "Environment Mode"}
                   </label>
-                  <span className="text-[11px] text-[#555] mt-0.5 ml-6 block">
-                    If your VPS does not have a static IPv6 assigned, keep this unchecked.
-                  </span>
-                </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setMode("production")}
+                      className={`p-3.5 rounded-xl border text-left text-xs transition-all ${
+                        mode === "production"
+                          ? "bg-[var(--bg-card)] border-[var(--text-main)] font-bold text-[var(--text-main)] shadow-xs"
+                          : "border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-muted)] opacity-70"
+                      }`}
+                    >
+                      <span className="block font-bold">Production (Canlı Sunucu)</span>
+                      <span className="text-[10px] text-[var(--text-dim)] font-normal block mt-0.5">
+                        Gerçek DNS, Let's Encrypt SSL ve Postfix
+                      </span>
+                    </button>
 
-                {enableIpv6 && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    className="flex flex-col gap-1.5 pl-6"
-                  >
-                    <label className="text-xs text-[#888]">Server IPv6 Address</label>
-                    <input
-                      type="text"
-                      value={ipv6}
-                      onChange={e => setIpv6(e.target.value)}
-                      placeholder="e.g. 2001:db8::1"
-                      className="w-full bg-[#0a0a0a] border border-[#222] text-white text-sm px-4 py-2.5 rounded-lg focus:outline-none focus:border-white transition-colors"
-                    />
-                  </motion.div>
-                )}
+                    <button
+                      type="button"
+                      onClick={() => setMode("local_development")}
+                      className={`p-3.5 rounded-xl border text-left text-xs transition-all ${
+                        mode === "local_development"
+                          ? "bg-[var(--bg-card)] border-[var(--text-main)] font-bold text-[var(--text-main)] shadow-xs"
+                          : "border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-muted)] opacity-70"
+                      }`}
+                    >
+                      <span className="block font-bold">Local Development</span>
+                      <span className="text-[10px] text-[var(--text-dim)] font-normal block mt-0.5">
+                        Lokal test ortamı (dispatch.local)
+                      </span>
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              <div className="flex justify-between mt-4">
+              <div className="flex justify-between mt-2">
                 <button
                   type="button"
                   onClick={() => setStep(1)}
-                  className="text-[#666] hover:text-white text-xs px-4 py-2 flex items-center gap-1.5"
+                  className="text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text-main)] flex items-center gap-1.5"
                 >
-                  <ArrowLeft size={13} />
-                  <span>Back</span>
+                  <ArrowLeft size={14} />
+                  <span>{lang === "tr" ? "Geri" : "Back"}</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setStep(3)}
-                  className="bg-white text-black px-6 py-2 rounded-lg text-xs font-medium flex items-center gap-1.5 hover:bg-[#e0e0e0] transition-colors"
+                  className="bg-[var(--accent)] text-[var(--accent-invert)] px-6 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 hover:opacity-90 transition-all shadow-sm"
                 >
-                  <span>Next: Admin Account</span>
-                  <ArrowRight size={13} />
+                  <span>{lang === "tr" ? "İleri: İlk Yönetici Hesabı" : "Next: Admin Account"}</span>
+                  <ArrowRight size={14} />
                 </button>
               </div>
             </motion.div>
@@ -340,71 +411,89 @@ export default function SetupWizard() {
               className="flex flex-col gap-6"
             >
               <div>
-                <h2 className="text-lg font-medium">Initial Administrator Account</h2>
-                <p className="text-xs text-[#666] mt-0.5">Create your primary mailbox and administrator user.</p>
+                <h2 className="text-lg font-bold text-[var(--text-main)]">
+                  {lang === "tr" ? "3. İlk Yönetici E-Posta Hesabı" : "3. Initial Administrator Account"}
+                </h2>
+                <p className="text-xs text-[var(--text-muted)] mt-1">
+                  {lang === "tr"
+                    ? "Sunucunuzdaki ilk ana posta kutusu ve yönetici kullanıcısını oluşturun."
+                    : "Create your primary mailbox and administrator user."}
+                </p>
               </div>
 
               <div className="flex flex-col gap-4">
                 <div>
-                  <label className="text-xs text-[#888] block mb-1.5">Full Name</label>
+                  <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">
+                    {lang === "tr" ? "Adınız ve Soyadınız" : "Full Name"}
+                  </label>
                   <input
                     type="text"
                     value={adminName}
                     onChange={e => setAdminName(e.target.value)}
-                    placeholder="e.g. System Administrator"
-                    className="w-full bg-[#0a0a0a] border border-[#222] text-white text-sm px-4 py-2.5 rounded-lg focus:outline-none focus:border-white transition-colors"
+                    placeholder="Melih Emik"
+                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-[var(--text-main)]"
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs text-[#888] block mb-1.5">Email Address</label>
+                  <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">
+                    {lang === "tr" ? "E-Posta Adresiniz" : "Email Address"}
+                  </label>
                   <div className="flex items-center">
                     <input
                       type="text"
                       value={adminEmailPrefix}
                       onChange={e => setAdminEmailPrefix(e.target.value)}
                       placeholder="admin"
-                      className="w-40 bg-[#0a0a0a] border border-[#222] text-white text-sm px-4 py-2.5 rounded-l-lg focus:outline-none focus:border-white transition-colors text-right"
+                      className="w-40 bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-l-xl focus:outline-none focus:border-[var(--text-main)] text-right font-mono"
                     />
-                    <div className="bg-[#161616] border border-l-0 border-[#222] px-4 py-2.5 rounded-r-lg text-xs text-[#888]">
+                    <div className="bg-[var(--bg-card)] border border-l-0 border-[var(--border-color)] px-4 py-2.5 rounded-r-xl text-xs font-mono text-[var(--text-muted)] font-bold">
                       @{domain}
                     </div>
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-xs text-[#888] block mb-1.5">Password</label>
+                  <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">
+                    {lang === "tr" ? "Şifre" : "Password"}
+                  </label>
                   <input
                     type="password"
                     value={adminPassword}
                     onChange={e => setAdminPassword(e.target.value)}
-                    placeholder="Strong password"
-                    className="w-full bg-[#0a0a0a] border border-[#222] text-white text-sm px-4 py-2.5 rounded-lg focus:outline-none focus:border-white transition-colors"
+                    placeholder="••••••••••••"
+                    className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-[var(--text-main)] font-mono"
                   />
                 </div>
               </div>
 
-              <div className="flex justify-between mt-4">
+              {error && (
+                <div className="p-3 rounded-xl bg-[#ef444415] border border-[#ef444430] text-[#ef4444] text-xs">
+                  {error}
+                </div>
+              )}
+
+              <div className="flex justify-between mt-2">
                 <button
                   type="button"
                   onClick={() => setStep(2)}
-                  className="text-[#666] hover:text-white text-xs px-4 py-2 flex items-center gap-1.5"
+                  className="text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text-main)] flex items-center gap-1.5"
                 >
-                  <ArrowLeft size={13} />
-                  <span>Back</span>
+                  <ArrowLeft size={14} />
+                  <span>{lang === "tr" ? "Geri" : "Back"}</span>
                 </button>
                 <button
                   type="button"
                   disabled={loading}
                   onClick={handleFinishSetup}
-                  className="bg-white text-black px-6 py-2 rounded-lg text-xs font-medium flex items-center gap-1.5 hover:bg-[#e0e0e0] transition-colors disabled:opacity-50"
+                  className="bg-[var(--accent)] text-[var(--accent-invert)] px-6 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 hover:opacity-90 transition-all shadow-sm disabled:opacity-50"
                 >
                   {loading ? (
-                    <span>Configuring server...</span>
+                    <span>{lang === "tr" ? "Sunucu Yapılandırılıyor..." : "Configuring server..."}</span>
                   ) : (
                     <>
-                      <span>Generate Cloudflare DNS</span>
-                      <ArrowRight size={13} />
+                      <span>{lang === "tr" ? "DNS Kayıtlarını Üret →" : "Generate DNS Records →"}</span>
+                      <ArrowRight size={14} />
                     </>
                   )}
                 </button>
@@ -412,7 +501,7 @@ export default function SetupWizard() {
             </motion.div>
           )}
 
-          {/* STEP 4: DNS / Cloudflare Records */}
+          {/* STEP 4: DNS / Cloudflare Records Table */}
           {step === 4 && setupResult && (
             <motion.div
               key="step4"
@@ -422,68 +511,75 @@ export default function SetupWizard() {
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg font-medium flex items-center gap-2">
-                    <Shield size={18} className="text-[#44ff88]" />
-                    <span>Setup Complete! Cloudflare DNS Records</span>
+                  <h2 className="text-lg font-bold text-[var(--text-main)] flex items-center gap-2">
+                    <Shield size={20} className="text-[#22c55e]" />
+                    <span>{lang === "tr" ? "Kurulum Tamamlandı! DNS Kayıtları" : "Setup Complete! DNS Records"}</span>
                   </h2>
-                  <p className="text-xs text-[#666] mt-0.5">
-                    Add the following records to your Cloudflare DNS dashboard for <strong>{setupResult.config.domain}</strong>.
+                  <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                    {lang === "tr"
+                      ? `${setupResult.config.domain} için Cloudflare DNS tablosuna eklenecek kayıtlar.`
+                      : `Records to add to your Cloudflare DNS dashboard for ${setupResult.config.domain}.`}
                   </p>
                 </div>
                 <button
+                  type="button"
                   onClick={() => copyText(setupResult.bind_zone, "bind_zone")}
-                  className="px-3 py-1.5 rounded-lg bg-[#1a1a1a] hover:bg-[#252525] text-xs text-[#bbb] hover:text-white flex items-center gap-1.5 transition-colors"
+                  className="px-3 py-1.5 rounded-xl bg-[var(--bg-primary)] hover:bg-[var(--bg-card)] border border-[var(--border-color)] text-xs text-[var(--text-muted)] hover:text-[var(--text-main)] flex items-center gap-1.5 transition-colors shadow-xs"
                 >
-                  {copiedKey === "bind_zone" ? <Check size={12} className="text-[#44ff88]" /> : <Copy size={12} />}
-                  <span>Copy Zone File</span>
+                  {copiedKey === "bind_zone" ? <Check size={13} className="text-[#22c55e]" /> : <Copy size={13} />}
+                  <span>{lang === "tr" ? "Tümünü Kopyala" : "Copy All"}</span>
                 </button>
               </div>
 
-              {/* Cloudflare Note & Auto Sync */}
-              <div className="p-4 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-color)] flex flex-col gap-3 shadow-xs">
+              {/* Cloudflare Auto-Sync Form */}
+              <div className="p-4 rounded-2xl bg-[var(--bg-primary)] border border-[var(--border-color)] flex flex-col gap-3 shadow-xs">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-[#f59e0b] animate-pulse" />
-                    <span className="text-xs font-bold text-[var(--text-main)]">Cloudflare Otomatik DNS Eşitleme</span>
+                    <span className="text-xs font-bold text-[var(--text-main)]">
+                      {lang === "tr" ? "Cloudflare Otomatik DNS Eşitleme" : "Cloudflare Auto DNS Sync"}
+                    </span>
                   </div>
-                  <span className="text-[10px] text-[var(--text-dim)]">API Token ile 1 Tıkla Ekle</span>
+                  <span className="text-[10px] text-[var(--text-dim)]">
+                    {lang === "tr" ? "API Token ile 1 Tıkla Ekle" : "1-Click Auto Insert"}
+                  </span>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <input
                     type="password"
-                    placeholder="Cloudflare API Token (Zone.DNS Edit izinli)"
+                    placeholder={lang === "tr" ? "Cloudflare API Token (Zone.DNS Edit izinli)" : "Cloudflare API Token"}
                     id="cf_token_input"
-                    className="flex-1 bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-xl focus:outline-none font-mono"
+                    className="flex-1 bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3.5 py-2.5 rounded-xl focus:outline-none font-mono"
                   />
                   <button
                     type="button"
                     onClick={async () => {
                       const input = document.getElementById("cf_token_input") as HTMLInputElement
                       const token = input?.value
-                      if (!token) return alert("Lütfen Cloudflare API Token girin.")
+                      if (!token) return alert(lang === "tr" ? "Lütfen Cloudflare API Token girin." : "Please enter API token.")
                       try {
                         const btn = document.getElementById("cf_sync_btn")
-                        if (btn) btn.innerText = "Aktarılıyor..."
+                        if (btn) btn.innerText = lang === "tr" ? "Aktarılıyor..." : "Syncing..."
                         const res = await api.post<any>("/setup/cloudflare_sync", {
                           api_token: token,
                           domain: setupResult.config.domain,
                           mail_subdomain: setupResult.config.mail_subdomain,
-                          web_subdomain: "dispatch",
+                          web_subdomain: webSubdomain,
                           ipv4: setupResult.config.ipv4
                         })
-                        alert(res.message || "Tüm DNS kayıtları Cloudflare'a başarıyla aktarıldı!")
+                        alert(res.message || (lang === "tr" ? "Tüm DNS kayıtları Cloudflare'a başarıyla aktarıldı!" : "Synced successfully!"))
                       } catch (err: any) {
-                        alert(err.message || "Cloudflare aktarımı başarısız oldu.")
+                        alert(err.message || (lang === "tr" ? "Cloudflare aktarımı başarısız oldu." : "Sync failed."))
                       } finally {
                         const btn = document.getElementById("cf_sync_btn")
-                        if (btn) btn.innerText = "Cloudflare'a Aktar"
+                        if (btn) btn.innerText = lang === "tr" ? "Cloudflare'a Aktar" : "Sync to Cloudflare"
                       }
                     }}
                     id="cf_sync_btn"
                     className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs font-bold px-4 py-2.5 rounded-xl hover:opacity-90 transition-all shrink-0 shadow-xs"
                   >
-                    Cloudflare'a Aktar
+                    {lang === "tr" ? "Cloudflare'a Aktar" : "Sync to Cloudflare"}
                   </button>
                 </div>
               </div>
@@ -494,17 +590,17 @@ export default function SetupWizard() {
                   <div
                     key={i}
                     onClick={() => copyText(r.content, `rec_${i}`)}
-                    className="p-3.5 rounded-xl bg-[var(--bg-card)] border border-[var(--border-color)] flex flex-col gap-2 hover:border-[var(--text-muted)] transition-colors cursor-pointer group"
-                    title="Tıklayarak içeriği kopyalayın"
+                    className="p-3.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)] flex flex-col gap-2 hover:border-[var(--text-muted)] transition-colors cursor-pointer group"
+                    title={lang === "tr" ? "Tıklayarak kopyalayın" : "Click to copy"}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 rounded-md bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-[11px] font-mono font-bold">
+                        <span className="px-2 py-0.5 rounded-md bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-main)] text-[11px] font-mono font-bold">
                           {r.type}
                         </span>
                         <span className="text-xs font-mono font-bold text-[var(--text-main)]">{r.name}</span>
                         {r.priority !== undefined && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-primary)] text-[var(--text-dim)]">
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-secondary)] text-[var(--text-dim)]">
                             Priority: {r.priority}
                           </span>
                         )}
@@ -520,14 +616,14 @@ export default function SetupWizard() {
                           e.stopPropagation()
                           copyText(r.content, `rec_${i}`)
                         }}
-                        className="text-[var(--text-dim)] group-hover:text-[var(--text-main)] text-xs flex items-center gap-1 p-1 rounded hover:bg-[var(--bg-primary)]"
-                        title="Kopyala"
+                        className="text-[var(--text-dim)] group-hover:text-[var(--text-main)] text-xs flex items-center gap-1 p-1 rounded hover:bg-[var(--bg-secondary)]"
+                        title={lang === "tr" ? "Kopyala" : "Copy"}
                       >
                         {copiedKey === `rec_${i}` ? <Check size={13} className="text-[#22c55e]" /> : <Copy size={13} />}
                       </button>
                     </div>
 
-                    <div className="bg-[var(--bg-primary)] p-2.5 rounded-lg border border-[var(--border-color)] font-mono text-[11px] text-[var(--text-muted)] break-all select-all">
+                    <div className="bg-[var(--bg-secondary)] p-2.5 rounded-lg border border-[var(--border-color)] font-mono text-[11px] text-[var(--text-muted)] break-all select-all">
                       {r.content}
                     </div>
 
@@ -536,17 +632,17 @@ export default function SetupWizard() {
                 ))}
               </div>
 
-              <div className="flex justify-between items-center pt-3 border-t border-[#1a1a1a]">
-                <span className="text-xs text-[#555]">
-                  Mode: <span className="text-white">{setupResult.config.mode}</span>
+              <div className="flex justify-between items-center pt-3 border-t border-[var(--border-color)]">
+                <span className="text-xs text-[var(--text-dim)]">
+                  {lang === "tr" ? "Ortam:" : "Mode:"} <strong className="text-[var(--text-main)]">{setupResult.config.mode}</strong>
                 </span>
                 <button
                   type="button"
-                  onClick={() => navigate("/")}
-                  className="bg-white text-black px-6 py-2.5 rounded-lg text-xs font-medium hover:bg-[#e0e0e0] transition-colors flex items-center gap-1.5"
+                  onClick={() => navigate("/app")}
+                  className="bg-[var(--accent)] text-[var(--accent-invert)] px-6 py-2.5 rounded-xl text-xs font-bold hover:opacity-90 transition-all flex items-center gap-1.5 shadow-sm"
                 >
-                  <span>Launch Dispatch Webmail</span>
-                  <ArrowRight size={13} />
+                  <span>{lang === "tr" ? "Dispatch E-Posta Arayüzünü Başlat" : "Launch Dispatch Webmail"}</span>
+                  <ArrowRight size={14} />
                 </button>
               </div>
             </motion.div>
