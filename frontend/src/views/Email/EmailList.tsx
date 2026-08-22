@@ -1,13 +1,18 @@
 import { useQuery } from "@tanstack/react-query"
 import { api } from "../../lib/api"
 import { formatDistanceToNow } from "date-fns"
+import SenderAvatar from "../../components/ui/SenderAvatar"
 
 interface Email {
   id: number
-  from_address: string
+  from: string
   subject: string
   is_read: boolean
   created_at: string
+  sender_name?: string
+  avatar_url?: string | null
+  avatar_initials?: string
+  is_known_company?: boolean
 }
 
 interface Props {
@@ -31,22 +36,37 @@ export default function EmailList({ folder, selectedId, onSelect }: Props) {
         <button
           key={email.id}
           onClick={() => onSelect(email.id)}
-          className={`p-3 border-b border-[#111] text-left transition-colors hover:bg-[#111] ${
+          className={`flex items-start gap-3 p-3 border-b border-[#111] text-left transition-colors hover:bg-[#111] ${
             selectedId === email.id ? "bg-[#1a1a1a]" : ""
           }`}
         >
-          <div className="flex justify-between items-start gap-2">
-            <span className={`text-xs truncate flex-1 ${email.is_read ? "text-[#666]" : "text-white font-medium"}`}>
-              {email.from_address}
-            </span>
-            <span className="text-[#444] text-[10px] shrink-0">
-              {formatDistanceToNow(new Date(email.created_at), { addSuffix: true })}
-            </span>
+          {/* Avatar */}
+          <div className="mt-0.5 shrink-0">
+            <SenderAvatar
+              avatarUrl={email.avatar_url}
+              initials={email.avatar_initials || "?"}
+              name={email.sender_name || email.from}
+              size={32}
+              isKnownCompany={email.is_known_company}
+            />
           </div>
-          <div className={`text-xs mt-0.5 truncate ${email.is_read ? "text-[#444]" : "text-[#ccc]"}`}>
-            {email.subject}
+
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            <div className="flex justify-between items-start gap-1">
+              <span className={`text-xs truncate ${email.is_read ? "text-[#555]" : "text-white font-medium"}`}>
+                {email.sender_name || email.from}
+              </span>
+              <span className="text-[#333] text-[10px] shrink-0">
+                {formatDistanceToNow(new Date(email.created_at), { addSuffix: true })}
+              </span>
+            </div>
+            <div className={`text-xs mt-0.5 truncate ${email.is_read ? "text-[#333]" : "text-[#aaa]"}`}>
+              {email.subject}
+            </div>
           </div>
-          {!email.is_read && <div className="w-1.5 h-1.5 bg-white rounded-full mt-1" />}
+
+          {!email.is_read && <div className="w-1.5 h-1.5 bg-white rounded-full shrink-0 mt-2" />}
         </button>
       ))}
     </div>
