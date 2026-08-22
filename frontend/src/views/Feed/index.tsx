@@ -4,8 +4,20 @@ import { api } from "../../lib/api"
 import { useT, useDateLocale } from "../../store/themeAndLocale"
 import { motion, AnimatePresence } from "framer-motion"
 import { formatDistanceToNow, format } from "date-fns"
-import { Plus, ExternalLink, Rss, BookOpen, Clock, X } from "lucide-react"
+import { Plus, ExternalLink, Rss, BookOpen, Clock, X, RotateCw } from "lucide-react"
 import DOMPurify from "dompurify"
+
+interface RssFeed {
+  id: number
+  url: string
+  title: string
+  description?: string
+  category?: string
+  refresh_interval?: number
+  last_fetched_at?: string
+  item_count: number
+  unread_count: number
+}
 
 interface RssItem {
   id: number
@@ -17,6 +29,7 @@ interface RssItem {
   is_read: boolean
   starred: boolean
   rss_feed_id: number
+  feed_title?: string
 }
 
 export default function FeedView() {
@@ -25,17 +38,26 @@ export default function FeedView() {
   const qc = useQueryClient()
   const [addUrl, setAddUrl] = useState("")
   const [showAdd, setShowAdd] = useState(false)
+  const [selectedFeedId, setSelectedFeedId] = useState<number | null>(null)
   const [selectedArticle, setSelectedArticle] = useState<RssItem | null>(null)
 
-  const { data: items = [], isLoading } = useQuery({
-    queryKey: ["rss-items"],
-    queryFn: () => api.get<RssItem[]>("/rss/items"),
+  const { data: feeds = [] } = useQuery({
+    queryKey: ["rss-feeds"],
+    queryFn: () => api.get<RssFeed[]>("/rss/feeds"),
+  })
+
+  const { data: items = [], isLoading, isFetching } = useQuery({
+    queryKey: ["rss-items", selectedFeedId],
+    queryFn: () => api.get<RssItem[]>(`/rss/items${selectedFeedId ? `?feed_id=${selectedFeedId}` : ""}`),
     refetchInterval: 60_000,
   })
 
   const markRead = useMutation({
     mutationFn: (id: number) => api.patch(`/rss/items/${id}/read`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["rss-items"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["rss-items"] })
+      qc.invalidateQueries({ queryKey: ["rss-feeds"] })
+    },
   })
 
   const addFeed = useMutation({
@@ -44,7 +66,24 @@ export default function FeedView() {
       setAddUrl("")
       setShowAdd(false)
       qc.invalidateQueries({ queryKey: ["rss-items"] })
+      qc.invalidateQueries({ queryKey: ["rss-feeds"] })
     },
+  })
+
+  const refreshAll = useMutation({
+    mutationFn: async () => {
+      if (selectedFeedId) {
+        await api.post(`/rss/feeds/${selectedFeedId}/refresh`)
+      } else {
+        for (const f of feeds) {
+          await api.post(`/rss/feeds/${f.id}/refresh`).catch(() => {})
+        }
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["rss-items"] })
+      qc.invalidateQueries({ queryKey: ["rss-feeds"] })
+    }
   })
 
   function handleOpenArticle(item: RssItem) {
@@ -57,20 +96,32 @@ export default function FeedView() {
   return (
     <div className="h-full flex flex-col max-w-6xl mx-auto p-6 animate-fadeIn">
       {/* Feed Header */}
-      <div className="flex items-center justify-between pb-6 mb-4 border-b border-[var(--border-color)]">
+      <div className="flex items-center justify-between pb-4 mb-3 border-b border-[var(--border-color)]">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)]">
-            <Rss size={18} className="text-[var(--text-main)]" />
+            <Rss size={18} className="text-[#f59e0b]" />
           </div>
           <div>
             <h1 className="text-xl font-bold text-[var(--text-main)]">{t("feed")}</h1>
             <p className="text-xs text-[var(--text-muted)] mt-0.5">
-              Live news, blogs, and newsletters reader with in-app article view
+              Canlı haberler, bloglar ve bültenler okuyucusu
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
+          <motion.button
+            whileTap={{ scale: 0.94 }}
+            whileHover={{ scale: 1.03 }}
+            onClick={() => refreshAll.mutate()}
+            disabled={refreshAll.isPending || isFetching}
+            title="Akışları Yenile"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text-main)] transition-all shadow-xs"
+          >
+            <RotateCw size={13} className={refreshAll.isPending || isFetching ? "animate-spin text-[#f59e0b]" : ""} />
+            <span>Yenile</span>
+          </motion.button>
+
           <motion.button
             whileTap={{ scale: 0.94 }}
             whileHover={{ scale: 1.03 }}
@@ -82,6 +133,42 @@ export default function FeedView() {
           </motion.button>
         </div>
       </div>
+
+      {/* Subscribed Feed Filter Chips */}
+      {feeds.length > 0 && (
+        <div className="flex items-center gap-2 pb-3 mb-2 overflow-x-auto no-scrollbar">
+          <button
+            onClick={() => setSelectedFeedId(null)}
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 transition-colors cursor-pointer ${
+              selectedFeedId === null
+                ? "bg-[var(--text-main)] text-[var(--bg-primary)] shadow-xs"
+                : "bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-[var(--text-main)]"
+            }`}
+          >
+            Tüm Akışlar ({items.length})
+          </button>
+          {feeds.map((feed) => (
+            <button
+              key={feed.id}
+              onClick={() => setSelectedFeedId(feed.id)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 transition-colors flex items-center gap-2 cursor-pointer ${
+                selectedFeedId === feed.id
+                  ? "bg-[var(--text-main)] text-[var(--bg-primary)] shadow-xs"
+                  : "bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-[var(--text-main)]"
+              }`}
+            >
+              <span className="truncate max-w-[150px]">{feed.title}</span>
+              {feed.unread_count > 0 && (
+                <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-bold ${
+                  selectedFeedId === feed.id ? "bg-[var(--bg-primary)] text-[var(--text-main)]" : "bg-[#f59e0b20] text-[#f59e0b]"
+                }`}>
+                  {feed.unread_count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Add Feed Input Bar */}
       <AnimatePresence>
@@ -97,16 +184,16 @@ export default function FeedView() {
               autoFocus
               value={addUrl}
               onChange={(e) => setAddUrl(e.target.value)}
-              placeholder={t("feed_url_placeholder")}
-              className="flex-1 bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-4 py-2.5 rounded-xl focus:outline-none focus:border-[var(--text-main)]"
+              placeholder="https://example.com/feed.xml veya https://site.com"
+              className="flex-1 bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-4 py-2.5 rounded-xl focus:outline-none focus:border-[var(--text-main)] font-mono"
             />
             <motion.button
               whileTap={{ scale: 0.94 }}
               onClick={() => addFeed.mutate()}
               disabled={addFeed.isPending || !addUrl}
-              className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs font-bold px-5 py-2.5 rounded-xl hover:opacity-90 transition-all disabled:opacity-40 shadow-xs"
+              className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs font-bold px-5 py-2.5 rounded-xl hover:opacity-90 transition-all disabled:opacity-40 shadow-xs shrink-0"
             >
-              {addFeed.isPending ? "Adding..." : "Subscribe"}
+              {addFeed.isPending ? "Ekleniyor & Çekiliyor..." : "Abone Ol"}
             </motion.button>
           </motion.div>
         )}
@@ -155,6 +242,11 @@ export default function FeedView() {
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
+                    {item.feed_title && (
+                      <span className="inline-block px-2 py-0.5 mb-1.5 rounded-md bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[10px] font-bold text-[#f59e0b] truncate max-w-full">
+                        {item.feed_title}
+                      </span>
+                    )}
                     <h3 className={`text-base font-bold leading-snug mb-1.5 ${item.is_read ? "text-[var(--text-muted)]" : "text-[var(--text-main)]"}`}>
                       {item.title}
                     </h3>
