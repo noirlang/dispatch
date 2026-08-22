@@ -124,11 +124,11 @@ export default function LandingView() {
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="text-base sm:text-lg text-[var(--text-muted)] max-w-xl leading-relaxed mb-10"
+          className="text-base sm:text-lg text-[var(--text-muted)] max-w-2xl leading-relaxed mb-10"
         >
           {lang === "tr"
-            ? "Minimalist, hızlı ve güvenli e-posta deneyimi."
-            : "Minimalist, fast, and secure email experience."}
+            ? "Yapay zeka destekli akıllı asistan, anında e-posta çevirisi, spam engelleyen onay kuyruğu ve casus izleyici kalkanıyla donatılmış yeni nesil minimalist e-posta deneyimi."
+            : "Next-generation minimalist email experience powered by AI assistance, instant email translation, sender approval queues, and spy tracker shield security."}
         </motion.p>
 
         {/* CTA Buttons */}
