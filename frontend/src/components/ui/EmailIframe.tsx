@@ -2,10 +2,11 @@ import { useRef, useEffect, useState } from "react"
 
 interface Props {
   html: string
+  allowRemoteImages?: boolean
   className?: string
 }
 
-export default function EmailIframe({ html, className = "" }: Props) {
+export default function EmailIframe({ html, allowRemoteImages = true, className = "" }: Props) {
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const [height, setHeight] = useState(250)
 
@@ -31,10 +32,9 @@ export default function EmailIframe({ html, className = "" }: Props) {
     }
 
     iframe.addEventListener("load", adjustHeight)
-    // Run after a short delay for fonts and images to load
     const timer1 = setTimeout(adjustHeight, 100)
-    const timer2 = setTimeout(adjustHeight, 500)
-    const timer3 = setTimeout(adjustHeight, 1500)
+    const timer2 = setTimeout(adjustHeight, 400)
+    const timer3 = setTimeout(adjustHeight, 1200)
 
     return () => {
       iframe.removeEventListener("load", adjustHeight)
@@ -42,53 +42,57 @@ export default function EmailIframe({ html, className = "" }: Props) {
       clearTimeout(timer2)
       clearTimeout(timer3)
     }
-  }, [html])
+  }, [html, allowRemoteImages])
 
-  // Injected wrapper to sanitize and handle responsive images and links
-  const safeDoc = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <base target="_blank">
-        <style>
-          html, body {
-            margin: 0;
-            padding: 0;
-            background-color: transparent !important;
-            color: #e2e8f0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            font-size: 14px;
-            line-height: 1.6;
-            word-wrap: break-word;
-            overflow-x: hidden;
-          }
-          img {
-            max-width: 100% !important;
-            height: auto;
-          }
-          table {
-            max-width: 100% !important;
-          }
-          a {
-            color: #3b82f6;
-          }
-          blockquote {
-            border-left: 3px solid #64748b;
-            margin: 12px 0;
-            padding: 6px 14px;
-            color: #94a3b8;
-            background-color: rgba(255,255,255,0.03);
-            border-radius: 0 6px 6px 0;
-          }
-        </style>
-      </head>
-      <body>
-        ${html}
-      </body>
-    </html>
+  let processedHtml = html || ""
+
+  if (!allowRemoteImages) {
+    // Replace remote images with a subtle blocked placeholder
+    processedHtml = processedHtml.replace(/<img\s+([^>]*?)src=["'](https?:\/\/[^"']+)["']([^>]*?)>/gi, () => {
+      return `<div style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:#18181b;border:1px dashed #3f3f46;border-radius:6px;font-size:11px;color:#a1a1aa;margin:4px 0;font-family:sans-serif;"><span>🖼️</span><span>Harici Görsel Engellendi (Gizlilik Koruması)</span></div>`
+    })
+  }
+
+  const customStyle = `
+    <base target="_blank">
+    <style>
+      html, body {
+        margin: 0 !important;
+        padding: 0 !important;
+        word-wrap: break-word !important;
+        overflow-x: hidden !important;
+        color-scheme: light dark;
+      }
+      img {
+        max-width: 100% !important;
+        height: auto !important;
+      }
+      table {
+        max-width: 100% !important;
+      }
+    </style>
   `
+
+  let safeDoc = ""
+  if (processedHtml.includes("<head>")) {
+    safeDoc = processedHtml.replace("<head>", `<head>${customStyle}`)
+  } else if (processedHtml.includes("<html>") || processedHtml.includes("<!DOCTYPE") || processedHtml.includes("<!doctype")) {
+    safeDoc = `${customStyle}${processedHtml}`
+  } else {
+    safeDoc = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          ${customStyle}
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; line-height: 1.6; color: #e4e4e7; background-color: transparent;">
+          ${processedHtml}
+        </body>
+      </html>
+    `
+  }
 
   return (
     <iframe

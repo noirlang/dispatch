@@ -85,16 +85,47 @@ class Email::SendService
 
     # Deliver to local recipients if they exist on this system
     recipient_addresses.each do |to_addr|
-      # 1. Exact email match (e.g. melih@dispatch.local)
-      recipient_user = User.find_by(email: to_addr)
+      # Exact email match ONLY
+      recipient_user = User.find_by("lower(email) = ?", to_addr.downcase.strip)
 
-      # 2. If not found directly, match by username prefix or sanitized name
       if recipient_user.nil?
-        uname = to_addr.split("@").first.downcase.strip
-        recipient_user = User.where("lower(email) = ? OR lower(email) LIKE ? OR lower(replace(name, ' ', '')) = ? OR lower(replace(name, ' ', '')) LIKE ?", "#{uname}@#{server_domain}", "#{uname}@%", uname, "%#{uname}%").first
-      end
+        # If recipient domain is our local server domain, send bounce mail to sender
+        if to_addr.downcase.end_with?("@#{server_domain.downcase}")
+          bounce_body = <<~MD
+            ::: callout warning
+            ⚠️ **Teslim Edilemedi (Undelivered Mail Returned to Sender)**
+            :::
 
-      next unless recipient_user
+            Sayın **#{user.name}**,
+
+            Göndermiş olduğunuz e-posta alıcı adresine teslim edilemedi:
+            - **Hatalı Alıcı:** `#{to_addr}`
+            - **Durum:** `550 5.1.1 Alıcı adresi bu sunucuda bulunamadı (User unknown).`
+            - **Tarih:** #{Time.current.strftime('%d.%m.%Y %H:%M')}
+
+            Lütfen e-posta adresini kontrol ederek iletinizi yeniden gönderin.
+
+            ---
+            **Orijinal İleti Detayları:**
+            - **Konu:** #{params[:subject]}
+            - **İçerik Özeti:**
+            > #{raw_body.to_s.lines.first(5).map { |l| l.strip }.join("\n> ")}
+          MD
+
+          bounce_html = markdown_to_html(bounce_body)
+
+          user.emails.create!(
+            from_address: "mailer-daemon@#{server_domain}",
+            to_address: user.email,
+            subject: "Mail Teslim Edilemedi (Undelivered): #{params[:subject]}",
+            body_text: bounce_body,
+            body_html: bounce_html,
+            folder: "inbox",
+            is_read: false
+          )
+        end
+        next
+      end
 
       full_content = "#{params[:subject]} #{raw_body}"
       

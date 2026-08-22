@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "../../lib/api"
 import { useAuth } from "../../store/auth"
@@ -83,6 +83,13 @@ export default function EmailReader({ id, folder, onReply, onForward }: Props) {
     target_language: string
   } | null>(null)
   const [showOriginal, setShowOriginal] = useState(false)
+
+  // Remote Images Security State (Thunderbird style - per email)
+  const [showRemoteImages, setShowRemoteImages] = useState(false)
+
+  useEffect(() => {
+    setShowRemoteImages(false)
+  }, [id])
 
   // Custom Avatar Modal State
   const [avatarModalOpen, setAvatarModalOpen] = useState(false)
@@ -294,7 +301,11 @@ export default function EmailReader({ id, folder, onReply, onForward }: Props) {
 
   const isHtml = Boolean(email.body_html || email.body?.trim().startsWith("<"))
   const rawHtml = email.body_html || (email.body?.trim().startsWith("<") ? email.body : "")
-  const safeHtml = isHtml ? DOMPurify.sanitize(rawHtml) : ""
+  const safeHtml = isHtml ? DOMPurify.sanitize(rawHtml, {
+    ADD_TAGS: ["style", "meta", "link"],
+    ADD_ATTR: ["target", "bgcolor", "align", "valign", "border", "cellpadding", "cellspacing"]
+  }) : ""
+  const hasRemoteImages = /<img[^>]+src=["']https?:\/\//i.test(rawHtml || email.body_text || "")
 
   return (
     <div
@@ -555,6 +566,24 @@ export default function EmailReader({ id, folder, onReply, onForward }: Props) {
         </div>
       )}
 
+      {/* Remote Image Security Banner (Thunderbird style - per email) */}
+      {hasRemoteImages && !showRemoteImages && (
+        <div className="mx-8 mt-3 px-4 py-2.5 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-between shadow-xs animate-fadeIn">
+          <div className="flex items-center gap-2.5">
+            <span className="text-sm">🛡️</span>
+            <span className="text-xs font-semibold text-[var(--text-main)]">
+              Gizliliğinizi korumak için bu iletideki harici görseller engellendi.
+            </span>
+          </div>
+          <button
+            onClick={() => setShowRemoteImages(true)}
+            className="px-3.5 py-1.5 rounded-xl bg-[var(--accent)] text-[var(--accent-invert)] text-xs font-bold hover:opacity-90 transition-all shadow-xs cursor-pointer"
+          >
+            Bu İletideki Görselleri Göster
+          </button>
+        </div>
+      )}
+
       {/* Email Body */}
       <div className="flex-1 p-10 overflow-y-auto max-w-4xl">
         {translation && !showOriginal ? (
@@ -562,7 +591,7 @@ export default function EmailReader({ id, folder, onReply, onForward }: Props) {
             <EmailMdView content={translation.translated_body} />
           </div>
         ) : isHtml ? (
-          <EmailIframe html={safeHtml} />
+          <EmailIframe html={safeHtml} allowRemoteImages={showRemoteImages} />
         ) : (
           <div className="text-sm leading-relaxed font-sans text-[var(--text-main)]">
             <EmailMdView content={email.body_text || email.body || ""} />
