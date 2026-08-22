@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "../../lib/api"
 import { useT } from "../../store/themeAndLocale"
 import ReactMarkdown from "react-markdown"
-import { Send, X, Eye, Edit3, Users } from "lucide-react"
+import { Send, X, Eye, Edit3, Users, ExternalLink } from "lucide-react"
 
 interface Props {
   initialTo?: string
@@ -71,9 +71,16 @@ export default function ComposeView({
           <span className="text-base font-medium text-[var(--text-main)]">
             {isReply ? `${t("reply")}: ${initialSubject}` : t("new_message")}
           </span>
-          <span className="text-[11px] text-[var(--text-dim)] font-mono px-2 py-0.5 rounded bg-[var(--bg-secondary)] border border-[var(--border-color)]">
-            Markdown enabled
-          </span>
+          <a
+            href="https://markdownlivepreview.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Markdown Canlı Önizleme & Rehberi Aç"
+            className="text-[11px] text-[var(--text-dim)] hover:text-[var(--text-main)] hover:border-[var(--text-muted)] font-mono px-2 py-0.5 rounded bg-[var(--bg-secondary)] border border-[var(--border-color)] transition-colors flex items-center gap-1 cursor-pointer"
+          >
+            <span>Markdown enabled</span>
+            <ExternalLink size={10} className="opacity-60" />
+          </a>
         </div>
 
         <div className="flex items-center gap-2">
