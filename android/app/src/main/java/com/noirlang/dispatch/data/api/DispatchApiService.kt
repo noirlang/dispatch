@@ -39,6 +39,10 @@ interface DispatchApiService {
     @POST("api/v1/emails")
     suspend fun sendEmail(@Body request: SendEmailRequest): Response<Email>
 
+    @POST("api/v1/emails/save_draft")
+    suspend fun saveDraft(@Body request: SendEmailRequest): Response<Email>
+
+
     @Multipart
     @POST("api/v1/attachments/upload")
     suspend fun uploadAttachment(@Part file: MultipartBody.Part): Response<Map<String, Any>>

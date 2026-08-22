@@ -37,8 +37,10 @@ import java.util.*
 @Composable
 fun EmailListScreen(
     onEmailClick: (Long) -> Unit,
-    onComposeClick: () -> Unit
+    onComposeClick: () -> Unit,
+    onOpenDraft: (Email) -> Unit = {}
 ) {
+
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -306,6 +308,8 @@ fun EmailListScreen(
                             onClick = {
                                 if (multiSelectMode) {
                                     selectedIds = if (isChecked) selectedIds - email.id else selectedIds + email.id
+                                } else if (selectedFolder == "drafts") {
+                                    onOpenDraft(email)
                                 } else {
                                     onEmailClick(email.id)
                                 }
@@ -318,6 +322,7 @@ fun EmailListScreen(
         }
     }
 }
+
 
 @Composable
 fun EmailListItem(

@@ -427,23 +427,36 @@ export default function EmailReader({ id, folder, onReply, onForward, onClose }:
             </>
           )}
 
-          <motion.button
-            whileTap={{ scale: 0.94 }}
-            onClick={() => onReply(email)}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[var(--bg-primary)] hover:bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-main)] text-xs font-bold transition-colors shadow-xs"
-          >
-            <Reply size={14} />
-            <span>{t("reply")}</span>
-          </motion.button>
+          {(folder === "drafts" || email.folder === "drafts") ? (
+            <motion.button
+              whileTap={{ scale: 0.94 }}
+              onClick={() => onReply(email)}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[var(--accent)] text-[var(--accent-invert)] text-xs font-bold transition-colors shadow-xs"
+            >
+              <Send size={14} />
+              <span>Taslağı Düzenle & Gönder</span>
+            </motion.button>
+          ) : (
+            <>
+              <motion.button
+                whileTap={{ scale: 0.94 }}
+                onClick={() => onReply(email)}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[var(--bg-primary)] hover:bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-main)] text-xs font-bold transition-colors shadow-xs"
+              >
+                <Reply size={14} />
+                <span>{t("reply")}</span>
+              </motion.button>
 
-          <motion.button
-            whileTap={{ scale: 0.94 }}
-            onClick={() => onForward(email)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--bg-primary)] hover:bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-main)] text-xs font-medium transition-colors shadow-xs"
-          >
-            <Forward size={14} />
-            <span>{t("forward")}</span>
-          </motion.button>
+              <motion.button
+                whileTap={{ scale: 0.94 }}
+                onClick={() => onForward(email)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--bg-primary)] hover:bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-main)] text-xs font-medium transition-colors shadow-xs"
+              >
+                <Forward size={14} />
+                <span>{t("forward")}</span>
+              </motion.button>
+            </>
+          )}
 
           {/* Important Sender Toggle Button */}
           <motion.button

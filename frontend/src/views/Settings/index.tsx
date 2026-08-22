@@ -82,21 +82,36 @@ export default function SettingsView() {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto p-4 sm:p-8 max-w-4xl bg-[var(--bg-primary)]">
-        <AnimatePresence mode="wait">
-          {tab === "profile"    && <ProfileTab key="profile" user={user} onUpdate={fetchMe} />}
-          {tab === "appearance" && <AppearanceTab key="appearance" />}
-          {tab === "contacts"   && <ContactsTab key="contacts" />}
-          {tab === "speakeasy"  && <SpeakeasyTab key="speakeasy" copyText={copyText} copiedKey={copiedKey} />}
-          {tab === "ai"         && <AiTab key="ai" />}
-          {tab === "rss"        && <RssTab key="rss" />}
-          {tab === "security"   && <SecurityTab key="security" />}
-          {tab === "updates"    && <UpdatesTab key="updates" />}
-        </AnimatePresence>
+      <main className="flex-1 overflow-y-auto p-4 sm:p-8 max-w-4xl bg-[var(--bg-primary)] flex flex-col justify-between">
+        <div>
+          <AnimatePresence mode="wait">
+            {tab === "profile"    && <ProfileTab key="profile" user={user} onUpdate={fetchMe} />}
+            {tab === "appearance" && <AppearanceTab key="appearance" />}
+            {tab === "contacts"   && <ContactsTab key="contacts" />}
+            {tab === "speakeasy"  && <SpeakeasyTab key="speakeasy" copyText={copyText} copiedKey={copiedKey} />}
+            {tab === "ai"         && <AiTab key="ai" />}
+            {tab === "rss"        && <RssTab key="rss" />}
+            {tab === "security"   && <SecurityTab key="security" />}
+            {tab === "updates"    && <UpdatesTab key="updates" />}
+          </AnimatePresence>
+        </div>
+
+        {/* Company & Version Footer */}
+        <div className="mt-12 pt-6 border-t border-[var(--border-color)] flex flex-col sm:flex-row items-center justify-between text-xs text-[var(--text-dim)] gap-2">
+          <div className="flex items-center gap-2">
+            <span className="font-bold tracking-widest text-[var(--text-muted)]">DISPATCH</span>
+            <span>•</span>
+            <span className="font-mono">v1.0.0 (Build 2026.08)</span>
+          </div>
+          <div className="font-semibold tracking-wider text-[11px] text-[var(--text-dim)] uppercase">
+            NoirLang Technologies
+          </div>
+        </div>
       </main>
     </div>
   )
 }
+
 
 function TabBtn({
   id,

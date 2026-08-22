@@ -23,6 +23,26 @@ class Api::V1::EmailsController < Api::V1::BaseController
     end
   end
 
+  def save_draft
+    draft = if params[:id].present?
+              current_user.emails.where(folder: "drafts").find_by(id: params[:id])
+            end
+    draft ||= current_user.emails.new(folder: "drafts", from_address: current_user.email)
+    
+    draft.assign_attributes(
+      to_address: params[:to_address] || params[:to] || "",
+      cc: params[:cc],
+      bcc: params[:bcc],
+      subject: params[:subject] || "(Başlıksız Taslak)",
+      body_text: params[:body_text] || params[:body] || "",
+      body_html: params[:body_html] || (params[:body_text] || params[:body] ? "<p>#{CGI.escapeHTML(params[:body_text] || params[:body])}</p>" : nil),
+      attachments: params[:attachments] || []
+    )
+    draft.save!
+    render json: email_json(draft), status: :ok
+  end
+
+
 
   def destroy
     @email.update!(folder: "trash")

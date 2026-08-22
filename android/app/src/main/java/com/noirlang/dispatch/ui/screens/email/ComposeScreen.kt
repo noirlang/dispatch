@@ -11,9 +11,9 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,8 +35,10 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import java.io.File
 import java.io.FileOutputStream
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ComposeScreen(
+
     initialTo: String = "",
     initialSubject: String = "",
     initialBody: String = "",
@@ -50,13 +52,24 @@ fun ComposeScreen(
     var cc by remember { mutableStateOf("") }
     var subject by remember { mutableStateOf(initialSubject) }
     var body by remember {
-        val sig = session.currentUser?.defaultSignature?.let { "\n\n--\n$it" } ?: ""
-        mutableStateOf(initialBody.ifBlank { sig })
+        val sig = session.currentUser?.defaultSignature?.takeIf { it.isNotBlank() }?.let { "\n\n$it" } ?: ""
+        val initialText = if (initialBody.isNotBlank()) {
+            if (initialBody.contains("--- Orijinal İleti ---") || initialBody.contains("-----Original Message-----")) {
+                "\n$sig\n\n$initialBody"
+            } else {
+                "$initialBody$sig"
+            }
+        } else {
+            "\n$sig"
+        }
+        mutableStateOf(initialText)
     }
     var attachments by remember { mutableStateOf<List<EmailAttachment>>(emptyList()) }
     var isUploading by remember { mutableStateOf(false) }
     var isSending by remember { mutableStateOf(false) }
+    var isSavingDraft by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var draftSavedNotice by remember { mutableStateOf(false) }
 
     // File picker launcher for Android device attachments
     val filePickerLauncher = rememberLauncherForActivityResult(
@@ -102,7 +115,7 @@ fun ComposeScreen(
                         }
                     }
                 } catch (e: Exception) {
-                    errorMessage = "Ek yükleme hatası: ${e.message}"
+                    errorMessage = "Dosya yüklenemedi: ${e.message}"
                 } finally {
                     isUploading = false
                 }
@@ -113,26 +126,43 @@ fun ComposeScreen(
     Scaffold(
         containerColor = BgPrimary,
         topBar = {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                IconButton(onClick = onDismiss) {
-                    Icon(Icons.Filled.Close, "Kapat", tint = TextPrimary)
-                }
+            TopAppBar(
+                title = { Text(if (draftSavedNotice) "Taslak Kaydedildi ✓" else "Yeni İleti", color = if (draftSavedNotice) AccentGreen else TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Filled.Close, "Kapat", tint = TextPrimary)
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = BgPrimary),
+                actions = {
+                    // Save as draft button
+                    TextButton(
+                        onClick = {
+                            if (to.isBlank() && subject.isBlank() && body.isBlank()) return@TextButton
+                            isSavingDraft = true
+                            scope.launch {
+                                try {
+                                    ApiClient.getService(context).saveDraft(
+                                        SendEmailRequest(
+                                            to = to,
+                                            subject = subject.ifBlank { "(Başlıksız Taslak)" },
+                                            body = body,
+                                            attachments = attachments
+                                        )
+                                    )
+                                    draftSavedNotice = true
+                                } catch (e: Exception) {
+                                } finally {
+                                    isSavingDraft = false
+                                }
+                            }
+                        },
+                        enabled = !isSavingDraft
+                    ) {
+                        Text(if (isSavingDraft) "..." else "Taslak", color = TextDim, fontSize = 13.sp)
+                    }
 
-                Text(
-                    text = "Yeni E-Posta",
-                    color = TextPrimary,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Attach File Icon Button
+                    // Attach file button
                     IconButton(
                         onClick = { filePickerLauncher.launch("*/*") },
                         enabled = !isUploading && !isSending
@@ -144,27 +174,27 @@ fun ComposeScreen(
                         }
                     }
 
-                    // Send Button
+                    // Send button
                     IconButton(
                         onClick = {
                             if (to.isBlank()) {
-                                errorMessage = "Lütfen bir alıcı adresi girin."
+                                errorMessage = "Lütfen alıcı adresini girin."
                                 return@IconButton
                             }
 
                             isSending = true
+                            errorMessage = null
+
                             scope.launch {
                                 try {
-                                    val res = ApiClient.getService(context).sendEmail(
-                                        SendEmailRequest(
-                                            to = to,
-                                            cc = cc.takeIf { it.isNotBlank() },
-                                            bcc = null,
-                                            subject = subject,
-                                            body = body,
-                                            attachments = attachments.takeIf { it.isNotEmpty() }
-                                        )
+                                    val req = SendEmailRequest(
+                                        to = to,
+                                        cc = cc.takeIf { it.isNotBlank() },
+                                        subject = subject,
+                                        body = body,
+                                        attachments = attachments
                                     )
+                                    val res = ApiClient.getService(context).sendEmail(req)
                                     if (res.isSuccessful) {
                                         onDismiss()
                                     } else {
@@ -182,11 +212,11 @@ fun ComposeScreen(
                         if (isSending) {
                             CircularProgressIndicator(color = TextPrimary, modifier = Modifier.size(18.dp))
                         } else {
-                            Icon(Icons.Filled.Send, "Gönder", tint = TextPrimary)
+                            Icon(Icons.AutoMirrored.Filled.Send, "Gönder", tint = TextPrimary)
                         }
                     }
                 }
-            }
+            )
         }
     ) { padding ->
         Column(

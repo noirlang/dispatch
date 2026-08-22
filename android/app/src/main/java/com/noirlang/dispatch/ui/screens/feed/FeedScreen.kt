@@ -54,13 +54,25 @@ fun FeedScreen() {
             .background(BgPrimary)
             .padding(16.dp)
     ) {
-        Text(
-            text = "Akış (Feed)",
-            color = TextPrimary,
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(bottom = 16.dp)
-        )
+        ) {
+            Icon(
+                Icons.Filled.RssFeed,
+                contentDescription = "Akış",
+                tint = TextPrimary,
+                modifier = Modifier.size(22.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "Akış",
+                color = TextPrimary,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
 
         if (isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

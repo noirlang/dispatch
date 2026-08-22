@@ -129,33 +129,45 @@ class MainActivity : ComponentActivity() {
                                         .fillMaxSize()
                                         .padding(padding)
                                 ) {
-                                    when (currentTab) {
-                                        NavItem.EMAIL -> {
-                                            EmailListScreen(
-                                                onEmailClick = { id -> activeEmailDetailId = id },
-                                                onComposeClick = {
-                                                    composeInitialTo = ""
-                                                    composeInitialSubject = ""
-                                                    composeInitialBody = ""
-                                                    isComposing = true
-                                                }
-                                            )
-                                        }
-                                        NavItem.CALENDAR -> CalendarScreen()
-                                        NavItem.FEED -> FeedScreen()
-                                        NavItem.DASHBOARD -> DashboardScreen()
-                                        NavItem.SETTINGS -> {
-                                            SettingsScreen(
-                                                onLogout = { currentAppState = AppState.LOGIN }
-                                            )
+                                    AnimatedContent(
+                                        targetState = currentTab,
+                                        transitionSpec = { fadeIn() togetherWith fadeOut() },
+                                        label = "TabTransition"
+                                    ) { tab ->
+                                        when (tab) {
+                                            NavItem.EMAIL -> {
+                                                EmailListScreen(
+                                                    onEmailClick = { id -> activeEmailDetailId = id },
+                                                    onComposeClick = {
+                                                        composeInitialTo = ""
+                                                        composeInitialSubject = ""
+                                                        composeInitialBody = ""
+                                                        isComposing = true
+                                                    },
+                                                    onOpenDraft = { draft ->
+                                                        composeInitialTo = draft.to ?: ""
+                                                        composeInitialSubject = draft.subject ?: ""
+                                                        composeInitialBody = draft.bodyText ?: draft.body ?: ""
+                                                        isComposing = true
+                                                    }
+                                                )
+                                            }
+                                            NavItem.CALENDAR -> CalendarScreen()
+                                            NavItem.FEED -> FeedScreen()
+                                            NavItem.DASHBOARD -> DashboardScreen()
+                                            NavItem.SETTINGS -> {
+                                                SettingsScreen(
+                                                    onLogout = { currentAppState = AppState.LOGIN }
+                                                )
+                                            }
                                         }
                                     }
 
                                     // Email Detail Overlay
                                     AnimatedVisibility(
                                         visible = activeEmailDetailId != null,
-                                        enter = slideInHorizontally(initialOffsetX = { it }),
-                                        exit = slideOutHorizontally(targetOffsetX = { it })
+                                        enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(),
+                                        exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut()
                                     ) {
                                         activeEmailDetailId?.let { emailId ->
                                             EmailDetailScreen(
@@ -165,7 +177,7 @@ class MainActivity : ComponentActivity() {
                                                     activeEmailDetailId = null
                                                     composeInitialTo = email.from
                                                     composeInitialSubject = "Re: ${email.subject ?: ""}"
-                                                    composeInitialBody = aiBody ?: "\n\n---\n${email.bodyText ?: ""}"
+                                                    composeInitialBody = aiBody ?: "\n\n--- Orijinal İleti ---\n${email.bodyText ?: ""}"
                                                     isComposing = true
                                                 }
                                             )
@@ -176,8 +188,12 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    // Fullscreen Compose Modal
-                    if (isComposing) {
+                    // Fullscreen Compose Modal with Enter & Exit Animations
+                    AnimatedVisibility(
+                        visible = isComposing,
+                        enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                        exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
+                    ) {
                         ComposeScreen(
                             initialTo = composeInitialTo,
                             initialSubject = composeInitialSubject,
@@ -190,3 +206,4 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+

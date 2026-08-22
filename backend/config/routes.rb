@@ -36,9 +36,11 @@ Rails.application.routes.draw do
         collection do
           post :merge_threads
           post :bulk_action
+          post :save_draft
           get  :contacts
         end
       end
+
 
       # Image proxy (spy pixel blocker)
       get "image_proxy", to: "image_proxy#show"

@@ -8,7 +8,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
+
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -206,7 +208,7 @@ fun SettingsScreen(
                 OutlinedTextField(
                     value = apiKeyInput,
                     onValueChange = { apiKeyInput = it },
-                    placeholder = { Text("Yeni veya güncel API Key girin...", color = TextDim) },
+                    placeholder = { Text("API anahtarınızı yapıştırın...", color = TextDim) },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = BorderLight,
@@ -220,33 +222,118 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                // Model Selection
-                Text("Kullanılacak Model", color = TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    currentModelList.forEach { (mId, mLabel) ->
-                        val isModelSelected = selectedModel == mId
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(if (isModelSelected) BgTertiary else BgPrimary)
-                                .border(1.dp, if (isModelSelected) AccentBlue else BorderColor, RoundedCornerShape(10.dp))
-                                .clickable { selectedModel = mId }
-                                .padding(horizontal = 12.dp, vertical = 10.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                // Test & Fetch Models Button
+                var isTestingAi by remember { mutableStateOf(false) }
+                var aiTestResult by remember { mutableStateOf<String?>(null) }
+                var aiTestSuccess by remember { mutableStateOf(false) }
+                var liveFetchedModels by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
+
+                OutlinedButton(
+                    onClick = {
+                        isTestingAi = true
+                        aiTestResult = null
+                        scope.launch {
+                            try {
+                                val testReq = mutableMapOf("provider" to selectedProvider)
+                                if (apiKeyInput.isNotBlank()) testReq["api_key"] = apiKeyInput.trim()
+                                if (selectedModel.isNotBlank()) testReq["ai_model"] = selectedModel.trim()
+
+                                val res = ApiClient.getService(context).testAiConnection(testReq)
+                                if (res.isSuccessful) {
+                                    val body = res.body()
+                                    val isOk = body?.get("success") as? Boolean ?: false
+                                    if (isOk) {
+                                        aiTestSuccess = true
+                                        aiTestResult = body?.get("message")?.toString() ?: "Bağlantı başarılı!"
+                                        val rawModels = body?.get("models") as? List<*>
+                                        if (!rawModels.isNullOrEmpty()) {
+                                            val parsed = rawModels.mapNotNull { item ->
+                                                when (item) {
+                                                    is Map<*, *> -> {
+                                                        val id = item["id"]?.toString() ?: ""
+                                                        val name = item["name"]?.toString() ?: id
+                                                        if (id.isNotBlank()) id to name else null
+                                                    }
+                                                    is String -> item to item
+                                                    else -> null
+                                                }
+                                            }
+                                            if (parsed.isNotEmpty()) {
+                                                liveFetchedModels = parsed
+                                                selectedModel = parsed.first().first
+                                            }
+                                        }
+                                    } else {
+                                        aiTestSuccess = false
+                                        aiTestResult = body?.get("message")?.toString() ?: "Bağlantı başarısız."
+                                    }
+                                } else {
+                                    aiTestSuccess = false
+                                    aiTestResult = "API anahtarı doğrulanamadı (HTTP ${res.code()})"
+                                }
+                            } catch (e: Exception) {
+                                aiTestSuccess = false
+                                aiTestResult = "Bağlantı hatası: ${e.message}"
+                            } finally {
+                                isTestingAi = false
+                            }
+                        }
+                    },
+                    border = androidx.compose.foundation.BorderStroke(1.dp, if (aiTestSuccess) AccentGreen else BorderColor),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (isTestingAi) {
+                        CircularProgressIndicator(color = TextPrimary, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Bağlantı Test Ediliyor...", fontSize = 12.sp, color = TextPrimary)
+                    } else {
+                        Icon(Icons.Filled.CheckCircle, "Test", tint = if (aiTestSuccess) AccentGreen else TextSecondary, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Bağlantıyı Test Et & Modelleri Getir", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                    }
+                }
+
+                if (aiTestResult != null) {
+                    Text(
+                        text = aiTestResult!!,
+                        color = if (aiTestSuccess) AccentGreen else AccentRed,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+
+                // Dynamic Model Selection
+                val availableModels = if (liveFetchedModels.isNotEmpty()) liveFetchedModels else listOf(selectedModel to selectedModel)
+
+                if (liveFetchedModels.isNotEmpty()) {
+                    Text("Seçilen Model", color = TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        availableModels.take(8).forEach { (mId, mLabel) ->
+                            val isModelSelected = selectedModel == mId
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(if (isModelSelected) BgTertiary else BgPrimary)
+                                    .border(1.dp, if (isModelSelected) AccentBlue else BorderColor, RoundedCornerShape(10.dp))
+                                    .clickable { selectedModel = mId }
+                                    .padding(horizontal = 12.dp, vertical = 10.dp)
                             ) {
-                                Text(
-                                    text = mLabel,
-                                    color = if (isModelSelected) TextPrimary else TextSecondary,
-                                    fontSize = 13.sp,
-                                    fontWeight = if (isModelSelected) FontWeight.Bold else FontWeight.Normal
-                                )
-                                if (isModelSelected) {
-                                    Icon(Icons.Filled.CheckCircle, "Seçili", tint = AccentBlue, modifier = Modifier.size(16.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = mLabel,
+                                        color = if (isModelSelected) TextPrimary else TextSecondary,
+                                        fontSize = 13.sp,
+                                        fontWeight = if (isModelSelected) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                    if (isModelSelected) {
+                                        Icon(Icons.Filled.CheckCircle, "Seçili", tint = AccentBlue, modifier = Modifier.size(16.dp))
+                                    }
                                 }
                             }
                         }
@@ -345,10 +432,42 @@ fun SettingsScreen(
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Icon(Icons.Filled.Logout, "Çıkış Yap", modifier = Modifier.size(16.dp))
+            Icon(Icons.AutoMirrored.Filled.Logout, "Çıkış Yap", modifier = Modifier.size(16.dp))
             Spacer(modifier = Modifier.width(8.dp))
             Text("Oturumu Kapat", fontWeight = FontWeight.Bold)
         }
+
+        Spacer(modifier = Modifier.height(36.dp))
+
+        // Company & Version Footer
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "DISPATCH",
+                color = TextSecondary,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = 2.sp
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = "v1.0.0 (Build 2026.08)",
+                color = TextDim,
+                fontSize = 11.sp,
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "NOIRLANG TECHNOLOGIES",
+                color = TextDim,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp
+            )
+        }
     }
 }
+
 

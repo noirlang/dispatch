@@ -36,6 +36,21 @@ export default function ComposeView({
   const [mode, setMode] = useState<"edit" | "preview">("edit")
   const [attachments, setAttachments] = useState<any[]>([])
   const [isUploadingFile, setIsUploadingFile] = useState(false)
+  const [draftSaved, setDraftSaved] = useState(false)
+
+  const { data: settings } = useQuery<any>({
+    queryKey: ["settings"],
+    queryFn: () => api.get("/settings"),
+  })
+
+  // Append default signature if available and not already added
+  useState(() => {
+    if (!initialBody && settings?.default_signature) {
+      setBody("\n\n" + settings.default_signature)
+    } else if (initialBody && isReply && settings?.default_signature && !initialBody.includes(settings.default_signature)) {
+      setBody("\n\n" + settings.default_signature + "\n\n" + initialBody)
+    }
+  })
 
   const { data: groups = [] } = useQuery({
     queryKey: ["contact-groups"],
@@ -65,10 +80,26 @@ export default function ComposeView({
     }
   }
 
-
   function removeAttachment(index: number) {
     setAttachments(prev => prev.filter((_, i) => i !== index))
   }
+
+  const saveDraft = useMutation({
+    mutationFn: () =>
+      api.post("/emails/save_draft", {
+        to,
+        cc: showCc ? cc : undefined,
+        bcc: showBcc ? bcc : undefined,
+        subject: subject || "(Başlıksız Taslak)",
+        body,
+        attachments
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["emails"] })
+      setDraftSaved(true)
+      setTimeout(() => setDraftSaved(false), 2500)
+    }
+  })
 
   const sendEmail = useMutation({
     mutationFn: async () => {
@@ -88,6 +119,7 @@ export default function ComposeView({
       qc.invalidateQueries({ queryKey: ["emails"] })
       onClose()
     }
+
   })
 
 
@@ -372,6 +404,14 @@ export default function ComposeView({
         <div className="flex items-center gap-3">
           <button
             type="button"
+            disabled={saveDraft.isPending || (!to && !subject && !body)}
+            onClick={() => saveDraft.mutate()}
+            className="px-3.5 py-2 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors rounded-lg hover:bg-[var(--bg-secondary)] border border-transparent hover:border-[var(--border-color)] disabled:opacity-40"
+          >
+            {draftSaved ? "Taslak Kaydedildi ✓" : saveDraft.isPending ? "Kaydediliyor..." : "Taslak Kaydet"}
+          </button>
+          <button
+            type="button"
             onClick={onClose}
             className="px-4 py-2 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors"
           >
@@ -383,6 +423,7 @@ export default function ComposeView({
             onClick={() => sendEmail.mutate()}
             className="flex items-center gap-2 px-6 py-2 rounded-lg bg-[var(--accent)] text-[var(--accent-invert)] text-xs font-semibold hover:opacity-90 transition-all disabled:opacity-40 cursor-pointer"
           >
+
             <Send size={13} />
             <span>{sendEmail.isPending ? "Gönderiliyor..." : t("send")}</span>
           </button>
