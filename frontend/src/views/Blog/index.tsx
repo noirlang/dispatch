@@ -43,24 +43,17 @@ export function BlogIndex() {
       {/* Top Navbar */}
       <header className="border-b border-[var(--border-color)] bg-[var(--bg-secondary)] px-8 py-3.5 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link to="/blog" className="text-base font-semibold tracking-tight text-[var(--text-main)] flex items-center gap-2">
+          <Link to={cleanHandle ? `/@${cleanHandle}` : "/blog"} className="text-base font-semibold tracking-tight text-[var(--text-main)] flex items-center gap-2">
             <BookOpen size={17} />
             <span>Dispatch Blog</span>
           </Link>
-          {handle && (
+          {cleanHandle && (
             <>
               <span className="text-[var(--text-dim)]">/</span>
-              <span className="text-xs font-mono text-[var(--text-muted)]">@{handle}</span>
+              <span className="text-xs font-mono text-[var(--text-muted)]">@{cleanHandle}</span>
             </>
           )}
         </div>
-        <Link
-          to="/"
-          className="text-xs text-[var(--text-muted)] hover:text-[var(--text-main)] flex items-center gap-1 transition-colors"
-        >
-          <ArrowLeft size={13} />
-          <span>Back to Webmail</span>
-        </Link>
       </header>
 
       {/* Main Content */}
@@ -184,9 +177,15 @@ export function BlogPost() {
   if (!post) {
     return (
       <div className="min-h-screen bg-[var(--bg-primary)] flex flex-col items-center justify-center gap-3">
-        <span className="text-sm text-[var(--text-dim)]">Yazı bulunamadı</span>
-        <Link to={`/@${cleanHandle}`} className="text-xs text-[var(--text-main)] underline">
-          @{cleanHandle} yazılarına dön
+        <div className="w-12 h-12 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-center text-[var(--text-muted)]">
+          <BookOpen size={24} />
+        </div>
+        <span className="text-sm font-bold text-[var(--text-main)]">Yazı bulunamadı</span>
+        <Link
+          to={`/@${cleanHandle}`}
+          className="px-4 py-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs text-[var(--text-main)] hover:bg-[var(--bg-card)] transition-colors"
+        >
+          ← @{cleanHandle} tüm yazılarına dön
         </Link>
       </div>
     )
@@ -202,9 +201,9 @@ export function BlogPost() {
           <ArrowLeft size={13} />
           <span>@{cleanHandle} bloguna dön</span>
         </Link>
-        <Link to="/" className="text-xs text-[var(--text-muted)] hover:text-[var(--text-main)]">
-          Dispatch
-        </Link>
+        <span className="text-xs font-mono text-[var(--text-dim)]">
+          Dispatch Blog
+        </span>
       </header>
 
       <main className="max-w-3xl mx-auto px-6 py-16 w-full flex-1">
