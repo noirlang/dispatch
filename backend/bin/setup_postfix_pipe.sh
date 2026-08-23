@@ -107,7 +107,57 @@ dispatch-pipe unix -    n       n       -       -       pipe
   flags=R user=root argv=/usr/local/bin/dispatch-inbound-pipe
 MASTER_EOF
 
-# 4. Postfix main.cf Ayarları
+# 4. OpenDKIM Yapılandırması & Anahtar Senkronizasyonu
+mkdir -p /etc/opendkim/keys/$DOMAIN
+cd /root/dispatch/backend 2>/dev/null || cd "$(pwd)/backend"
+RAILS_ENV=production bundle exec bin/rails runner "
+if ServerConfig.current&.dkim_private_key.present?
+  File.write('/etc/opendkim/keys/#{ServerConfig.current.domain}/mail.private', ServerConfig.current.dkim_private_key)
+end
+" 2>/dev/null || true
+
+cat << 'OPENDKIM_EOF' > /etc/opendkim.conf
+AutoRestart             Yes
+AutoRestartRate         10/1h
+UMask                   002
+Syslog                  yes
+SyslogSuccess           Yes
+LogWhy                  Yes
+
+Canonicalization        relaxed/simple
+
+ExternalIgnoreList      refile:/etc/opendkim/TrustedHosts
+InternalHosts           refile:/etc/opendkim/TrustedHosts
+KeyTable                refile:/etc/opendkim/KeyTable
+SigningTable            refile:/etc/opendkim/SigningTable
+
+Mode                    sv
+SignatureAlgorithm      rsa-sha256
+RequireSafeKeys         No
+
+PidFile                 /run/opendkim/opendkim.pid
+Socket                  inet:8891@127.0.0.1
+OPENDKIM_EOF
+
+cat << OPENDKIM_HOSTS > /etc/opendkim/TrustedHosts
+127.0.0.1
+localhost
+::1
+127.0.0.1
+$MAILDOMAIN
+$DOMAIN
+*.$DOMAIN
+OPENDKIM_HOSTS
+
+echo "mail._domainkey.$DOMAIN $DOMAIN:mail:/etc/opendkim/keys/$DOMAIN/mail.private" > /etc/opendkim/KeyTable
+echo "*@$DOMAIN mail._domainkey.$DOMAIN" > /etc/opendkim/SigningTable
+echo "*@$MAILDOMAIN mail._domainkey.$DOMAIN" >> /etc/opendkim/SigningTable
+
+chown -R root:root /etc/opendkim
+chmod 755 /etc/opendkim /etc/opendkim/keys /etc/opendkim/keys/$DOMAIN
+chmod 600 /etc/opendkim/keys/$DOMAIN/mail.private 2>/dev/null || true
+
+# 5. Postfix main.cf Ayarları
 postconf -e "myhostname = $MAILDOMAIN" 2>/dev/null || true
 postconf -e "mydomain = $DOMAIN" 2>/dev/null || true
 postconf -e "myorigin = \$mydomain" 2>/dev/null || true
@@ -119,20 +169,23 @@ postconf -e "mailbox_transport = dispatch-pipe" 2>/dev/null || true
 postconf -e "fallback_transport = dispatch-pipe" 2>/dev/null || true
 postconf -e "local_recipient_maps =" 2>/dev/null || true
 postconf -e "inet_interfaces = all" 2>/dev/null || true
-postconf -e "inet_protocols = all" 2>/dev/null || true
+postconf -e "inet_protocols = ipv4" 2>/dev/null || true
 postconf -e "smtpd_sasl_auth_enable = yes" 2>/dev/null || true
 postconf -e "smtpd_sasl_type = dovecot" 2>/dev/null || true
 postconf -e "smtpd_sasl_path = private/auth" 2>/dev/null || true
 postconf -e "smtpd_tls_security_level = may" 2>/dev/null || true
 postconf -e "smtp_tls_security_level = may" 2>/dev/null || true
 postconf -e "milter_default_action = accept" 2>/dev/null || true
+postconf -e "milter_protocol = 6" 2>/dev/null || true
+postconf -e "smtpd_milters = inet:127.0.0.1:8891" 2>/dev/null || true
+postconf -e "non_smtpd_milters = inet:127.0.0.1:8891" 2>/dev/null || true
 
 if [ -f "$CERTDIR/fullchain.pem" ]; then
   postconf -e "smtpd_tls_cert_file = $CERTDIR/fullchain.pem" 2>/dev/null || true
   postconf -e "smtpd_tls_key_file = $CERTDIR/privkey.pem" 2>/dev/null || true
 fi
 
-# 5. Inbound pipe scripti
+# 6. Inbound pipe scripti
 cat << 'PIPE_EOF' > /usr/local/bin/dispatch-inbound-pipe
 #!/usr/bin/env bash
 exec /root/dispatch/backend/bin/dispatch_inbound_receiver
