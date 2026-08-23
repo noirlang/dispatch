@@ -135,11 +135,17 @@ gem install bundler --no-document 2>/dev/null || true
 bundle install --quiet || bundle install
 bundle exec bin/rails db:migrate RAILS_ENV=production
 
-# 6. Frontend Arayüzünü Derle
-echo -e "\n▶ 6. Frontend arayüzü derleniyor..."
+# 6. Frontend Arayüzünü Derle ve /var/www Konumuna Yerleştir
+echo -e "\n▶ 6. Frontend arayüzü derleniyor ve yayınlanıyor..."
 cd "$DISPATCH_DIR/frontend"
 npm install --silent || npm install
 npm run build
+
+mkdir -p /var/www/dispatch
+rm -rf /var/www/dispatch/*
+cp -r "$DISPATCH_DIR/frontend/dist"/* /var/www/dispatch/
+chown -R www-data:www-data /var/www/dispatch
+chmod -R 755 /var/www/dispatch
 
 # 7. Nginx Ters Vekilini Yapılandır (Port 80 -> Frontend ve Rails API)
 echo -e "\n▶ 7. Nginx web sunucusu yapılandırılıyor..."
@@ -149,7 +155,7 @@ server {
     listen [::]:80 default_server;
     server_name _;
 
-    root $DISPATCH_DIR/frontend/dist;
+    root /var/www/dispatch;
     index index.html;
 
     # API Proxy
@@ -159,6 +165,8 @@ server {
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_connect_timeout 60s;
+        proxy_read_timeout 60s;
     }
 
     # SPA Routing
@@ -187,9 +195,10 @@ User=root
 WorkingDirectory=$DISPATCH_DIR/backend
 EnvironmentFile=$DISPATCH_DIR/backend/.env
 Environment=RAILS_ENV=production
-ExecStart=/bin/bash -lc "bundle exec bin/rails server -b 127.0.0.1 -p 3000"
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/bin/bash -lc "cd $DISPATCH_DIR/backend && bundle exec bin/rails server -b 127.0.0.1 -p 3000"
 Restart=always
-RestartSec=5
+RestartSec=3
 
 [Install]
 WantedBy=multi-user.target
@@ -207,9 +216,10 @@ User=root
 WorkingDirectory=$DISPATCH_DIR/backend
 EnvironmentFile=$DISPATCH_DIR/backend/.env
 Environment=RAILS_ENV=production
-ExecStart=/bin/bash -lc "bundle exec sidekiq"
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/bin/bash -lc "cd $DISPATCH_DIR/backend && bundle exec sidekiq"
 Restart=always
-RestartSec=5
+RestartSec=3
 
 [Install]
 WantedBy=multi-user.target
