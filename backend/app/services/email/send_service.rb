@@ -53,13 +53,27 @@ class Email::SendService
 
     from_header = user.name.present? ? "#{user.name} <#{user.email}>" : user.email
 
-    # Try sending via SMTP to external recipients (exclude internal virtual aliases like blog@)
-    smtp_recipients = recipient_addresses.reject { |addr| addr.downcase.start_with?("blog@") }
-    smtp_recipients.each do |dest_addr|
+    # 1. Distinguish between local recipients and external SMTP recipients
+    local_recipients = []
+    external_recipients = []
+
+    recipient_addresses.each do |addr|
+      clean_addr = addr.downcase.strip
+      next if clean_addr.start_with?("blog@")
+
+      if User.where("lower(email) = ?", clean_addr).exists?
+        local_recipients << clean_addr
+      else
+        external_recipients << clean_addr
+      end
+    end
+
+    # 2. Deliver via SMTP ONLY to external recipients (e.g. gmail, yahoo) once
+    if external_recipients.any?
       begin
         mail = Mail.new do
           from       from_header
-          to         to_addresses.join(", ")
+          to         external_recipients.join(", ")
           cc         cc_addresses.join(", ") if cc_addresses.any?
           subject    params[:subject]
           message_id "<#{SecureRandom.uuid}@#{sender_domain}>"
@@ -104,7 +118,7 @@ class Email::SendService
 
         mail.delivery_method :smtp, delivery_options
         mail.deliver!
-        Rails.logger.info "[Email SendService] Outgoing mail delivered to #{dest_addr} (Subject: #{params[:subject]})"
+        Rails.logger.info "[Email SendService] Outgoing mail delivered via SMTP to #{external_recipients.join(', ')} (Subject: #{params[:subject]})"
       rescue => e
         Rails.logger.error "[Email SendService SMTP Error] #{e.message}\n#{e.backtrace&.join("\n")}"
       end

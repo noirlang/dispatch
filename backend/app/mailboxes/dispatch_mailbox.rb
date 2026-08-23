@@ -11,8 +11,12 @@ class DispatchMailbox < ApplicationMailbox
 
     # Deduplication check: prevent multiple deliveries of the exact same message
     msg_id = mail.message_id.to_s.strip
-    if msg_id.present? && user.emails.where(message_id: msg_id).exists?
-      Rails.logger.info "[DispatchMailbox] Skipping duplicate email #{msg_id} for #{user.email}"
+    from_addr = mail.from&.first.to_s.gsub(/.*<([^>]+)>.*/, '\1').strip.downcase
+    subj = mail.subject.to_s.strip
+
+    if (msg_id.present? && user.emails.where(message_id: msg_id).exists?) ||
+       (user.emails.where("lower(from_address) LIKE ?", "%#{from_addr}%").where(subject: subj).where("created_at > ?", 2.minutes.ago).exists?)
+      Rails.logger.info "[DispatchMailbox] Skipping duplicate email #{msg_id} (#{subj}) for #{user.email}"
       return
     end
 
