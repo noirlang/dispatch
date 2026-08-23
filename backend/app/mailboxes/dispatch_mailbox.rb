@@ -7,43 +7,43 @@ class DispatchMailbox < ApplicationMailbox
 
     user = User.where("LOWER(email) IN (?)", cleaned_recipients).first
     user ||= User.first if User.count == 1
-    return unless user
-
-    # Deduplication check: prevent multiple deliveries of the exact same message
-    msg_id = mail.message_id.to_s.strip
+    raw_msg_id = mail.message_id.to_s.strip
+    clean_id = raw_msg_id.gsub(/[<>]/, "").strip
     from_addr = mail.from&.first.to_s.gsub(/.*<([^>]+)>.*/, '\1').strip.downcase
     subj = mail.subject.to_s.strip
 
-    if (msg_id.present? && user.emails.where(message_id: msg_id).exists?) ||
-       (user.emails.where("lower(from_address) LIKE ?", "%#{from_addr}%").where(subject: subj).where("created_at > ?", 2.minutes.ago).exists?)
-      Rails.logger.info "[DispatchMailbox] Skipping duplicate email #{msg_id} (#{subj}) for #{user.email}"
-      return
+    # Thread-safe database lock to strictly prevent concurrent duplicate deliveries
+    user.with_lock do
+      if (clean_id.present? && user.emails.where("REPLACE(REPLACE(message_id, '<', ''), '>', '') = ?", clean_id).exists?) ||
+         (user.emails.where("lower(from_address) LIKE ?", "%#{from_addr}%").where(subject: subj).where("created_at > ?", 2.minutes.ago).exists?)
+        Rails.logger.info "[DispatchMailbox] Skipping duplicate email #{clean_id} (#{subj}) for #{user.email}"
+        return
+      end
+
+      # Check speakeasy code first
+      if speakeasy_trusted?(user, mail)
+        deliver_to_inbox(user, "inbox", clean_id)
+        return
+      end
+
+      rule = user.sender_rules.find_by(email_address: from_addr) ||
+             user.sender_rules.find_by("? LIKE '%@' || domain", from_addr)
+
+      folder = case rule&.status
+               when "approved", "important" then "inbox"
+               when "blocked"               then "trash"
+               else
+                 user.approval_system_enabled ? "approvals" : "inbox"
+               end
+
+      email = deliver_to_inbox(user, folder, clean_id)
+      EmailAiAnalysisWorker.perform_async(email.id) if user.ai_configured?
     end
-
-    # Check speakeasy code first
-    if speakeasy_trusted?(user, mail)
-      deliver_to_inbox(user, "inbox")
-      return
-    end
-
-    from = mail.from&.first.to_s.gsub(/.*<([^>]+)>.*/, '\1').strip.downcase
-    rule = user.sender_rules.find_by(email_address: from) ||
-           user.sender_rules.find_by("? LIKE '%@' || domain", from)
-
-    folder = case rule&.status
-             when "approved"  then "inbox"
-             when "blocked"   then "trash"
-             else
-               user.approval_system_enabled ? "approvals" : "inbox"
-             end
-
-    email = deliver_to_inbox(user, folder)
-    EmailAiAnalysisWorker.perform_async(email.id) if user.ai_configured?
   end
 
   private
 
-  def deliver_to_inbox(user, folder)
+  def deliver_to_inbox(user, folder, clean_id = nil)
     thread = find_or_create_thread(user)
 
     # Extract incoming email attachments

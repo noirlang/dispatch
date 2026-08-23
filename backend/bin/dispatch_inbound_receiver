@@ -18,13 +18,10 @@ require_relative "../config/environment"
 
 raw_email = STDIN.read
 
-if raw_email.present?
-  begin
-    # Process into Dispatch Webmail PostgreSQL DB and target Maildir folder (Inbox or Approvals)
+    # Process into Dispatch Webmail via ActionMailbox
     inbound = ActionMailbox::InboundEmail.create_and_extract_message_id!(raw_email)
-    ActionMailbox::RoutingJob.perform_now(inbound)
     
-    log_msg = "[#{Time.now.iso8601}] [Dispatch Inbound Receiver] Successfully processed email (ID: #{inbound.id}, Message-ID: #{inbound.message_id})\n"
+    log_msg = "[#{Time.now.iso8601}] [Dispatch Inbound Receiver] Successfully enqueued inbound email (ID: #{inbound.id}, Message-ID: #{inbound.message_id})\n"
     Rails.logger.info log_msg.strip
     File.open("/tmp/dispatch-inbound.log", "a") { |f| f.write(log_msg) } rescue nil
   rescue => e
