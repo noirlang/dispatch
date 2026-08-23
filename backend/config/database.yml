@@ -13,4 +13,4 @@ test:
 
 production:
   <<: *default
-  url: <%= ENV["DATABASE_URL"] %>
+  url: <%= ENV.fetch("DATABASE_URL") { "postgresql://dispatch:dispatch_secret@127.0.0.1:5432/dispatch_prod" } %>

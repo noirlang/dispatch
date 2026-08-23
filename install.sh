@@ -98,20 +98,24 @@ pg_check() {
 pg_check "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1 || \
   pg_exec "CREATE USER $DB_USER WITH PASSWORD '$PG_PASS' CREATEDB;"
 
-pg_exec "ALTER USER $DB_USER WITH PASSWORD '$PG_PASS';" 2>/dev/null || true
+pg_exec "ALTER USER $DB_USER WITH SUPERUSER PASSWORD '$PG_PASS';" 2>/dev/null || true
 
 pg_check "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" | grep -q 1 || \
   pg_exec "CREATE DATABASE $DB_NAME OWNER $DB_USER;"
+
+pg_exec "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;" 2>/dev/null || true
 
 # 5. Backend Bağımlılıkları ve Migrasyonlar
 echo -e "\n▶ 5. Backend derleniyor ve optimize ediliyor..."
 cd "$DISPATCH_DIR/backend"
 
+PROD_SECRET="dispatch_prod_master_secret_key_$(openssl rand -hex 32)"
+
 # .env yapılandırması (Otomatik Şifre & Güvenlik Güvencesi)
 cat << ENVEOF > "$DISPATCH_DIR/backend/.env"
-DATABASE_URL=postgresql://$DB_USER:$PG_PASS@localhost:5432/$DB_NAME
-REDIS_URL=redis://localhost:6379
-SECRET_KEY_BASE=dispatch_prod_master_secret_key_$(openssl rand -hex 32)
+DATABASE_URL=postgresql://$DB_USER:$PG_PASS@127.0.0.1:5432/$DB_NAME
+REDIS_URL=redis://127.0.0.1:6379
+SECRET_KEY_BASE=$PROD_SECRET
 SERVER_IPV4=$SERVER_IP
 RAILS_ENV=production
 RAILS_MAX_THREADS=5
@@ -120,9 +124,16 @@ MALLOC_ARENA_MAX=2
 ENVEOF
 chmod 600 "$DISPATCH_DIR/backend/.env"
 
+# Shell ortamına doğrudan aktar
+export DATABASE_URL="postgresql://$DB_USER:$PG_PASS@127.0.0.1:5432/$DB_NAME"
+export REDIS_URL="redis://127.0.0.1:6379"
+export SECRET_KEY_BASE="$PROD_SECRET"
+export SERVER_IPV4="$SERVER_IP"
+export RAILS_ENV="production"
+
 gem install bundler --no-document 2>/dev/null || true
 bundle install --quiet || bundle install
-bin/rails db:migrate RAILS_ENV=production
+bundle exec bin/rails db:migrate RAILS_ENV=production
 
 # 6. Frontend Arayüzünü Derle
 echo -e "\n▶ 6. Frontend arayüzü derleniyor..."

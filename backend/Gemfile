@@ -34,12 +34,14 @@ gem "attr_encrypted", "~> 4.0"
 gem "rotp"
 gem "rqrcode"
 
+# Environment variables
+gem "dotenv-rails"
+
 group :development, :test do
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
   gem "rspec-rails"
   gem "factory_bot_rails"
   gem "faker"
-  gem "dotenv-rails"
 end
 
 gem "kramdown", "~> 2.5"
