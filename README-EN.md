@@ -1,7 +1,7 @@
 <div align="center">
 
 <p align="center">
-  <strong><a href="README.md">Türkçe</a></strong> &nbsp;|&nbsp; <strong><a href="README-EN.md">English</a></strong>
+  <strong><a href="README.md">Türkçe</a></strong>
 </p>
 
 # Dispatch
