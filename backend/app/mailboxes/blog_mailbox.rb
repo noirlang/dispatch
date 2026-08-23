@@ -6,18 +6,16 @@ class BlogMailbox < ApplicationMailbox
 
     return if subject.blank?
 
-    # Check if this is a deletion request (e.g. Rm: Blog Başlığı)
-    if subject =~ /\A\s*rm:\s*(.+)/i
+    # Check if this is a deletion request (e.g. Rm: Blog Başlığı or rm: slug)
+    if subject =~ /\A\s*rm\s*:\s*(.+)/i
       target_title = $1.strip
-      post = BlogPost.where("LOWER(author_email) = ?", from.downcase.strip)
-                     .where("LOWER(title) = ? OR LOWER(slug) = ?", target_title.downcase, target_title.parameterize)
-                     .first
+      post = BlogPost.find_author_post_to_delete(from, target_title)
 
       if post
         post.destroy!
-        Rails.logger.info "[BlogMailbox] Author #{from} successfully deleted blog post: #{post.title}"
+        Rails.logger.info "[BlogMailbox] Author #{from} successfully deleted blog post: #{post.title} (Slug: #{post.slug})"
       else
-        Rails.logger.warn "[BlogMailbox] Delete failed: No post with title '#{target_title}' found for author #{from}"
+        Rails.logger.warn "[BlogMailbox] Delete failed: No post with title/slug '#{target_title}' found for author #{from}"
       end
       return
     end
