@@ -21,13 +21,52 @@
 
 </div>
 
-## Features
+## Feature Demos & Video Previews
+
+---
+
+### 1. 🛡️ Sender Approval Queue, AI Dashboard & Calendar Integration
+> First-time incoming senders are safely routed to an `Approvals` queue with 1-click Approve / Block actions. Key details like meetings, tracking codes, and deadlines are automatically detected by AI, converted into Dashboard cards, and synced to the Calendar.
+
+https://github.com/user-attachments/assets/dispatch-onay-ai-pano-takvim.mp4
+
+---
+
+### 2. 🤖 AI Email Summarization & Smart Reply Engine
+> Long and complex emails are summarized into concise 2-3 bullet points within seconds using Google Gemini, Claude, or OpenAI models; contextual and intelligent response drafts can be generated with a single click.
+
+https://github.com/user-attachments/assets/dispatch-aiozet-aiyanit.mp4
+
+---
+
+### 3. 🌐 AI-Powered Multi-Language Email Translation
+> Foreign language emails are instantly translated into English, Turkish, or other target languages directly inside the reader while preserving layout, typography, and original tone.
+
+https://github.com/user-attachments/assets/dispatch-ai-ceviri.mp4
+
+---
+
+### 4. 👥 Email Management, Contact Groups & Smart Aliases
+> Manage Inbox, Sent, and Draft folders with full search; broadcast messages to saved contact groups using `@group_name` syntax (e.g. `@team`) with automatic member resolution and simultaneous delivery.
+
+https://github.com/user-attachments/assets/dispatch-mail-grup.mp4
+
+---
+
+### 5. 📰 Integrated RSS Feed Reader & Background Sync
+> Subscribe to favorite tech blogs, news sites, and developer feeds; scheduled Sidekiq background workers fetch and synchronize updates periodically without leaving the email experience.
+
+https://github.com/user-attachments/assets/dispatch-akis-rss.mp4
+
+---
+
+## All Core Features
 
 - **Bidirectional Thunderbird & Dovecot IMAP Synchronization:** Real-time `<1ms` Maildir delivery and two-way sync for Inbox, Sent, Drafts, Trash, and Approvals between desktop email clients (Thunderbird, Apple Mail) and Dispatch Webmail.
 - **Email-Powered Blogging Engine:** Publish articles to the built-in public blog (`/@username/slug`) simply by emailing `blog@yourdomain.com`. Authors can instantly delete their published blogs by sending `Rm: <Blog Title>` or `rm: <slug>`.
 - **Sender Approval Queue:** Automatically triage first-time incoming senders into an `Approvals` folder with one-click Approve / Block actions, auto-whitelisting on reply, and strict Maildir file migrations.
 - **Privacy-Preserving Image Proxy & Spy Pixel Blocking:** External tracking pixels and remote email images are proxied through an isolated backend service with tracker domain blocking and SSRF protection.
-- **Contact Groups & Smart Aliases:** Broadcast emails to contact groups using `@group_name` syntax (e.g. `@ekip`) with automatic member resolution and delivery to all members.
+- **Contact Groups & Smart Aliases:** Broadcast emails to contact groups using `@group_name` syntax (e.g. `@team`) with automatic member resolution and delivery to all members.
 - **Speakeasy Codes (VIP Bypass):** Generate time-limited or single-use passcode tokens (e.g. `DISPATCH-VIP-2026`) that route incoming sender emails directly to the trusted Inbox.
 - **Multi-Provider AI Email Analysis:** Deep email inspection (invoices, OTP codes, tracking numbers, flight tickets) and automated drafting powered by Google Gemini, Anthropic Claude, or OpenAI.
 - **Interactive Email Reader:** Dynamic dark mode iframe typography with direct DOM stylesheet injection for crystal-clear readability, attachment previews, and multi-language translation.
