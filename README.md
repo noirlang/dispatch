@@ -21,7 +21,7 @@
 
 </div>
 
-## Özellikler & Video Önizlemeleri
+## Özellikler
 
 ---
 

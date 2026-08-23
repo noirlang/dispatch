@@ -21,7 +21,7 @@
 
 </div>
 
-## Feature Demos & Video Previews
+## Features
 
 ---
 
