@@ -17,7 +17,7 @@
   <strong>Çift yönlü Thunderbird IMAP senkronizasyonu, e-posta ile blog yayınlama, onay kuyruğu, yapay zeka panosu ve gizlilik odaklı mimariye sahip modern ve akıllı e-posta platformu.</strong>
 </p>
 
-[Web Sitesi](https://mail.noirlang.tr)
+[Web Sitesi](https://dispatch.noirlang.tr)
 
 </div>
 

@@ -17,7 +17,7 @@
   <strong>A focused, privacy-first intelligent email platform & client with two-way Thunderbird IMAP sync, email-powered blogging, approval queues, AI dashboard, and Maildir integration.</strong>
 </p>
 
-[Website](https://mail.noirlang.tr)
+[Website](https://dispatch.noirlang.tr)
 
 </div>
 
