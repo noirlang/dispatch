@@ -57,6 +57,8 @@ class DispatchMailbox < ApplicationMailbox
       end
     end
 
+    from_addr = mail.from&.first.to_s.presence || "unknown@sender.com"
+    to_addr = mail.to&.first.to_s.presence || user.email
     clean_id = (mail.message_id.presence || SecureRandom.uuid).to_s.gsub(/[<>]/, "").strip
 
     email = user.emails.create!(
