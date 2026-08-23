@@ -24,21 +24,17 @@ import {
   Moon,
   Laptop,
   Search,
-  CheckCircle2,
   Camera,
   LogOut,
   Lock,
-  DownloadCloud,
-  ShieldCheck,
-  ExternalLink,
   UsersRound
 } from "lucide-react"
 import { resolveAvatarUrl } from "../../components/ui/SenderAvatar"
 
-type Tab = "profile" | "appearance" | "contacts" | "speakeasy" | "ai" | "rss" | "security" | "updates"
+type Tab = "profile" | "appearance" | "contacts" | "speakeasy" | "ai" | "rss" | "security"
 
 export default function SettingsView() {
-  const { lang, activeSettingsTab, setActiveSettingsTab } = useAppStore()
+  const { activeSettingsTab, setActiveSettingsTab } = useAppStore()
   const tab = activeSettingsTab
   const setTab = setActiveSettingsTab
   const { user, logout, fetchMe } = useAuth()
@@ -66,7 +62,6 @@ export default function SettingsView() {
           <TabBtn id="ai"         icon={<Bot size={15} />}           label={t("ai_settings")}      active={tab} setTab={setTab} />
           <TabBtn id="rss"        icon={<Rss size={15} />}           label={t("rss_settings")}     active={tab} setTab={setTab} />
           <TabBtn id="security"   icon={<Shield size={15} />}        label={t("privacy_security")} active={tab} setTab={setTab} />
-          <TabBtn id="updates"    icon={<DownloadCloud size={15} />} label={lang === "tr" ? "Sistem Güncelleme" : "System Updates"} active={tab} setTab={setTab} />
         </div>
 
         {/* Dock-styled Red Danger Sign Out Button */}
@@ -92,7 +87,6 @@ export default function SettingsView() {
             {tab === "ai"         && <AiTab key="ai" />}
             {tab === "rss"        && <RssTab key="rss" />}
             {tab === "security"   && <SecurityTab key="security" />}
-            {tab === "updates"    && <UpdatesTab key="updates" />}
           </AnimatePresence>
         </div>
 
@@ -1455,164 +1449,3 @@ function SecurityTab() {
   )
 }
 
-/* =========================================================================
-   8. UPDATES TAB (NOIRLANG/DISPATCH SAFE UPDATER)
-   ========================================================================= */
-function UpdatesTab() {
-  const { addToast } = useAppStore()
-  const qc = useQueryClient()
-
-  const { data: updateInfo, isLoading, refetch, isRefetching } = useQuery({
-    queryKey: ["system-updates"],
-    queryFn: () => api.get<any>("/updates/check"),
-  })
-
-  const applyUpdate = useMutation({
-    mutationFn: () => api.post<any>("/updates/apply"),
-    onSuccess: (res) => {
-      qc.invalidateQueries({ queryKey: ["system-updates"] })
-      addToast({
-        title: "Sistem Güncelleme",
-        from: "Dispatch Updater",
-        subject: res.message || "Sistem başarıyla güncellendi! ✓"
-      })
-    },
-    onError: (err: any) => {
-      alert(`Güncelleme hatası: ${err.message || "Bilinmeyen hata"}`)
-    }
-  })
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
-      className="flex flex-col gap-6 max-w-xl"
-    >
-      <div>
-        <h2 className="text-xl font-bold text-[var(--text-main)] flex items-center gap-2">
-          <DownloadCloud size={22} />
-          <span>Sistem Güncelleme</span>
-        </h2>
-        <p className="text-xs text-[var(--text-muted)] mt-1">
-          Resmi GitHub deposu (<span className="text-[var(--text-main)] font-mono font-bold">noirlang/dispatch</span>) üzerinden güvenli, sıfır veri kayıplı sistem güncellemeleri.
-        </p>
-      </div>
-
-      {/* Safety Guarantee Card */}
-      <div className="p-4 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-start gap-3 shadow-xs">
-        <div className="p-2 rounded-xl bg-[#22c55e15] text-[#22c55e] border border-[#22c55e30] shrink-0 mt-0.5">
-          <ShieldCheck size={18} />
-        </div>
-        <div>
-          <div className="text-xs font-bold text-[var(--text-main)] mb-1">
-            %100 Güvenli Güncelleme Garantisi
-          </div>
-          <div className="text-[11px] text-[var(--text-muted)] leading-relaxed">
-            Güncelleme işlemi sırasında <strong>veritabanındaki e-postalarınız, şifreleriniz, DNS ayarlarınız ve özel anahtarlarınız asla silinmez veya bozulmaz</strong>. Yalnızca yeni kodlar ve geliştirmeler entegre edilir.
-          </div>
-        </div>
-      </div>
-
-      {/* Version Status Box */}
-      <div className="p-5 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex flex-col gap-4 shadow-sm">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)] flex items-center justify-center text-[var(--text-main)] font-mono text-xs font-bold">
-              GIT
-            </div>
-            <div>
-              <div className="text-xs font-bold text-[var(--text-main)]">
-                Mevcut Yerel Sürüm: <span className="font-mono text-[#3b82f6]">#{updateInfo?.current_commit || "dev"}</span>
-              </div>
-              <div className="text-[11px] text-[var(--text-dim)] truncate max-w-sm">
-                {updateInfo?.current_message || "Yerel çalışma kopyası"}
-              </div>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            disabled={isLoading || isRefetching}
-            onClick={() => refetch()}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] hover:bg-[var(--bg-card)] text-xs font-medium text-[var(--text-main)] transition-colors shadow-xs"
-          >
-            <RefreshCw size={12} className={isLoading || isRefetching ? "animate-spin" : ""} />
-            <span>Kontrol Et</span>
-          </button>
-        </div>
-
-        <div className="pt-3 border-t border-[var(--border-color)] flex items-center justify-between text-xs">
-          <span className="text-[var(--text-muted)]">GitHub Uzak Depo:</span>
-          <a
-            href="https://github.com/noirlang/dispatch"
-            target="_blank"
-            rel="noreferrer"
-            className="font-mono text-xs text-[var(--text-main)] hover:underline flex items-center gap-1 font-bold"
-          >
-            <span>noirlang/dispatch</span>
-            <ExternalLink size={12} />
-          </a>
-        </div>
-
-        {updateInfo?.remote_commit && (
-          <div className="pt-2 border-t border-[var(--border-color)] flex items-center justify-between text-xs">
-            <span className="text-[var(--text-muted)]">Son GitHub Commit:</span>
-            <span className="font-mono text-xs text-[var(--text-main)] font-semibold">
-              #{updateInfo.remote_commit} ({updateInfo.remote_message || "Son güncelleme"})
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* Action Update Button */}
-      <div className="flex flex-col gap-3">
-        {updateInfo?.update_available ? (
-          <div className="p-4 rounded-2xl bg-[#f59e0b15] border border-[#f59e0b30] flex flex-col gap-3">
-            <div className="flex items-center gap-2 text-xs font-bold text-[#f59e0b]">
-              <Sparkles size={16} />
-              <span>Yeni bir güncelleme mevcut!</span>
-            </div>
-            <p className="text-[11px] text-[var(--text-muted)]">
-              GitHub üzerindeki son geliştirmeleri ve hata düzeltmelerini tek tıkla güvenle yükleyebilirsiniz.
-            </p>
-            <button
-              type="button"
-              disabled={applyUpdate.isPending}
-              onClick={() => applyUpdate.mutate()}
-              className="w-full bg-[#f59e0b] hover:bg-[#d97706] text-black font-bold text-xs py-3 px-4 rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all"
-            >
-              <DownloadCloud size={15} />
-              <span>{applyUpdate.isPending ? "Sistem Güncelleniyor..." : "Sistemi Güvenle Güncelle"}</span>
-            </button>
-          </div>
-        ) : (
-          <div className="p-4 rounded-2xl bg-[#22c55e15] border border-[#22c55e30] flex items-center justify-between text-xs text-[#22c55e] font-bold">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 size={16} />
-              <span>Sisteminiz en son sürümde (Güncel ✓)</span>
-            </div>
-            <button
-              type="button"
-              disabled={applyUpdate.isPending}
-              onClick={() => {
-                if (confirm("Sistemi zorla tekrar derlemek ve servisleri yenilemek istiyor musunuz?")) {
-                  applyUpdate.mutate()
-                }
-              }}
-              className="text-[11px] text-[var(--text-muted)] hover:text-[var(--text-main)] underline font-normal"
-            >
-              Yeniden Derle / Eşitle
-            </button>
-          </div>
-        )}
-
-        {applyUpdate.data?.logs && (
-          <div className="p-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)] font-mono text-[10px] text-[var(--text-muted)] max-h-40 overflow-y-auto whitespace-pre-wrap">
-            {applyUpdate.data.logs}
-          </div>
-        )}
-      </div>
-    </motion.div>
-  )
-}

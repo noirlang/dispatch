@@ -22,8 +22,7 @@ import {
   Palette,
   Key,
   Bot,
-  Shield,
-  DownloadCloud
+  Shield
 } from "lucide-react"
 import { useAppStore, useT, applyThemeToDOM, type EmailFolder, type SettingsTab } from "../../store/themeAndLocale"
 import { requestNotificationPermission, sendBrowserNotification } from "../../lib/notifications"
@@ -156,7 +155,6 @@ export default function AppLayout({
     { id: "ai" as const,         label: t("ai_settings"),      icon: <Bot size={16} /> },
     { id: "rss" as const,        label: t("rss_settings"),     icon: <Rss size={16} /> },
     { id: "security" as const,   label: t("privacy_security"), icon: <Shield size={16} /> },
-    { id: "updates" as const,    label: lang === "tr" ? "Sistem Güncelleme" : "System Updates", icon: <DownloadCloud size={16} /> },
   ]
 
   function selectFolderOnMobile(folderId: EmailFolder) {

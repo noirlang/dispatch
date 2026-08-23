@@ -14,7 +14,7 @@ export interface ToastItem {
 }
 
 export type EmailFolder = "inbox" | "approvals" | "sent" | "drafts" | "trash" | "contacts"
-export type SettingsTab = "profile" | "appearance" | "contacts" | "speakeasy" | "ai" | "rss" | "security" | "updates"
+export type SettingsTab = "profile" | "appearance" | "contacts" | "speakeasy" | "ai" | "rss" | "security"
 
 interface State {
   theme: Theme
