@@ -11,6 +11,7 @@ module Backend
     config.time_zone = "UTC"
     config.beginning_of_week = :monday
     config.active_storage.service = :local
+    config.active_storage.variant_processor = :disabled
 
 
     # OWASP Recommended Security Headers
