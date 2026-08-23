@@ -50,12 +50,16 @@ export const useAuth = create<AuthStore>((set) => ({
   },
 
   fetchMe: async () => {
+    const token = localStorage.getItem("dispatch_token")
+    if (!token) return
     try {
       const res = await api.get<{ user: User }>("/auth/me")
-      set({ user: res.user })
-    } catch {
-      localStorage.removeItem("dispatch_token")
-      set({ token: null, user: null })
+      set({ user: res.user, token })
+    } catch (err: any) {
+      if (err?.status === 401) {
+        localStorage.removeItem("dispatch_token")
+        set({ token: null, user: null })
+      }
     }
   },
 }))

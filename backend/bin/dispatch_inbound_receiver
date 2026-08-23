@@ -2,6 +2,18 @@
 # frozen_string_literal: true
 
 ENV["RAILS_ENV"] ||= "production"
+
+# Ensure .env is loaded
+env_file = File.expand_path("../.env", __dir__)
+if File.exist?(env_file)
+  File.readlines(env_file).each do |line|
+    line = line.strip
+    next if line.empty? || line.start_with?("#")
+    key, val = line.split("=", 2)
+    ENV[key] ||= val if key && val
+  end
+end
+
 require_relative "../config/environment"
 
 raw_email = STDIN.read
@@ -10,9 +22,14 @@ if raw_email.present?
   begin
     inbound = ActionMailbox::InboundEmail.create_and_extract_message_id!(raw_email)
     ActionMailbox::RoutingJob.perform_now(inbound)
-    Rails.logger.info "[Dispatch Inbound Receiver] Successfully processed email (Message-ID: #{inbound.message_id})"
+    
+    log_msg = "[#{Time.now.iso8601}] [Dispatch Inbound Receiver] Successfully processed email (ID: #{inbound.id}, Message-ID: #{inbound.message_id})\n"
+    Rails.logger.info log_msg.strip
+    File.open("/tmp/dispatch-inbound.log", "a") { |f| f.write(log_msg) } rescue nil
   rescue => e
-    Rails.logger.error "[Dispatch Inbound Receiver Error] #{e.message}\n#{e.backtrace&.join("\n")}"
+    err_msg = "[#{Time.now.iso8601}] [Dispatch Inbound Receiver Error] #{e.message}\n#{e.backtrace&.join("\n")}\n"
+    Rails.logger.error err_msg.strip
+    File.open("/tmp/dispatch-inbound.log", "a") { |f| f.write(err_msg) } rescue nil
   end
 end
 
