@@ -231,13 +231,23 @@ class Api::V1::EmailsController < Api::V1::BaseController
       emails.update_all(is_read: false)
       render json: { message: "#{count} e-posta okunmadı olarak işaretlendi.", count: count }
     when "move_inbox"
-      emails.update_all(folder: "inbox")
+      emails.find_each do |em|
+        em.update!(folder: "inbox")
+        Email::MaildirSyncService.on_email_moved_or_deleted(em, "inbox")
+      end
       render json: { message: "#{count} e-posta Gelen Kutusuna taşındı.", count: count }
     when "move_trash", "delete"
-      emails.update_all(folder: "trash")
-      render json: { message: "#{count} e-posta Çöp Kutusuna taşındı.", count: count }
+      emails.find_each do |em|
+        if em.folder == "trash"
+          Email::MaildirSyncService.on_email_moved_or_deleted(em, "trash")
+          em.destroy
+        else
+          em.update!(folder: "trash")
+          Email::MaildirSyncService.on_email_moved_or_deleted(em, "trash")
+        end
+      end
+      render json: { message: "#{count} e-posta silindi / Çöp Kutusuna taşındı.", count: count }
     when "toggle_flag"
-      # If any is unflagged, flag all; otherwise unflag all
       has_unflagged = emails.where(is_flagged: [false, nil]).exists?
       emails.update_all(is_flagged: has_unflagged)
       render json: { message: "#{count} e-postanın bayrak durumu güncellendi.", is_flagged: has_unflagged, count: count }

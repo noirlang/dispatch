@@ -10,6 +10,7 @@ import { Search, GitMerge, CheckSquare, Square, Flag, Star, Trash2 } from "lucid
 interface Email {
   id: number
   from: string
+  to?: string
   subject: string
   is_read: boolean
   is_flagged?: boolean
@@ -63,6 +64,7 @@ export default function EmailList({ folder, selectedId, onSelect }: Props) {
       api.post("/emails/bulk_action", { ids: selectedIds, action_type: actionType, folder: folderTarget }),
     onSuccess: () => {
       setSelectedIds([])
+      setMultiSelectMode(false)
       qc.invalidateQueries({ queryKey: ["emails"] })
     }
   })
@@ -75,19 +77,23 @@ export default function EmailList({ folder, selectedId, onSelect }: Props) {
   }
 
   function handleSelectAll() {
+    setMultiSelectMode(true)
     if (selectedIds.length === filtered.length && filtered.length > 0) {
       setSelectedIds([])
+      setMultiSelectMode(false)
     } else {
       setSelectedIds(filtered.map(e => e.id))
     }
   }
 
   const filtered = data.filter(e => {
-    const q = search.toLowerCase()
+    if (!search.trim()) return true
+    const q = search.toLowerCase().trim()
     return (
-      e.subject?.toLowerCase().includes(q) ||
-      e.from?.toLowerCase().includes(q) ||
-      e.sender_name?.toLowerCase().includes(q)
+      (e.subject && e.subject.toLowerCase().includes(q)) ||
+      (e.from && e.from.toLowerCase().includes(q)) ||
+      (e.to && e.to.toLowerCase().includes(q)) ||
+      (e.sender_name && e.sender_name.toLowerCase().includes(q))
     )
   })
 
@@ -124,16 +130,14 @@ export default function EmailList({ folder, selectedId, onSelect }: Props) {
               <span>{t("select")}</span>
             </button>
 
-            {multiSelectMode && (
-              <button
-                onClick={handleSelectAll}
-                className="text-[11px] text-[var(--text-dim)] hover:text-[var(--text-main)] cursor-pointer underline ml-1"
-              >
-                {isAllSelected ? "Seçimi Kaldır" : "Tümünü Seç"}
-              </button>
-            )}
+            <button
+              onClick={handleSelectAll}
+              className="text-[11px] text-[var(--text-dim)] hover:text-[var(--text-main)] cursor-pointer underline ml-1"
+            >
+              {isAllSelected ? "Seçimi Kaldır" : "Tümünü Seç"}
+            </button>
 
-            {multiSelectMode && selectedIds.length > 0 && (
+            {selectedIds.length > 0 && (
               <span className="text-[11px] text-[var(--text-dim)] font-mono">
                 ({selectedIds.length})
               </span>
