@@ -155,9 +155,9 @@ export default function Register() {
   }
 
   return (
-    <div className="h-screen w-screen flex flex-col items-center justify-center bg-[var(--bg-primary)] text-[var(--text-main)] p-6 relative font-sans">
+    <div className="min-h-screen w-screen flex flex-col items-center justify-center bg-[var(--bg-primary)] text-[var(--text-main)] p-4 sm:p-6 relative font-sans">
       {/* Top Header Actions */}
-      <div className="absolute top-6 left-6 right-6 flex items-center justify-between">
+      <div className="absolute top-4 sm:top-6 left-4 sm:left-6 right-4 sm:right-6 flex items-center justify-between">
         <Link
           to="/"
           className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text-main)] font-semibold transition-colors"
@@ -190,16 +190,16 @@ export default function Register() {
       </div>
 
       {/* Brand Logo */}
-      <div className="flex items-center gap-2.5 mb-8">
+      <div className="flex items-center gap-2.5 mb-6 sm:mb-8">
         <img src="/dispatch.png" alt="Dispatch" className="h-9 w-auto object-contain" />
       </div>
 
       {/* Progress Indicator */}
-      <div className="flex gap-2 mb-10">
+      <div className="flex gap-2 mb-8 sm:mb-10">
         {steps.map((s, i) => (
           <div
             key={s}
-            className={`h-1.5 w-10 rounded-full transition-all ${
+            className={`h-1.5 w-8 sm:w-10 rounded-full transition-all ${
               i <= stepIdx ? "bg-[var(--accent)]" : "bg-[var(--border-color)]"
             }`}
           />
@@ -214,7 +214,7 @@ export default function Register() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -15 }}
           transition={{ duration: 0.15 }}
-          className="w-full max-w-md p-8 rounded-3xl bg-[var(--bg-secondary)] border border-[var(--border-color)] shadow-2xl flex flex-col items-center gap-6"
+          className="w-full max-w-sm sm:max-w-md p-5 sm:p-8 rounded-3xl bg-[var(--bg-secondary)] border border-[var(--border-color)] shadow-2xl flex flex-col items-center gap-5 sm:gap-6"
         >
           {step === "invite" && (
             <div className="p-3 rounded-2xl bg-[#3b82f615] text-[#3b82f6] border border-[#3b82f630] -mb-2">
@@ -223,7 +223,7 @@ export default function Register() {
           )}
 
           <div className="text-center">
-            <h1 className="text-xl font-bold text-center text-[var(--text-main)]">
+            <h1 className="text-lg sm:text-xl font-bold text-center text-[var(--text-main)]">
               {labels[step]}
             </h1>
             {step === "invite" && (
@@ -236,7 +236,7 @@ export default function Register() {
           </div>
 
           {step === "email" ? (
-            <div className="w-full relative flex items-center bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl shadow-xs overflow-hidden focus-within:border-[var(--text-main)] transition-colors">
+            <div className="w-full relative flex items-center bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl shadow-xs overflow-hidden focus-within:border-[var(--text-main)] transition-colors min-w-0">
               <input
                 autoFocus
                 type="text"
@@ -244,9 +244,9 @@ export default function Register() {
                 value={form.email}
                 onChange={e => setForm(f => ({ ...f, email: e.target.value.replace(/^@+/, "") }))}
                 required
-                className="flex-1 bg-transparent text-[var(--text-main)] pl-5 pr-2 py-3.5 text-sm focus:outline-none font-mono"
+                className="min-w-0 flex-1 w-full bg-transparent text-[var(--text-main)] pl-4 sm:pl-5 pr-2 py-3 sm:py-3.5 text-sm focus:outline-none font-mono"
               />
-              <span className="pr-4 text-xs font-mono font-semibold text-[var(--text-dim)] select-none shrink-0 bg-[var(--bg-card)] py-1.5 px-2.5 rounded-xl mr-3 border border-[var(--border-color)]">
+              <span className="text-[11px] sm:text-xs font-mono font-medium text-[var(--text-dim)] select-none shrink-0 bg-[var(--bg-card)] py-1.5 px-2 sm:px-2.5 rounded-xl mr-2.5 sm:mr-3 border border-[var(--border-color)] truncate max-w-[130px] sm:max-w-none">
                 @{serverDomain}
               </span>
             </div>
@@ -259,20 +259,20 @@ export default function Register() {
               onChange={e => setForm(f => ({ ...f, [step]: e.target.value }))}
               required
               minLength={step === "password" ? 8 : 1}
-              className={`w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-base px-4 py-3 rounded-xl text-center focus:outline-none focus:border-[var(--text-main)] transition-colors font-medium ${
+              className={`w-full bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-sm sm:text-base px-4 py-3 rounded-xl text-center focus:outline-none focus:border-[var(--text-main)] transition-colors font-medium ${
                 step === "invite" ? "font-mono tracking-widest uppercase text-lg" : ""
               }`}
             />
           )}
 
-          {error && <p className="text-[#ef4444] text-xs font-medium">{error}</p>}
+          {error && <p className="text-[#ef4444] text-xs font-medium text-center">{error}</p>}
 
           <div className="flex items-center gap-3 w-full justify-between mt-2">
             {stepIdx > 0 ? (
               <button
                 type="button"
                 onClick={() => setStep(steps[stepIdx - 1] as any)}
-                className="text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text-main)]"
+                className="text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text-main)] px-2 py-1"
               >
                 {lang === "tr" ? "← Geri" : "← Back"}
               </button>

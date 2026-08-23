@@ -117,9 +117,9 @@ export default function Login() {
   }
 
   return (
-    <div className="h-screen w-screen flex flex-col items-center justify-center bg-[var(--bg-primary)] text-[var(--text-main)] p-6 relative select-none">
+    <div className="min-h-screen w-screen flex flex-col items-center justify-center bg-[var(--bg-primary)] text-[var(--text-main)] p-4 sm:p-6 relative select-none">
       {/* Top Header Actions */}
-      <div className="absolute top-6 left-6 right-6 flex items-center justify-between">
+      <div className="absolute top-4 sm:top-6 left-4 sm:left-6 right-4 sm:right-6 flex items-center justify-between">
         <Link
           to="/"
           className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text-main)] font-semibold transition-colors"
@@ -152,12 +152,12 @@ export default function Login() {
       </div>
 
       {/* Brand Logo */}
-      <div className="flex items-center gap-2.5 mb-10">
-        <img src="/dispatch.png" alt="Dispatch" className="h-10 w-auto object-contain" />
+      <div className="flex items-center gap-2.5 mb-8 sm:mb-10">
+        <img src="/dispatch.png" alt="Dispatch" className="h-9 sm:h-10 w-auto object-contain" />
       </div>
 
       {/* Step Indicators */}
-      <div className="flex items-center gap-2 mb-10">
+      <div className="flex items-center gap-2 mb-8 sm:mb-10">
         {steps.map((s, idx) => (
           <div
             key={s}
@@ -173,7 +173,7 @@ export default function Login() {
       </div>
 
       {/* Main Step Form */}
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-sm sm:max-w-md px-2 sm:px-0">
         <AnimatePresence mode="wait">
           <motion.div
             key={step}
@@ -185,29 +185,29 @@ export default function Login() {
             {/* Account Card (When in Password Step) */}
             {step === "password" && checkedUser && (
               <div className="flex items-center justify-between p-3 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] mb-6 shadow-xs">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-[var(--bg-card)] border border-[var(--border-color)] flex items-center justify-center font-bold text-xs text-[var(--text-main)]">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-full bg-[var(--bg-card)] border border-[var(--border-color)] flex items-center justify-center font-bold text-xs text-[var(--text-main)] shrink-0">
                     {checkedUser.name ? checkedUser.name[0]?.toUpperCase() : <UserIcon size={16} />}
                   </div>
-                  <div>
-                    <div className="text-xs font-bold text-[var(--text-main)]">{checkedUser.name || email}</div>
-                    <div className="text-[11px] text-[var(--text-dim)] font-mono">{email}</div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-[var(--text-main)] truncate">{checkedUser.name || email}</div>
+                    <div className="text-[11px] text-[var(--text-dim)] font-mono truncate">{email}</div>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={handleBackToEmail}
-                  className="text-xs text-[var(--text-muted)] hover:text-[var(--text-main)] underline font-medium px-2 py-1"
+                  className="text-xs text-[var(--text-muted)] hover:text-[var(--text-main)] underline font-medium px-2 py-1 shrink-0"
                 >
                   {lang === "tr" ? "Farklı hesap" : "Change"}
                 </button>
               </div>
             )}
 
-            <h2 className="text-2xl font-bold mb-2 tracking-tight text-center">
+            <h2 className="text-xl sm:text-2xl font-bold mb-2 tracking-tight text-center">
               {labels[step]}
             </h2>
-            <p className="text-xs text-[var(--text-muted)] mb-8 text-center">
+            <p className="text-xs text-[var(--text-muted)] mb-6 sm:mb-8 text-center">
               {step === "email"
                 ? lang === "tr"
                   ? "Devam etmek için kullanıcı adınızı yazın."
@@ -219,17 +219,17 @@ export default function Login() {
 
             <form onSubmit={handleNext} className="flex flex-col gap-4">
               {step === "email" ? (
-                <div className="relative flex items-center bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl shadow-xs overflow-hidden focus-within:border-[var(--text-main)] transition-colors">
+                <div className="relative flex items-center bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl shadow-xs overflow-hidden focus-within:border-[var(--text-main)] transition-colors w-full min-w-0">
                   <input
                     type="text"
                     autoFocus
                     placeholder={placeholders.email}
                     value={email}
                     onChange={e => setEmail(e.target.value)}
-                    className="flex-1 bg-transparent text-[var(--text-main)] pl-5 pr-2 py-4 text-base focus:outline-none font-mono"
+                    className="min-w-0 flex-1 w-full bg-transparent text-[var(--text-main)] pl-4 sm:pl-5 pr-2 py-3.5 sm:py-4 text-sm sm:text-base focus:outline-none font-mono"
                     required
                   />
-                  <span className="pr-4 text-xs font-mono font-semibold text-[var(--text-dim)] select-none shrink-0 bg-[var(--bg-card)] py-1.5 px-2.5 rounded-xl mr-3 border border-[var(--border-color)]">
+                  <span className="text-[11px] sm:text-xs font-mono font-medium text-[var(--text-dim)] select-none shrink-0 bg-[var(--bg-card)] py-1.5 px-2.5 rounded-xl mr-2.5 sm:mr-3 border border-[var(--border-color)] truncate max-w-[130px] sm:max-w-none">
                     @{serverDomain}
                   </span>
                 </div>
@@ -240,7 +240,7 @@ export default function Login() {
                   placeholder={placeholders.password}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-main)] px-5 py-4 rounded-2xl text-base text-center focus:outline-none focus:border-[var(--text-main)] transition-colors shadow-xs font-mono"
+                  className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-main)] px-4 sm:px-5 py-3.5 sm:py-4 rounded-2xl text-sm sm:text-base text-center focus:outline-none focus:border-[var(--text-main)] transition-colors shadow-xs font-mono"
                   required
                 />
               )}
