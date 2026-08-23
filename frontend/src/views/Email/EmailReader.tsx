@@ -188,21 +188,41 @@ export default function EmailReader({ id, folder, onReply, onForward, onClose }:
     }
   })
 
-  function handleMouseUp() {
-    const sel = window.getSelection()
-    const text = sel?.toString().trim()
-    if (text && text.length > 3) {
-      const oRange = sel?.getRangeAt(0)
-      const oRect = oRange?.getBoundingClientRect()
-      if (oRect) {
-        setSelectedText(text)
-        setSelectionPos({ x: oRect.left + oRect.width / 2, y: oRect.top - 45 })
-        return
+  useEffect(() => {
+    function handleSelectionUpdate() {
+      const sel = window.getSelection()
+      const text = sel?.toString().trim()
+      if (text && text.length > 3) {
+        try {
+          const oRange = sel?.getRangeAt(0)
+          const oRect = oRange?.getBoundingClientRect()
+          if (oRect && oRect.width > 0 && oRect.height > 0) {
+            setSelectedText(text)
+            const x = Math.max(90, Math.min(window.innerWidth - 90, oRect.left + oRect.width / 2))
+            const y = Math.max(70, oRect.top - 45)
+            setSelectionPos({ x, y })
+            return
+          }
+        } catch {
+          // ignore
+        }
+      }
+      if (!text || text.length <= 3) {
+        setSelectedText("")
+        setSelectionPos(null)
       }
     }
-    setSelectedText("")
-    setSelectionPos(null)
-  }
+
+    document.addEventListener("selectionchange", handleSelectionUpdate)
+    document.addEventListener("mouseup", handleSelectionUpdate)
+    document.addEventListener("touchend", handleSelectionUpdate)
+
+    return () => {
+      document.removeEventListener("selectionchange", handleSelectionUpdate)
+      document.removeEventListener("mouseup", handleSelectionUpdate)
+      document.removeEventListener("touchend", handleSelectionUpdate)
+    }
+  }, [])
 
   async function handleFetchSummary() {
     setLoadingSummary(true)
@@ -331,31 +351,30 @@ export default function EmailReader({ id, folder, onReply, onForward, onClose }:
 
   return (
     <div
-      onMouseUp={handleMouseUp}
       className="h-full flex flex-col bg-[var(--bg-primary)] overflow-hidden animate-fadeIn relative"
     >
       {/* Subject & Actions Toolbar */}
-      <div className="px-8 py-5 border-b border-[var(--border-color)] flex flex-wrap items-center justify-between gap-4 shrink-0 bg-[var(--bg-secondary)] shadow-2xs">
-        <div className="flex items-center gap-3.5">
+      <div className="px-3 sm:px-8 py-2.5 sm:py-5 border-b border-[var(--border-color)] flex flex-wrap items-center justify-between gap-2.5 sm:gap-4 shrink-0 bg-[var(--bg-secondary)] shadow-2xs">
+        <div className="flex items-center gap-2 sm:gap-3.5 min-w-0">
           {onClose && (
             <motion.button
               whileHover={{ x: -3 }}
               whileTap={{ scale: 0.94 }}
               onClick={onClose}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] text-xs font-bold text-[var(--text-main)] hover:bg-[var(--bg-card)] transition-all shadow-xs cursor-pointer select-none shrink-0"
+              className="flex items-center gap-1.5 p-2 sm:px-3 sm:py-1.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] text-xs font-bold text-[var(--text-main)] hover:bg-[var(--bg-card)] transition-all shadow-xs cursor-pointer select-none shrink-0"
               title="Listeye Dön"
             >
               <ArrowLeft size={14} />
-              <span>Listeye Dön</span>
+              <span className="hidden sm:inline">Listeye Dön</span>
             </motion.button>
           )}
 
-          <div>
-            <h1 className="text-xl font-bold text-[var(--text-main)] mb-1">
+          <div className="min-w-0">
+            <h1 className="text-sm sm:text-xl font-bold text-[var(--text-main)] mb-0.5 sm:mb-1 truncate max-w-[160px] sm:max-w-md">
               {translation && !showOriginal ? translation.translated_subject : (email.subject || "(No Subject)")}
             </h1>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-[var(--text-dim)] font-mono">
+              <span className="text-[11px] sm:text-xs text-[var(--text-dim)] font-mono">
                 Klasör: {email.folder}
               </span>
               {translation && !showOriginal && (
@@ -368,7 +387,7 @@ export default function EmailReader({ id, folder, onReply, onForward, onClose }:
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           {/* AI Action Buttons - ONLY SHOWN IF AI IS CONFIGURED */}
           {isAiConfigured && (
             <>
@@ -376,32 +395,32 @@ export default function EmailReader({ id, folder, onReply, onForward, onClose }:
                 whileTap={{ scale: 0.94 }}
                 onClick={() => setTranslateModalOpen(true)}
                 disabled={translating}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] text-xs font-semibold hover:bg-[var(--bg-card)] transition-colors shadow-xs"
+                className="flex items-center gap-1.5 p-2 sm:px-3 sm:py-1.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] text-xs font-semibold hover:bg-[var(--bg-card)] transition-colors shadow-xs"
                 title="E-postayı yapay zeka ile çevir"
               >
-                {translating ? <RefreshCw size={13} className="animate-spin text-[#10b981]" /> : <Languages size={13} className="text-[#10b981]" />}
-                <span>{translating ? "Çevriliyor..." : "Çevir"}</span>
+                {translating ? <RefreshCw size={14} className="animate-spin text-[#10b981]" /> : <Languages size={14} className="text-[#10b981]" />}
+                <span className="hidden sm:inline">{translating ? "Çevriliyor..." : "Çevir"}</span>
               </motion.button>
 
               <motion.button
                 whileTap={{ scale: 0.94 }}
                 onClick={handleFetchSummary}
                 disabled={loadingSummary}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] text-xs font-semibold hover:bg-[var(--bg-card)] transition-colors shadow-xs"
+                className="flex items-center gap-1.5 p-2 sm:px-3 sm:py-1.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] text-xs font-semibold hover:bg-[var(--bg-card)] transition-colors shadow-xs"
                 title="Yapay zeka ile özetle"
               >
-                {loadingSummary ? <RefreshCw size={13} className="animate-spin" /> : <Sparkles size={13} className="text-[#f59e0b]" />}
-                <span>AI Özetle</span>
+                {loadingSummary ? <RefreshCw size={14} className="animate-spin" /> : <Sparkles size={14} className="text-[#f59e0b]" />}
+                <span className="hidden sm:inline">AI Özetle</span>
               </motion.button>
 
               <motion.button
                 whileTap={{ scale: 0.94 }}
                 onClick={() => setAiReplyModalOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] text-xs font-semibold hover:bg-[var(--bg-card)] transition-colors shadow-xs"
+                className="flex items-center gap-1.5 p-2 sm:px-3 sm:py-1.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] text-xs font-semibold hover:bg-[var(--bg-card)] transition-colors shadow-xs"
                 title="AI ile yanıt taslağı oluştur"
               >
-                <MessageSquareQuote size={13} className="text-[#3b82f6]" />
-                <span>AI ile Yanıtla</span>
+                <MessageSquareQuote size={14} className="text-[#3b82f6]" />
+                <span className="hidden sm:inline">AI ile Yanıtla</span>
               </motion.button>
             </>
           )}
@@ -411,18 +430,20 @@ export default function EmailReader({ id, folder, onReply, onForward, onClose }:
               <motion.button
                 whileTap={{ scale: 0.94 }}
                 onClick={() => approve.mutate()}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#22c55e15] text-[#22c55e] border border-[#22c55e30] hover:bg-[#22c55e25] text-xs font-bold transition-colors"
+                className="flex items-center gap-1.5 p-2 sm:px-3 sm:py-1.5 rounded-xl bg-[#22c55e15] text-[#22c55e] border border-[#22c55e30] hover:bg-[#22c55e25] text-xs font-bold transition-colors"
+                title={t("approve")}
               >
                 <CheckCircle size={14} />
-                <span>{t("approve")}</span>
+                <span className="hidden sm:inline">{t("approve")}</span>
               </motion.button>
               <motion.button
                 whileTap={{ scale: 0.94 }}
                 onClick={() => reject.mutate()}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#ef444415] text-[#ef4444] border border-[#ef444430] hover:bg-[#ef444425] text-xs font-bold transition-colors"
+                className="flex items-center gap-1.5 p-2 sm:px-3 sm:py-1.5 rounded-xl bg-[#ef444415] text-[#ef4444] border border-[#ef444430] hover:bg-[#ef444425] text-xs font-bold transition-colors"
+                title={t("reject")}
               >
                 <XCircle size={14} />
-                <span>{t("reject")}</span>
+                <span className="hidden sm:inline">{t("reject")}</span>
               </motion.button>
             </>
           )}
@@ -431,29 +452,32 @@ export default function EmailReader({ id, folder, onReply, onForward, onClose }:
             <motion.button
               whileTap={{ scale: 0.94 }}
               onClick={() => onReply(email)}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[var(--accent)] text-[var(--accent-invert)] text-xs font-bold transition-colors shadow-xs"
+              className="flex items-center gap-1.5 p-2 sm:px-3.5 sm:py-1.5 rounded-xl bg-[var(--accent)] text-[var(--accent-invert)] text-xs font-bold transition-colors shadow-xs"
+              title="Taslağı Düzenle & Gönder"
             >
               <Send size={14} />
-              <span>Taslağı Düzenle & Gönder</span>
+              <span className="hidden sm:inline">Taslağı Düzenle & Gönder</span>
             </motion.button>
           ) : (
             <>
               <motion.button
                 whileTap={{ scale: 0.94 }}
                 onClick={() => onReply(email)}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[var(--bg-primary)] hover:bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-main)] text-xs font-bold transition-colors shadow-xs"
+                className="flex items-center gap-1.5 p-2 sm:px-3.5 sm:py-1.5 rounded-xl bg-[var(--bg-primary)] hover:bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-main)] text-xs font-bold transition-colors shadow-xs"
+                title={t("reply")}
               >
                 <Reply size={14} />
-                <span>{t("reply")}</span>
+                <span className="hidden sm:inline">{t("reply")}</span>
               </motion.button>
 
               <motion.button
                 whileTap={{ scale: 0.94 }}
                 onClick={() => onForward(email)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--bg-primary)] hover:bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-main)] text-xs font-medium transition-colors shadow-xs"
+                className="flex items-center gap-1.5 p-2 sm:px-3.5 sm:py-1.5 rounded-xl bg-[var(--bg-primary)] hover:bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-main)] text-xs font-medium transition-colors shadow-xs"
+                title={t("forward")}
               >
                 <Forward size={14} />
-                <span>{t("forward")}</span>
+                <span className="hidden sm:inline">{t("forward")}</span>
               </motion.button>
             </>
           )}
@@ -504,7 +528,7 @@ export default function EmailReader({ id, folder, onReply, onForward, onClose }:
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="mx-8 mt-4 p-4 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-start justify-between gap-4 shadow-sm"
+            className="mx-3 sm:mx-8 mt-3 sm:mt-4 p-3 sm:p-4 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-start justify-between gap-3 sm:gap-4 shadow-sm"
           >
             <div className="flex items-start gap-3">
               <div className="p-1.5 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-color)] mt-0.5">
@@ -527,8 +551,8 @@ export default function EmailReader({ id, folder, onReply, onForward, onClose }:
       </AnimatePresence>
 
       {/* Sender info bar with Clickable Avatar to assign Custom Photo */}
-      <div className="px-8 py-4 border-b border-[var(--border-color)] flex items-center justify-between bg-[var(--bg-secondary)] shrink-0">
-        <div className="flex items-center gap-3.5">
+      <div className="px-3 sm:px-8 py-2.5 sm:py-4 border-b border-[var(--border-color)] flex items-center justify-between bg-[var(--bg-secondary)] shrink-0 gap-2">
+        <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
           {(() => {
             const isOtherDispatchUser = Boolean(
               email.is_dispatch_user &&
@@ -536,7 +560,7 @@ export default function EmailReader({ id, folder, onReply, onForward, onClose }:
               user.email.toLowerCase().trim() !== email.from.toLowerCase().trim()
             )
             return (
-              <div className="flex items-center">
+              <div className="flex items-center shrink-0">
                 {/* Sender Avatar (Left) */}
                 <div
                   onClick={() => {
@@ -553,7 +577,7 @@ export default function EmailReader({ id, folder, onReply, onForward, onClose }:
                     avatarUrl={email.avatar_url}
                     initials={email.avatar_initials || email.from[0]?.toUpperCase()}
                     name={email.sender_name || email.from}
-                    size={40}
+                    size={38}
                     isKnownCompany={email.is_known_company}
                   />
                   {!isOtherDispatchUser && (
@@ -566,14 +590,14 @@ export default function EmailReader({ id, folder, onReply, onForward, onClose }:
                 {/* Recipient Avatar (Overlapping on right - half-shifted) */}
                 {email.to && (
                   <div
-                    className="relative z-20 -ml-4 rounded-full ring-2 ring-[var(--bg-secondary)] shadow-xs shrink-0 select-none transition-all duration-200 ease-out hover:scale-110 hover:z-30 hover:-translate-y-0.5 cursor-pointer"
+                    className="relative z-20 -ml-3.5 rounded-full ring-2 ring-[var(--bg-secondary)] shadow-xs shrink-0 select-none transition-all duration-200 ease-out hover:scale-110 hover:z-30 hover:-translate-y-0.5 cursor-pointer"
                     title={`Alıcı: ${email.recipient_name || email.to}`}
                   >
                     <SenderAvatar
                       avatarUrl={email.recipient_avatar_url}
                       initials={email.recipient_initials || email.to[0]?.toUpperCase()}
                       name={email.recipient_name || email.to}
-                      size={40}
+                      size={38}
                     />
                   </div>
                 )}
@@ -581,50 +605,50 @@ export default function EmailReader({ id, folder, onReply, onForward, onClose }:
             )
           })()}
 
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-[var(--text-main)]">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 truncate">
+              <span className="text-xs font-bold text-[var(--text-main)] truncate">
                 {email.sender_name || email.from}
               </span>
               {email.is_dispatch_user && (
-                <span title="Resmi Dispatch Kullanıcısı" className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-[var(--bg-primary)] border border-[var(--border-color)] text-[10px] font-bold text-[var(--text-main)] shadow-2xs select-none">
+                <span title="Resmi Dispatch Kullanıcısı" className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-[var(--bg-primary)] border border-[var(--border-color)] text-[10px] font-bold text-[var(--text-main)] shadow-2xs select-none shrink-0">
                   <img src="/dispatch.png" alt="" className="h-3 w-auto object-contain" />
                   <span>Dispatch</span>
                 </span>
               )}
             </div>
-            <div className="text-[11px] text-[var(--text-dim)] font-mono">{email.from} · Kime: {email.to}</div>
+            <div className="text-[10px] sm:text-[11px] text-[var(--text-dim)] font-mono truncate">{email.from} · Kime: {email.to}</div>
           </div>
         </div>
 
-        <span className="text-xs text-[var(--text-muted)] font-mono">
-          {format(new Date(email.created_at), "PPP p", { locale: dateLocale })}
+        <span className="text-[10px] sm:text-xs text-[var(--text-muted)] font-mono shrink-0">
+          {format(new Date(email.created_at), "d MMM p", { locale: dateLocale })}
         </span>
       </div>
 
       {/* Translation Active Banner */}
       {translation && (
-        <div className="mx-8 mt-4 px-4 py-3 rounded-2xl bg-[var(--bg-secondary)] border border-[#10b98140] flex items-center justify-between shadow-xs">
-          <div className="flex items-center gap-2.5">
+        <div className="mx-3 sm:mx-8 mt-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-2xl bg-[var(--bg-secondary)] border border-[#10b98140] flex items-center justify-between shadow-xs gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             <Globe2 size={16} className="text-[#10b981] shrink-0" />
-            <span className="text-xs font-semibold text-[var(--text-main)]">
+            <span className="text-[11px] sm:text-xs font-semibold text-[var(--text-main)] truncate">
               {showOriginal
                 ? "Orijinal e-posta metni gösteriliyor."
-                : `Bu e-posta yapay zeka ile [${languageOptions.find(l => l.code === translation.target_language)?.name || translation.target_language}] diline çevrildi.`}
+                : `Bu e-posta [${languageOptions.find(l => l.code === translation.target_language)?.name || translation.target_language}] diline çevrildi.`}
             </span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 shrink-0">
             <button
               onClick={() => setShowOriginal(!showOriginal)}
-              className="px-3 py-1 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)] text-xs font-bold text-[var(--text-main)] hover:bg-[var(--bg-card)] transition-colors shadow-2xs"
+              className="px-2.5 py-1 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)] text-xs font-bold text-[var(--text-main)] hover:bg-[var(--bg-card)] transition-colors shadow-2xs"
             >
               {showOriginal ? "Çeviriyi Göster" : "Orijinali Göster"}
             </button>
             <button
               onClick={() => setTranslateModalOpen(true)}
-              className="px-3 py-1 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)] text-xs font-semibold text-[var(--text-dim)] hover:text-[var(--text-main)] transition-colors shadow-2xs"
+              className="px-2.5 py-1 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)] text-xs font-semibold text-[var(--text-dim)] hover:text-[var(--text-main)] transition-colors shadow-2xs"
             >
-              Farklı Dil Seç
+              Dil
             </button>
           </div>
         </div>
@@ -632,24 +656,24 @@ export default function EmailReader({ id, folder, onReply, onForward, onClose }:
 
       {/* Remote Image Security Banner (Thunderbird style - per email) */}
       {hasRemoteImages && !showRemoteImages && (
-        <div className="mx-8 mt-3 px-4 py-2.5 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-between shadow-xs animate-fadeIn">
-          <div className="flex items-center gap-2.5">
-            <span className="text-sm">🛡️</span>
-            <span className="text-xs font-semibold text-[var(--text-main)]">
-              Gizliliğinizi korumak için bu iletideki harici görseller engellendi.
+        <div className="mx-3 sm:mx-8 mt-3 px-3 sm:px-4 py-2.5 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-between shadow-xs animate-fadeIn gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-sm shrink-0">🛡️</span>
+            <span className="text-[11px] sm:text-xs font-semibold text-[var(--text-main)] truncate">
+              Gizliliğinizi korumak için harici görseller engellendi.
             </span>
           </div>
           <button
             onClick={() => setShowRemoteImages(true)}
-            className="px-3.5 py-1.5 rounded-xl bg-[var(--accent)] text-[var(--accent-invert)] text-xs font-bold hover:opacity-90 transition-all shadow-xs cursor-pointer"
+            className="px-3 py-1.5 rounded-xl bg-[var(--accent)] text-[var(--accent-invert)] text-xs font-bold hover:opacity-90 transition-all shadow-xs cursor-pointer shrink-0"
           >
-            Bu İletideki Görselleri Göster
+            Görselleri Göster
           </button>
         </div>
       )}
 
-        {/* Email Body */}
-      <div className="flex-1 p-10 overflow-y-auto max-w-4xl">
+      {/* Email Body */}
+      <div className="flex-1 p-3.5 sm:p-10 pb-24 md:pb-10 overflow-y-auto max-w-4xl">
         {translation && !showOriginal ? (
           <div className="text-sm leading-relaxed font-sans text-[var(--text-main)]">
             <EmailMdView content={translation.translated_body} />
