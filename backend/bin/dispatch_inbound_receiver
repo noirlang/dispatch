@@ -1,0 +1,19 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+ENV["RAILS_ENV"] ||= "production"
+require_relative "../config/environment"
+
+raw_email = STDIN.read
+
+if raw_email.present?
+  begin
+    inbound = ActionMailbox::InboundEmail.create_and_extract_message_id!(raw_email)
+    ActionMailbox::RoutingJob.perform_now(inbound)
+    Rails.logger.info "[Dispatch Inbound Receiver] Successfully processed email (Message-ID: #{inbound.message_id})"
+  rescue => e
+    Rails.logger.error "[Dispatch Inbound Receiver Error] #{e.message}\n#{e.backtrace&.join("\n")}"
+  end
+end
+
+exit 0

@@ -1,6 +1,12 @@
 class DispatchMailbox < ApplicationMailbox
   def process
-    user = User.find_by(email: mail.to.first)
+    raw_recipients = [mail.to, mail.cc, mail.bcc, mail.header["X-Original-To"]&.value, mail.header["Delivered-To"]&.value, mail.header["Envelope-To"]&.value].flatten.compact
+    cleaned_recipients = raw_recipients.map do |addr|
+      addr.to_s.gsub(/.*<([^>]+)>.*/, '\1').strip.downcase
+    end.reject(&:blank?).uniq
+
+    user = User.where("LOWER(email) IN (?)", cleaned_recipients).first
+    user ||= User.first if User.count == 1
     return unless user
 
     # Check speakeasy code first
@@ -9,7 +15,7 @@ class DispatchMailbox < ApplicationMailbox
       return
     end
 
-    from = mail.from.first
+    from = mail.from&.first.to_s.gsub(/.*<([^>]+)>.*/, '\1').strip.downcase
     rule = user.sender_rules.find_by(email_address: from) ||
            user.sender_rules.find_by("? LIKE '%@' || domain", from)
 
@@ -34,22 +40,24 @@ class DispatchMailbox < ApplicationMailbox
     mail.attachments.each do |att|
       begin
         meta = EmailAttachmentService.save_raw_attachment(att.filename, att.body.decoded, att.content_type)
-        saved_attachments << meta
+        saved_attachments << meta if meta
       rescue => e
         Rails.logger.warn "Failed to save incoming email attachment #{att.filename}: #{e.message}"
       end
     end
 
+    from_addr = mail.from&.first.to_s.presence || "unknown@sender.com"
+    to_addr = mail.to&.first.to_s.presence || user.email
 
     user.emails.create!(
       thread: thread,
-      from_address: mail.from.first,
-      to_address: mail.to.first,
+      from_address: from_addr,
+      to_address: to_addr,
       cc: mail.cc&.join(", "),
-      subject: mail.subject,
+      subject: mail.subject.presence || "(Başlıksız)",
       body_text: (mail.text_part&.body&.decoded || (mail.multipart? ? "" : (mail.body&.decoded rescue ""))).to_s.force_encoding("UTF-8").scrub,
       body_html: (mail.html_part&.body&.decoded rescue nil)&.to_s&.force_encoding("UTF-8")&.scrub,
-      message_id: mail.message_id,
+      message_id: mail.message_id.presence || "<#{SecureRandom.uuid}@#{user.email.split('@').last}>",
       folder: folder,
       is_read: false,
       attachments: saved_attachments

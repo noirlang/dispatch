@@ -225,10 +225,36 @@ RestartSec=3
 WantedBy=multi-user.target
 SVCEOF
 
-systemctl daemon-reload
-systemctl enable --now dispatch-backend dispatch-sidekiq
-systemctl restart dispatch-backend dispatch-sidekiq
+# 9. Postfix E-Posta İçe Aktarım Yapılandırması (Inbound Pipe -> ActionMailbox)
+echo -e "▶ 9. Postfix e-posta içe aktarım motoru yapılandırılıyor..."
 
+# Pipe wrapper scripti oluştur
+cat << PIPEEOF > /usr/local/bin/dispatch-inbound-pipe
+#!/usr/bin/env bash
+exec /bin/bash -lc "cd $DISPATCH_DIR/backend && RAILS_ENV=production bundle exec bin/dispatch_inbound_receiver"
+PIPEEOF
+chmod +x /usr/local/bin/dispatch-inbound-pipe
+chmod +x "$DISPATCH_DIR/backend/bin/dispatch_inbound_receiver"
+
+# master.cf içine dispatch-pipe servisi ekle (yoksa)
+if ! grep -q "dispatch-pipe" /etc/postfix/master.cf 2>/dev/null; then
+  cat << 'MASTEOF' >> /etc/postfix/master.cf
+
+dispatch-pipe unix - n n - - pipe
+  flags=R user=root argv=/usr/local/bin/dispatch-inbound-pipe
+MASTEOF
+fi
+
+# Postfix genel ayarlarını güncelle
+postconf -e "mailbox_transport = dispatch-pipe" 2>/dev/null || true
+postconf -e "fallback_transport = dispatch-pipe" 2>/dev/null || true
+postconf -e "local_recipient_maps =" 2>/dev/null || true
+postconf -e "inet_interfaces = all" 2>/dev/null || true
+postconf -e "inet_protocols = all" 2>/dev/null || true
+
+systemctl daemon-reload
+systemctl enable --now dispatch-backend dispatch-sidekiq postfix
+systemctl restart dispatch-backend dispatch-sidekiq postfix
 
 # Kurulum Tamamlandı Banner
 echo -e "\n\033[32m=============================================================\033[0m"

@@ -67,6 +67,20 @@ class Api::V1::SetupController < ActionController::API
         SystemConfig.set_admin_password(params[:admin_password])
         token = JwtHelper.encode(user_id: admin_user.id)
       end
+    # Configure Postfix automatically for the domain
+    begin
+      system("postconf -e 'myhostname = #{mail_subdomain}.#{domain}' 2>/dev/null")
+      system("postconf -e 'mydomain = #{domain}' 2>/dev/null")
+      system("postconf -e 'myorigin = $mydomain' 2>/dev/null")
+      system("postconf -e 'mydestination = $myhostname, $mydomain, localhost.$mydomain, localhost' 2>/dev/null")
+      system("postconf -e 'mailbox_transport = dispatch-pipe' 2>/dev/null")
+      system("postconf -e 'fallback_transport = dispatch-pipe' 2>/dev/null")
+      system("postconf -e 'local_recipient_maps =' 2>/dev/null")
+      system("postconf -e 'inet_interfaces = all' 2>/dev/null")
+      system("postconf -e 'inet_protocols = all' 2>/dev/null")
+      system("systemctl restart postfix 2>/dev/null")
+    rescue => e
+      Rails.logger.warn "Postfix auto-config warning: #{e.message}"
     end
 
     logs = [
