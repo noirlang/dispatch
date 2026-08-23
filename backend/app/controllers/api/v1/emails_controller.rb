@@ -128,18 +128,28 @@ class Api::V1::EmailsController < Api::V1::BaseController
 
 
   def approve
-    rule = SenderRule.find_or_initialize_by(user: current_user, email_address: @email.from_address)
+    clean_from = @email.from_address.to_s.gsub(/.*<([^>]+)>.*/, '\1').strip.downcase
+    rule = current_user.sender_rules.find_or_initialize_by(email_address: clean_from)
     rule.update!(status: "approved", approved_at: Time.current)
+
+    # Move all pending approval emails from this sender to inbox in DB and Maildir
+    current_user.emails.where(folder: "approvals").where("LOWER(from_address) LIKE ?", "%#{clean_from}%").find_each do |em|
+      em.update!(folder: "inbox")
+      Email::MaildirSyncService.on_email_moved_or_deleted(em, "inbox")
+    end
+
     @email.update!(folder: "inbox")
-    render json: { message: "Sender approved" }
+    Email::MaildirSyncService.on_email_moved_or_deleted(@email, "inbox")
+    render json: { message: "Sender approved and moved to inbox" }
   end
 
   def reject
-    SenderRule.find_or_create_by(user: current_user, email_address: @email.from_address) do |r|
-      r.status = "blocked"
-    end
+    clean_from = @email.from_address.to_s.gsub(/.*<([^>]+)>.*/, '\1').strip.downcase
+    rule = current_user.sender_rules.find_or_initialize_by(email_address: clean_from)
+    rule.update!(status: "blocked")
     @email.update!(folder: "trash")
-    render json: { message: "Sender blocked" }
+    Email::MaildirSyncService.on_email_moved_or_deleted(@email, "trash")
+    render json: { message: "Sender blocked and moved to trash" }
   end
 
   def block_sender

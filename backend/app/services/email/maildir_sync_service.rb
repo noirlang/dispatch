@@ -6,17 +6,22 @@ class Email::MaildirSyncService
     base_dir = "/home/#{username}/Mail"
     return unless File.directory?(base_dir)
 
-    # 1. Map all existing files in Maildir by Message-ID
-    # Folders: Inbox, Sent, Drafts, Trash, Junk, Archive, Approvals
-    maildir_map = {} # message_id => { folder: "inbox|trash|sent...", path: "...", is_read: bool }
+    # 1. Map all existing files in Maildir by Message-ID across standard and dot folders
+    maildir_map = {} # message_id => { web_folder: "inbox|trash|sent...", path: "...", is_read: bool }
 
     folder_mapping = {
       "Inbox" => "inbox",
+      ".Sent" => "sent",
       "Sent" => "sent",
+      ".Drafts" => "drafts",
       "Drafts" => "drafts",
+      ".Trash" => "trash",
       "Trash" => "trash",
+      ".Junk" => "trash",
       "Junk" => "trash",
+      ".Archive" => "archive",
       "Archive" => "archive",
+      ".Approvals" => "approvals",
       "Approvals" => "approvals"
     }
 
@@ -29,7 +34,6 @@ class Email::MaildirSyncService
           next if File.directory?(filepath)
 
           is_read = filepath.include?(":2,") && filepath.split(":2,").last.include?("S")
-          # Read first 4KB to quickly extract Message-ID and headers
           msg_id = extract_message_id_from_file(filepath)
           next if msg_id.blank?
 
@@ -43,16 +47,27 @@ class Email::MaildirSyncService
       end
     end
 
+    # Cache approved sender emails for quick lookup
+    approved_senders = user.sender_rules.where(status: ["approved", "important"]).pluck(:email_address).map(&:downcase)
+
     # 2. Update existing DB emails according to Maildir changes from Thunderbird
     user.emails.where(folder: ["inbox", "approvals", "sent", "trash", "archive"]).find_each do |email|
       next if email.message_id.blank?
       clean_msg_id = email.message_id.strip
+      from_clean = email.from_address.to_s.gsub(/.*<([^>]+)>.*/, '\1').strip.downcase
 
       if maildir_map.key?(clean_msg_id)
         info = maildir_map[clean_msg_id]
         
-        # If moved in Thunderbird (e.g. from Inbox to Trash)
-        if email.folder != info[:web_folder]
+        # If approved in rules or in DB inbox, ensure physical file is in Inbox
+        if (email.folder == "inbox" || approved_senders.include?(from_clean) || !user.approval_system_enabled)
+          if info[:web_folder] == "approvals"
+            on_email_moved_or_deleted(email, "inbox")
+            email.update_columns(folder: "inbox", updated_at: Time.current) if email.folder != "inbox"
+          elsif email.folder != info[:web_folder] && info[:web_folder] != "approvals"
+            email.update_columns(folder: info[:web_folder], updated_at: Time.current)
+          end
+        elsif email.folder != info[:web_folder]
           email.update_columns(folder: info[:web_folder], updated_at: Time.current)
         end
 
@@ -72,7 +87,6 @@ class Email::MaildirSyncService
     maildir_map.each do |msg_id, info|
       next if user.emails.where(message_id: msg_id).exists?
 
-      # Parse newly found email from Maildir
       begin
         raw = File.read(info[:filepath])
         parsed = Mail.new(raw)
@@ -98,27 +112,28 @@ class Email::MaildirSyncService
     Rails.logger.error "[MaildirSyncService Error] #{e.message}\n#{e.backtrace&.join("\n")}"
   end
 
-  # When email is deleted / moved in Webmail -> move file in Maildir
+  # When email is deleted / moved in Webmail -> move physical file in Maildir
   def self.on_email_moved_or_deleted(email, target_folder = "trash")
     return unless email && email.message_id.present?
     username = email.user.email.split("@").first.downcase
     base_dir = "/home/#{username}/Mail"
     return unless File.directory?(base_dir)
 
-    target_dovecot_folder = case target_folder
-                            when "trash" then "Trash"
-                            when "inbox" then "Inbox"
-                            when "archive" then "Archive"
-                            when "sent" then "Sent"
-                            else "Trash"
-                            end
+    target_sub = case target_folder.to_s.downcase
+                 when "trash" then "Trash/cur"
+                 when "inbox" then "Inbox/new"
+                 when "archive" then "Archive/cur"
+                 when "sent" then "Sent/cur"
+                 when "approvals" then "Approvals/new"
+                 else "Inbox/new"
+                 end
 
-    dest_dir = File.join(base_dir, target_dovecot_folder, "cur")
+    dest_dir = File.join(base_dir, target_sub)
     require "fileutils"
     FileUtils.mkdir_p(dest_dir)
 
-    # Find the existing file across all Maildir folders
-    Dir.glob(File.join(base_dir, "*", "*", "*")).each do |filepath|
+    # Find the existing file across ALL Maildir folders including dot-folders
+    Dir.glob(File.join(base_dir, "{.*,*}", "{cur,new}", "*")).each do |filepath|
       next if File.directory?(filepath)
       msg_id = extract_message_id_from_file(filepath)
       if msg_id == email.message_id.strip
