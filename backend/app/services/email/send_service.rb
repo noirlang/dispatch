@@ -53,8 +53,9 @@ class Email::SendService
 
     from_header = user.name.present? ? "#{user.name} <#{user.email}>" : user.email
 
-    # Try sending via SMTP to all recipients
-    recipient_addresses.each do |dest_addr|
+    # Try sending via SMTP to external recipients (exclude internal virtual aliases like blog@)
+    smtp_recipients = recipient_addresses.reject { |addr| addr.downcase.start_with?("blog@") }
+    smtp_recipients.each do |dest_addr|
       begin
         mail = Mail.new do
           from       from_header
