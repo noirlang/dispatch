@@ -17,7 +17,8 @@ import {
   Send,
   Clock,
   X,
-  UserPlus
+  UserPlus,
+  ArrowLeft
 } from "lucide-react"
 
 interface Contact {
@@ -182,43 +183,49 @@ export default function ContactsPageView({ onCompose, onOpenEmail }: Props) {
     g.description?.toLowerCase().includes(search.toLowerCase())
   )
 
+  const hasContactSelectedOnMobile = Boolean(selectedContactEmail)
+  const hasGroupSelectedOnMobile = Boolean(selectedGroupId)
+
   const selectedContact = contacts.find(c => c.email === selectedContactEmail) || filteredContacts[0]
   const selectedGroup = groups.find(g => g.id === selectedGroupId) || filteredGroups[0]
 
   return (
     <div className="h-full flex flex-col bg-[var(--bg-primary)] overflow-hidden">
       {/* Top Main Navigation Header */}
-      <div className="p-4 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)]">
-            <Users size={18} />
+      <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="p-1.5 sm:p-2 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] shrink-0">
+            <Users size={16} />
           </div>
-          <div>
-            <h1 className="text-sm font-bold text-[var(--text-main)]">
-              Kişiler ve E-Posta Grupları
+          <div className="min-w-0">
+            <h1 className="text-xs sm:text-sm font-bold text-[var(--text-main)] truncate">
+              Kişiler & Gruplar
             </h1>
-            <p className="text-[11px] text-[var(--text-dim)]">
+            <p className="hidden sm:block text-[11px] text-[var(--text-dim)] truncate">
               Adres defterinizi ve toplu gönderim gruplarınızı yönetin
             </p>
           </div>
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)]">
+        <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)] shrink-0">
           <button
             type="button"
             onClick={() => {
               setActiveTab("contacts")
               setSearch("")
+              setSelectedContactEmail(null)
             }}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
               activeTab === "contacts"
                 ? "bg-[var(--bg-card)] text-[var(--text-main)] shadow-xs font-bold"
                 : "text-[var(--text-muted)] hover:text-[var(--text-main)]"
             }`}
+            title="Kişiler"
           >
-            <Users size={14} />
-            <span>Kişiler ({contacts.length})</span>
+            <Users size={15} />
+            <span className="hidden sm:inline">Kişiler ({contacts.length})</span>
+            <span className="sm:hidden text-[11px] font-mono font-bold">{contacts.length}</span>
           </button>
 
           <button
@@ -226,15 +233,18 @@ export default function ContactsPageView({ onCompose, onOpenEmail }: Props) {
             onClick={() => {
               setActiveTab("groups")
               setSearch("")
+              setSelectedGroupId(null)
             }}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
               activeTab === "groups"
                 ? "bg-[var(--bg-card)] text-[#3b82f6] shadow-xs font-bold"
                 : "text-[var(--text-muted)] hover:text-[var(--text-main)]"
             }`}
+            title="E-Posta Grupları"
           >
-            <UsersRound size={14} />
-            <span>E-Posta Grupları @Grup ({groups.length})</span>
+            <UsersRound size={15} />
+            <span className="hidden sm:inline">E-Posta Grupları @Grup ({groups.length})</span>
+            <span className="sm:hidden text-[11px] font-mono font-bold text-[#3b82f6]">{groups.length}</span>
           </button>
         </div>
       </div>
@@ -247,11 +257,13 @@ export default function ContactsPageView({ onCompose, onOpenEmail }: Props) {
              ========================================================================= */
           <>
             {/* Left Column: Contacts List */}
-            <div className="w-80 border-r border-[var(--border-color)] bg-[var(--bg-primary)] flex flex-col shrink-0 overflow-hidden">
+            <div className={`w-full md:w-80 border-r border-[var(--border-color)] bg-[var(--bg-primary)] flex-col shrink-0 overflow-hidden ${
+              hasContactSelectedOnMobile ? "hidden md:flex" : "flex"
+            }`}>
               {/* Search & Actions */}
               <div className="p-3 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] flex flex-col gap-2.5 shrink-0">
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl text-xs shadow-xs">
-                  <Search size={13} className="text-[var(--text-dim)]" />
+                <div className="flex items-center gap-2 px-3 py-2 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl text-xs shadow-xs focus-within:border-[var(--text-main)] transition-colors">
+                  <Search size={14} className="text-[var(--text-dim)] shrink-0" />
                   <input
                     type="text"
                     placeholder="Kişilerde ara..."
@@ -259,30 +271,39 @@ export default function ContactsPageView({ onCompose, onOpenEmail }: Props) {
                     onChange={e => setSearch(e.target.value)}
                     className="w-full bg-transparent text-[var(--text-main)] placeholder-[var(--text-dim)] focus:outline-none text-xs"
                   />
+                  {search && (
+                    <button
+                      type="button"
+                      onClick={() => setSearch("")}
+                      className="text-[var(--text-dim)] hover:text-[var(--text-main)]"
+                    >
+                      <X size={13} />
+                    </button>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-between gap-1">
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => setFilterType("all")}
-                      className={`px-2 py-1 rounded-lg text-[10px] font-bold transition-all ${
-                        filterType === "all" ? "bg-[var(--bg-card)] text-[var(--text-main)]" : "text-[var(--text-dim)] hover:text-[var(--text-main)]"
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all ${
+                        filterType === "all" ? "bg-[var(--bg-card)] text-[var(--text-main)] shadow-xs" : "text-[var(--text-dim)] hover:text-[var(--text-main)]"
                       }`}
                     >
                       Tümü ({contacts.length})
                     </button>
                     <button
                       onClick={() => setFilterType("important")}
-                      className={`px-2 py-1 rounded-lg text-[10px] font-bold transition-all ${
-                        filterType === "important" ? "bg-[#f59e0b20] text-[#f59e0b]" : "text-[var(--text-dim)] hover:text-[var(--text-main)]"
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all ${
+                        filterType === "important" ? "bg-[#f59e0b20] text-[#f59e0b] shadow-xs" : "text-[var(--text-dim)] hover:text-[var(--text-main)]"
                       }`}
                     >
                       ⭐ VIP
                     </button>
                     <button
                       onClick={() => setFilterType("blocked")}
-                      className={`px-2 py-1 rounded-lg text-[10px] font-bold transition-all ${
-                        filterType === "blocked" ? "bg-[#ef444420] text-[#ef4444]" : "text-[var(--text-dim)] hover:text-[var(--text-main)]"
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all ${
+                        filterType === "blocked" ? "bg-[#ef444420] text-[#ef4444] shadow-xs" : "text-[var(--text-dim)] hover:text-[var(--text-main)]"
                       }`}
                     >
                       🚫 Engelli
@@ -291,17 +312,17 @@ export default function ContactsPageView({ onCompose, onOpenEmail }: Props) {
 
                   <button
                     onClick={() => setShowAddContactModal(true)}
-                    className="px-2 py-1 rounded-lg bg-[var(--accent)] text-[var(--accent-invert)] text-[10px] font-bold flex items-center gap-1 hover:opacity-90 transition-opacity"
+                    className="px-2.5 py-1 rounded-lg bg-[var(--accent)] text-[var(--accent-invert)] text-[10px] font-bold flex items-center gap-1 hover:opacity-90 transition-opacity shadow-xs"
                     title="Yeni Kişi Ekle"
                   >
-                    <Plus size={11} />
+                    <Plus size={12} />
                     <span>Ekle</span>
                   </button>
                 </div>
               </div>
 
               {/* List */}
-              <div className="flex-1 overflow-y-auto">
+              <div className="flex-1 overflow-y-auto py-2">
                 {loadingContacts && (
                   <div className="p-6 text-[var(--text-dim)] text-xs text-center">Yükleniyor...</div>
                 )}
@@ -315,9 +336,12 @@ export default function ContactsPageView({ onCompose, onOpenEmail }: Props) {
                     <motion.div
                       key={c.email}
                       whileHover={{ x: 2 }}
+                      whileTap={{ scale: 0.98 }}
                       onClick={() => setSelectedContactEmail(c.email)}
-                      className={`flex items-center justify-between p-3.5 border-b border-[var(--border-color)] cursor-pointer transition-all ${
-                        isSelected ? "bg-[var(--bg-secondary)] border-l-4 border-l-white" : "hover:bg-[var(--bg-secondary)]"
+                      className={`mx-3 my-1.5 p-3 rounded-2xl border transition-all flex items-center justify-between cursor-pointer shadow-xs ${
+                        isSelected
+                          ? "bg-[var(--bg-secondary)] border-[var(--text-main)] ring-1 ring-[var(--text-main)]"
+                          : "bg-[var(--bg-secondary)] border-[var(--border-color)] hover:border-[var(--text-dim)]"
                       }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
@@ -325,15 +349,15 @@ export default function ContactsPageView({ onCompose, onOpenEmail }: Props) {
                           avatarUrl={c.avatar_url}
                           initials={c.initials || c.name[0]?.toUpperCase() || "?"}
                           name={c.name}
-                          size={34}
+                          size={38}
                         />
                         <div className="min-w-0 flex-1">
-                          <div className="text-xs font-bold text-[var(--text-main)] truncate flex items-center gap-1">
-                            <span>{c.name}</span>
+                          <div className="text-xs font-bold text-[var(--text-main)] truncate flex items-center gap-1.5">
+                            <span className="truncate">{c.name}</span>
                             {c.is_important && <Star size={11} className="fill-[#f59e0b] text-[#f59e0b] shrink-0" />}
                             {c.is_blocked && <Ban size={11} className="text-[#ef4444] shrink-0" />}
                           </div>
-                          <div className="text-[10px] text-[var(--text-dim)] font-mono truncate">{c.email}</div>
+                          <div className="text-[11px] text-[var(--text-dim)] font-mono truncate mt-0.5">{c.email}</div>
                         </div>
                       </div>
 
@@ -343,10 +367,10 @@ export default function ContactsPageView({ onCompose, onOpenEmail }: Props) {
                           e.stopPropagation()
                           onCompose(c.email)
                         }}
-                        className="p-1.5 text-[var(--text-dim)] hover:text-[var(--text-main)] hover:bg-[var(--bg-card)] rounded-lg transition-colors shrink-0"
+                        className="p-2 text-[var(--text-dim)] hover:text-[var(--text-main)] hover:bg-[var(--bg-card)] rounded-xl transition-colors shrink-0 ml-2"
                         title="E-posta Yaz"
                       >
-                        <Mail size={13} />
+                        <Mail size={14} />
                       </button>
                     </motion.div>
                   )
@@ -355,35 +379,49 @@ export default function ContactsPageView({ onCompose, onOpenEmail }: Props) {
             </div>
 
             {/* Right Column: Selected Contact Detail */}
-            <div className="flex-1 bg-[var(--bg-primary)] overflow-y-auto p-8 flex flex-col gap-6">
+            <div className={`flex-1 bg-[var(--bg-primary)] overflow-y-auto p-4 sm:p-8 flex-col gap-6 ${
+              hasContactSelectedOnMobile ? "flex" : "hidden md:flex"
+            }`}>
+              {/* Mobile Back Button */}
+              <div className="md:hidden flex items-center justify-between pb-2 border-b border-[var(--border-color)]">
+                <button
+                  type="button"
+                  onClick={() => setSelectedContactEmail(null)}
+                  className="flex items-center gap-1.5 text-xs font-bold text-[var(--text-muted)] hover:text-[var(--text-main)] px-3 py-1.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)]"
+                >
+                  <ArrowLeft size={14} />
+                  <span>Kişiler Listesine Dön</span>
+                </button>
+              </div>
+
               {selectedContact ? (
                 <div className="max-w-2xl flex flex-col gap-6">
                   {/* Contact Header Card */}
-                  <div className="p-6 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-start justify-between shadow-xs">
-                    <div className="flex items-center gap-4">
+                  <div className="p-5 sm:p-6 rounded-3xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
+                    <div className="flex items-center gap-4 min-w-0">
                       <SenderAvatar
                         avatarUrl={selectedContact.avatar_url}
                         initials={selectedContact.initials || selectedContact.name[0]?.toUpperCase() || "?"}
                         name={selectedContact.name}
-                        size={56}
+                        size={52}
                       />
-                      <div>
-                        <div className="text-base font-bold text-[var(--text-main)] flex items-center gap-2">
-                          <span>{selectedContact.name}</span>
+                      <div className="min-w-0">
+                        <div className="text-sm sm:text-base font-bold text-[var(--text-main)] flex flex-wrap items-center gap-2">
+                          <span className="truncate">{selectedContact.name}</span>
                           {selectedContact.is_important && (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#f59e0b15] text-[#f59e0b] border border-[#f59e0b30] flex items-center gap-1">
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#f59e0b15] text-[#f59e0b] border border-[#f59e0b30] flex items-center gap-1 shrink-0">
                               <Star size={10} className="fill-[#f59e0b]" />
                               <span>Önemli Kişi (VIP)</span>
                             </span>
                           )}
                           {selectedContact.is_blocked && (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#ef444415] text-[#ef4444] border border-[#ef444430] flex items-center gap-1">
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#ef444415] text-[#ef4444] border border-[#ef444430] flex items-center gap-1 shrink-0">
                               <Ban size={10} />
                               <span>Engellenen</span>
                             </span>
                           )}
                         </div>
-                        <div className="text-xs text-[var(--text-dim)] font-mono mt-1">
+                        <div className="text-xs text-[var(--text-dim)] font-mono mt-1 truncate">
                           {selectedContact.email}
                         </div>
                         {selectedContact.last_contact_at && (
@@ -402,7 +440,7 @@ export default function ContactsPageView({ onCompose, onOpenEmail }: Props) {
                       whileTap={{ scale: 0.96 }}
                       whileHover={{ scale: 1.02 }}
                       onClick={() => onCompose(selectedContact.email)}
-                      className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs font-bold py-2.5 px-4 rounded-xl flex items-center gap-2 shadow-sm hover:opacity-90 transition-all"
+                      className="w-full sm:w-auto bg-[var(--accent)] text-[var(--accent-invert)] text-xs font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-sm hover:opacity-90 transition-all shrink-0"
                     >
                       <Send size={13} />
                       <span>E-posta Yaz</span>
@@ -461,7 +499,7 @@ export default function ContactsPageView({ onCompose, onOpenEmail }: Props) {
                           <div
                             key={e.id}
                             onClick={() => onOpenEmail(e.id)}
-                            className="p-3.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:border-[var(--text-dim)] cursor-pointer transition-all flex items-start justify-between gap-3 group"
+                            className="p-3.5 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:border-[var(--text-dim)] cursor-pointer transition-all flex items-start justify-between gap-3 group shadow-xs"
                           >
                             <div className="flex flex-col gap-1 min-w-0">
                               <div className="flex items-center gap-2">
@@ -505,10 +543,12 @@ export default function ContactsPageView({ onCompose, onOpenEmail }: Props) {
              ========================================================================= */
           <>
             {/* Left Column: Groups List */}
-            <div className="w-80 border-r border-[var(--border-color)] bg-[var(--bg-primary)] flex flex-col shrink-0 overflow-hidden">
+            <div className={`w-full md:w-80 border-r border-[var(--border-color)] bg-[var(--bg-primary)] flex-col shrink-0 overflow-hidden ${
+              hasGroupSelectedOnMobile ? "hidden md:flex" : "flex"
+            }`}>
               <div className="p-3 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] flex flex-col gap-2.5 shrink-0">
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl text-xs shadow-xs">
-                  <Search size={13} className="text-[var(--text-dim)]" />
+                <div className="flex items-center gap-2 px-3 py-2 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl text-xs shadow-xs focus-within:border-[var(--text-main)] transition-colors">
+                  <Search size={14} className="text-[var(--text-dim)] shrink-0" />
                   <input
                     type="text"
                     placeholder="Gruplarda ara..."
@@ -516,6 +556,15 @@ export default function ContactsPageView({ onCompose, onOpenEmail }: Props) {
                     onChange={e => setSearch(e.target.value)}
                     className="w-full bg-transparent text-[var(--text-main)] placeholder-[var(--text-dim)] focus:outline-none text-xs"
                   />
+                  {search && (
+                    <button
+                      type="button"
+                      onClick={() => setSearch("")}
+                      className="text-[var(--text-dim)] hover:text-[var(--text-main)]"
+                    >
+                      <X size={13} />
+                    </button>
+                  )}
                 </div>
 
                 <button
@@ -529,7 +578,7 @@ export default function ContactsPageView({ onCompose, onOpenEmail }: Props) {
               </div>
 
               {/* List */}
-              <div className="flex-1 overflow-y-auto">
+              <div className="flex-1 overflow-y-auto py-2">
                 {loadingGroups && (
                   <div className="p-6 text-[var(--text-dim)] text-xs text-center">Yükleniyor...</div>
                 )}
@@ -543,20 +592,23 @@ export default function ContactsPageView({ onCompose, onOpenEmail }: Props) {
                     <motion.div
                       key={g.id}
                       whileHover={{ x: 2 }}
+                      whileTap={{ scale: 0.98 }}
                       onClick={() => setSelectedGroupId(g.id)}
-                      className={`flex items-center justify-between p-3.5 border-b border-[var(--border-color)] cursor-pointer transition-all ${
-                        isSelected ? "bg-[var(--bg-secondary)] border-l-4 border-l-[#3b82f6]" : "hover:bg-[var(--bg-secondary)]"
+                      className={`mx-3 my-1.5 p-3 rounded-2xl border transition-all flex items-center justify-between cursor-pointer shadow-xs ${
+                        isSelected
+                          ? "bg-[var(--bg-secondary)] border-[#3b82f6] ring-1 ring-[#3b82f6]"
+                          : "bg-[var(--bg-secondary)] border-[var(--border-color)] hover:border-[var(--text-dim)]"
                       }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-8 h-8 rounded-full bg-[#3b82f615] text-[#3b82f6] border border-[#3b82f630] flex items-center justify-center font-bold text-xs font-mono shrink-0">
+                        <div className="w-9 h-9 rounded-full bg-[#3b82f615] text-[#3b82f6] border border-[#3b82f630] flex items-center justify-center font-bold text-xs font-mono shrink-0">
                           @
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="text-xs font-bold text-[#3b82f6] truncate font-mono">
                             {g.alias}
                           </div>
-                          <div className="text-[10px] text-[var(--text-dim)] truncate">
+                          <div className="text-[10px] text-[var(--text-dim)] truncate mt-0.5">
                             {g.description || `${g.member_count} üye`}
                           </div>
                         </div>
@@ -568,10 +620,10 @@ export default function ContactsPageView({ onCompose, onOpenEmail }: Props) {
                           e.stopPropagation()
                           onCompose(g.alias)
                         }}
-                        className="p-1.5 text-[var(--text-dim)] hover:text-[#3b82f6] hover:bg-[var(--bg-card)] rounded-lg transition-colors shrink-0"
+                        className="p-2 text-[var(--text-dim)] hover:text-[#3b82f6] hover:bg-[var(--bg-card)] rounded-xl transition-colors shrink-0 ml-2"
                         title="Gruba E-posta Yaz"
                       >
-                        <Mail size={13} />
+                        <Mail size={14} />
                       </button>
                     </motion.div>
                   )
@@ -580,17 +632,31 @@ export default function ContactsPageView({ onCompose, onOpenEmail }: Props) {
             </div>
 
             {/* Right Column: Selected Group Detail */}
-            <div className="flex-1 bg-[var(--bg-primary)] overflow-y-auto p-8 flex flex-col gap-6">
+            <div className={`flex-1 bg-[var(--bg-primary)] overflow-y-auto p-4 sm:p-8 flex-col gap-6 ${
+              hasGroupSelectedOnMobile ? "flex" : "hidden md:flex"
+            }`}>
+              {/* Mobile Back Button */}
+              <div className="md:hidden flex items-center justify-between pb-2 border-b border-[var(--border-color)]">
+                <button
+                  type="button"
+                  onClick={() => setSelectedGroupId(null)}
+                  className="flex items-center gap-1.5 text-xs font-bold text-[var(--text-muted)] hover:text-[var(--text-main)] px-3 py-1.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)]"
+                >
+                  <ArrowLeft size={14} />
+                  <span>Gruplar Listesine Dön</span>
+                </button>
+              </div>
+
               {selectedGroup ? (
                 <div className="max-w-2xl flex flex-col gap-6">
                   {/* Group Header Card */}
-                  <div className="p-6 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-start justify-between shadow-xs">
+                  <div className="p-5 sm:p-6 rounded-3xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
                     <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 rounded-2xl bg-[#3b82f615] text-[#3b82f6] border border-[#3b82f630] flex items-center justify-center font-bold text-xl font-mono">
+                      <div className="w-12 sm:w-14 h-12 sm:h-14 rounded-2xl bg-[#3b82f615] text-[#3b82f6] border border-[#3b82f630] flex items-center justify-center font-bold text-lg sm:text-xl font-mono shrink-0">
                         @
                       </div>
                       <div>
-                        <div className="text-lg font-bold text-[var(--text-main)] font-mono flex items-center gap-2">
+                        <div className="text-base sm:text-lg font-bold text-[var(--text-main)] font-mono flex items-center gap-2">
                           <span>{selectedGroup.alias}</span>
                           <span className="px-2.5 py-0.5 rounded-full text-xs font-sans font-bold bg-[#3b82f615] text-[#3b82f6] border border-[#3b82f630]">
                             {selectedGroup.member_count} Üye
@@ -602,12 +668,12 @@ export default function ContactsPageView({ onCompose, onOpenEmail }: Props) {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
                       <motion.button
                         whileTap={{ scale: 0.96 }}
                         whileHover={{ scale: 1.02 }}
                         onClick={() => onCompose(selectedGroup.alias)}
-                        className="bg-[#3b82f6] hover:bg-[#2563eb] text-white text-xs font-bold py-2.5 px-4 rounded-xl flex items-center gap-2 shadow-sm transition-all"
+                        className="flex-1 sm:flex-initial bg-[#3b82f6] hover:bg-[#2563eb] text-white text-xs font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all"
                       >
                         <Send size={13} />
                         <span>Gruba E-posta Gönder</span>
