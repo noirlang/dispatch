@@ -24,16 +24,21 @@ if raw_email.present?
     
     # Deliver copy to Dovecot Maildir for Thunderbird / IMAP
     begin
-      target_user = inbound.mail.to&.first.to_s.gsub(/.*<([^>]+)>.*/, '\1').split("@").first.to_s.downcase
-      target_user = "admin" if target_user.blank?
-      if File.directory?("/home/#{target_user}") || system("id -u #{target_user} >/dev/null 2>&1")
-        mail_dir = "/home/#{target_user}/Mail/Inbox/new"
+      recipients = [inbound.mail.to, inbound.mail.cc, inbound.mail.header["X-Original-To"]&.value, inbound.mail.header["Delivered-To"]&.value, inbound.mail.header["Envelope-To"]&.value].flatten.compact
+      clean_addrs = recipients.map { |a| a.to_s.gsub(/.*<([^>]+)>.*/, '\1').strip.downcase }.reject(&:blank?)
+      
+      matched_user = User.where("LOWER(email) IN (?)", clean_addrs).first || User.first
+      if matched_user
+        username = matched_user.email.split("@").first.downcase
+        mail_dir = "/home/#{username}/Mail/Inbox/new"
         require "fileutils"
         FileUtils.mkdir_p(mail_dir)
-        filename = "#{Time.now.to_i}.#{SecureRandom.hex(8)}.mail"
+        filename = "#{Time.now.to_i}.#{SecureRandom.hex(8)}.debian"
         filepath = File.join(mail_dir, filename)
         File.write(filepath, raw_email)
-        system("chown -R #{target_user}:#{target_user} /home/#{target_user}/Mail 2>/dev/null")
+        system("chown -R #{username}:mail /home/#{username}/Mail 2>/dev/null")
+        system("chmod -R 770 /home/#{username}/Mail 2>/dev/null")
+        Rails.logger.info "[Dispatch Inbound Receiver] Delivered IMAP copy to #{filepath}"
       end
     rescue => e
       Rails.logger.warn "Dovecot local delivery warning: #{e.message}"
