@@ -1,6 +1,7 @@
 class Email < ApplicationRecord
   belongs_to :user
   belongs_to :thread, class_name: "EmailThread", optional: true
+  has_many :dashboard_cards, dependent: :destroy
 
   FOLDERS = %w[inbox approvals sent drafts trash].freeze
   STATUSES = %w[pending approved rejected].freeze
