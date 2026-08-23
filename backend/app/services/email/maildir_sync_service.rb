@@ -20,7 +20,7 @@ class Email::MaildirSyncService
       "Approvals" => "approvals"
     }
 
-    folder_mapping.each do dovecot_folder, web_folder|
+    folder_mapping.each do |dovecot_folder, web_folder|
       ["cur", "new"].each do |sub|
         dir_path = File.join(base_dir, dovecot_folder, sub)
         next unless File.directory?(dir_path)
