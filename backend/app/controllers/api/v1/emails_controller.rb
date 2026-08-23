@@ -2,6 +2,9 @@ class Api::V1::EmailsController < Api::V1::BaseController
   before_action :set_email, only: [:show, :destroy, :reply, :forward, :approve, :reject, :block_sender, :toggle_flag, :toggle_important_sender, :ai_summary, :ai_reply, :ai_translate]
 
   def index
+    # Sync with Thunderbird / Dovecot Maildir state
+    Email::MaildirSyncService.sync_user(current_user)
+
     # M4 Fix: Whitelist folder parameter — never pass raw user input to WHERE clause
     allowed_folders = Email::FOLDERS
     folder = allowed_folders.include?(params[:folder]) ? params[:folder] : "inbox"
@@ -42,10 +45,9 @@ class Api::V1::EmailsController < Api::V1::BaseController
     render json: email_json(draft), status: :ok
   end
 
-
-
   def destroy
     @email.update!(folder: "trash")
+    Email::MaildirSyncService.on_email_moved_or_deleted(@email, "trash")
     render json: { message: "Moved to trash" }
   end
 

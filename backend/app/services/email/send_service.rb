@@ -111,16 +111,44 @@ class Email::SendService
 
     # Save to sender's Sent folder
     email = user.emails.create!(
-      from_address: user.email,
+      from_address: from_header,
       to_address: params[:to],
       cc: params[:cc],
       subject: params[:subject],
       body_text: raw_body,
       body_html: styled_html,
+      message_id: "<#{SecureRandom.uuid}@#{sender_domain}>",
       folder: "sent",
       is_read: true,
       attachments: processed_attachments
     )
+
+    # Sync copy to Thunderbird Sent Maildir folder
+    begin
+      uname = user.email.split("@").first.downcase
+      sent_dir = "/home/#{uname}/Mail/Sent/new"
+      if File.directory?("/home/#{uname}/Mail")
+        require "fileutils"
+        FileUtils.mkdir_p(sent_dir)
+        fname = "#{Time.now.to_i}.#{SecureRandom.hex(6)}.debian"
+        fpath = File.join(sent_dir, fname)
+        raw_msg = <<~RAW
+          From: #{from_header}
+          To: #{params[:to]}
+          Cc: #{params[:cc]}
+          Subject: #{params[:subject]}
+          Date: #{Time.now.rfc2822}
+          Message-ID: #{email.message_id}
+          Content-Type: text/plain; charset=UTF-8
+
+          #{raw_body}
+        RAW
+        File.write(fpath, raw_msg)
+        File.chmod(0666, fpath)
+      end
+    rescue => e
+      Rails.logger.warn "Failed to write sent copy to Maildir: #{e.message}"
+    end
 
 
     # Deliver to local recipients if they exist on this system
