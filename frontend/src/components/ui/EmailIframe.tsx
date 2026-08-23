@@ -64,6 +64,9 @@ export default function EmailIframe({ html, allowRemoteImages = true, className 
       :root {
         color-scheme: dark !important;
       }
+      * {
+        background-color: transparent !important;
+      }
       html, body {
         margin: 0 !important;
         padding: 0 !important;
@@ -71,25 +74,33 @@ export default function EmailIframe({ html, allowRemoteImages = true, className 
         background: transparent !important;
         color: #f4f4f5 !important;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
-        font-size: 14px !important;
+        font-size: 15px !important;
         line-height: 1.6 !important;
         word-wrap: break-word !important;
         overflow-x: hidden !important;
       }
-      p, div, span, td, th, li {
-        color: inherit;
-      }
-      /* Prevent forced dark text from external HTML email templates */
-      [style*="color: #000"], [style*="color:#000"], [style*="color: rgb(0, 0, 0)"], [style*="color: black"], [style*="color: #222"], [style*="color: #333"] {
+      /* Force all text elements, headings, paragraphs, lists to bright readable color */
+      p, div, span, td, th, li, h1, h2, h3, h4, h5, h6, font, b, strong, em, i, u, s, mark, blockquote, center, label, small {
         color: #f4f4f5 !important;
-      }
-      /* Remove forced white backgrounds from external email templates */
-      [style*="background-color: #fff"], [style*="background-color:#fff"], [style*="background-color: white"], [style*="background-color: rgb(255, 255, 255)"], [style*="background: #fff"], [style*="background: white"], [style*="background-color: #ffffff"] {
         background-color: transparent !important;
-        background: transparent !important;
       }
-      a {
+      /* Force all links to bright visible sky blue */
+      a, a *, [href] {
         color: #60a5fa !important;
+        text-decoration: underline !important;
+      }
+      /* Force code blocks to readable dark container */
+      pre, code, kbd, samp {
+        background-color: #18181b !important;
+        color: #f4f4f5 !important;
+        padding: 2px 6px !important;
+        border-radius: 4px !important;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+      }
+      pre {
+        padding: 12px 16px !important;
+        overflow-x: auto !important;
+        margin: 12px 0 !important;
       }
       img {
         max-width: 100% !important;
@@ -98,12 +109,12 @@ export default function EmailIframe({ html, allowRemoteImages = true, className 
       }
       table {
         max-width: 100% !important;
+        background-color: transparent !important;
       }
-      pre, code {
-        background: #18181b !important;
-        color: #f4f4f5 !important;
-        padding: 2px 6px;
-        border-radius: 4px;
+      hr {
+        border: 0 !important;
+        border-top: 1px solid #27272a !important;
+        margin: 16px 0 !important;
       }
     </style>
   `
