@@ -49,14 +49,18 @@ class Email::SendService
       end
     end
 
+    sender_domain = user.email.split("@").last.presence || server_domain
+
     # Try sending via SMTP to all recipients
     recipient_addresses.each do |dest_addr|
       begin
         mail = Mail.new do
-          from    user.email
-          to      to_addresses.join(", ")
-          cc      cc_addresses.join(", ") if cc_addresses.any?
-          subject params[:subject]
+          from       user.email
+          to         to_addresses.join(", ")
+          cc         cc_addresses.join(", ") if cc_addresses.any?
+          subject    params[:subject]
+          message_id "<#{SecureRandom.uuid}@#{sender_domain}>"
+          date       Time.now
 
           text_part do
             content_type 'text/plain; charset=UTF-8'
