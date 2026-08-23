@@ -51,11 +51,13 @@ class Email::SendService
 
     sender_domain = user.email.split("@").last.presence || server_domain
 
+    from_header = user.name.present? ? "#{user.name} <#{user.email}>" : user.email
+
     # Try sending via SMTP to all recipients
     recipient_addresses.each do |dest_addr|
       begin
         mail = Mail.new do
-          from       user.email
+          from       from_header
           to         to_addresses.join(", ")
           cc         cc_addresses.join(", ") if cc_addresses.any?
           subject    params[:subject]
