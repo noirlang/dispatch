@@ -148,11 +148,11 @@ class Email::MaildirSyncService
     return unless File.directory?(base_dir)
 
     target_sub = case target_folder.to_s.downcase
-                 when "trash" then "Trash/cur"
-                 when "inbox" then "Inbox/new"
-                 when "archive" then "Archive/cur"
-                 when "sent" then "Sent/cur"
-                 when "approvals" then "Approvals/new"
+                 when "trash"     then File.directory?(File.join(base_dir, ".Trash")) ? ".Trash/cur" : "Trash/cur"
+                 when "inbox"     then "Inbox/new"
+                 when "archive"   then File.directory?(File.join(base_dir, ".Archive")) ? ".Archive/cur" : "Archive/cur"
+                 when "sent"      then File.directory?(File.join(base_dir, ".Sent")) ? ".Sent/cur" : "Sent/cur"
+                 when "approvals" then File.directory?(File.join(base_dir, ".Approvals")) ? ".Approvals/new" : "Approvals/new"
                  else "Inbox/new"
                  end
 

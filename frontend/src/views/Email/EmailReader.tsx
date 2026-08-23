@@ -133,17 +133,43 @@ export default function EmailReader({ id, folder, onReply, onForward, onClose }:
 
   const approve = useMutation({
     mutationFn: () => api.post(`/emails/${id}/approve`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["emails"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["emails"] })
+      qc.invalidateQueries({ queryKey: ["sender-rules"] })
+      onClose?.()
+      addToast({
+        title: "Onaylandı",
+        from: email?.from || "Kişi",
+        subject: "Gönderici onaylandı ve Gelen Kutusu'na taşındı. ✓"
+      })
+    },
   })
 
   const reject = useMutation({
     mutationFn: () => api.post(`/emails/${id}/reject`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["emails"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["emails"] })
+      qc.invalidateQueries({ queryKey: ["sender-rules"] })
+      onClose?.()
+      addToast({
+        title: "Reddedildi",
+        from: email?.from || "Gönderici",
+        subject: "Gönderici engellendi ve e-posta çöpe taşındı."
+      })
+    },
   })
 
   const deleteEmail = useMutation({
     mutationFn: () => api.delete(`/emails/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["emails"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["emails"] })
+      onClose?.()
+      addToast({
+        title: "Silindi",
+        from: email?.from || "İleti",
+        subject: "E-posta çöp kutusuna taşındı."
+      })
+    },
   })
 
   const blockSender = useMutation({
@@ -151,6 +177,12 @@ export default function EmailReader({ id, folder, onReply, onForward, onClose }:
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["emails"] })
       qc.invalidateQueries({ queryKey: ["sender-rules"] })
+      onClose?.()
+      addToast({
+        title: "Engellendi",
+        from: email?.from || "Kişi",
+        subject: "Gönderici engellendi ve iletileri çöpe taşındı."
+      })
     }
   })
 
