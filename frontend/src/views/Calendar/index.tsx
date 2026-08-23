@@ -24,7 +24,8 @@ import {
   Copy,
   Check,
   Share2,
-  CalendarDays
+  CalendarDays,
+  ExternalLink
 } from "lucide-react"
 
 interface CalEvent {
@@ -312,9 +313,22 @@ export default function CalendarView() {
                             </div>
                           )}
                           {ev.location && (
-                            <div className="flex items-center gap-1 text-[11px] text-[var(--text-dim)] mt-1">
-                              <MapPin size={11} />
-                              <span>{ev.location}</span>
+                            <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-dim)] mt-1">
+                              <MapPin size={11} className="text-[#3b82f6] shrink-0" />
+                              {ev.location.startsWith("http://") || ev.location.startsWith("https://") ? (
+                                <a
+                                  href={ev.location}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="text-[#3b82f6] hover:underline font-mono truncate max-w-xs flex items-center gap-1 font-semibold"
+                                >
+                                  <span>{ev.location}</span>
+                                  <ExternalLink size={10} />
+                                </a>
+                              ) : (
+                                <span>{ev.location}</span>
+                              )}
                             </div>
                           )}
                         </div>

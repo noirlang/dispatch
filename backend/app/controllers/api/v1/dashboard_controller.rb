@@ -43,17 +43,37 @@ class Api::V1::DashboardController < Api::V1::BaseController
     return render json: { error: "No calendar suggestion" }, status: :bad_request unless suggestion
 
     start_time = begin
-      Time.parse("#{suggestion["date"]} #{suggestion["time"] || "00:00"}")
+      date_str = suggestion["date"].presence || Time.current.strftime("%Y-%m-%d")
+      time_str = suggestion["time"].presence || "00:00"
+      Time.zone.parse("#{date_str} #{time_str}") || Time.parse("#{date_str} #{time_str}")
     rescue
       Time.current
     end
+
+    # Extract all links and actionable items from card to ensure link is NEVER lost
+    links = []
+    card.actionable_items&.each do |item|
+      url = item["url"].presence || (item["value"] if item["value"].to_s.start_with?("http://", "https://"))
+      links << "#{item["label"] || "Bağlantı"}: #{url}" if url.present?
+    end
+
+    # Also extract any URLs from email body
+    if card.email
+      card.email.body_text.to_s.scan(%r{https?://[^\s<>"]+}) do |url|
+        links << "Toplantı Linki: #{url}" unless links.any? { |l| l.include?(url) }
+      end
+    end
+
+    loc = suggestion["location"].presence || links.first&.split(": ", 2)&.last || ""
+    full_description = [suggestion["description"], links.uniq.join("\n")].reject(&:blank?).join("\n\n")
 
     event = current_user.calendar_events.find_or_create_by!(
       title: suggestion["title"],
       starts_at: start_time
     ) do |ev|
-      ev.description = suggestion["description"]
-      ev.all_day = suggestion["all_day"] || false
+      ev.description = full_description
+      ev.location = loc
+      ev.all_day = suggestion["all_day"] == true
       ev.source = "ai_extracted"
       ev.email_id = card.email_id
     end
