@@ -57,10 +57,9 @@ class DispatchMailbox < ApplicationMailbox
       end
     end
 
-    from_addr = mail.from&.first.to_s.presence || "unknown@sender.com"
-    to_addr = mail.to&.first.to_s.presence || user.email
+    clean_id = (mail.message_id.presence || SecureRandom.uuid).to_s.gsub(/[<>]/, "").strip
 
-    user.emails.create!(
+    email = user.emails.create!(
       thread: thread,
       from_address: from_addr,
       to_address: to_addr,
@@ -68,11 +67,23 @@ class DispatchMailbox < ApplicationMailbox
       subject: mail.subject.presence || "(Başlıksız)",
       body_text: (mail.text_part&.body&.decoded || (mail.multipart? ? "" : (mail.body&.decoded rescue ""))).to_s.force_encoding("UTF-8").scrub,
       body_html: (mail.html_part&.body&.decoded rescue nil)&.to_s&.force_encoding("UTF-8")&.scrub,
-      message_id: mail.message_id.presence || "<#{SecureRandom.uuid}@#{user.email.split('@').last}>",
+      message_id: clean_id,
       folder: folder,
       is_read: false,
       attachments: saved_attachments
     )
+
+    # Deliver physical copy directly into user's Maildir in the exact target folder (Inbox or Approvals)
+    begin
+      raw_content = mail.encoded rescue nil
+      if raw_content.present?
+        Email::MaildirDeliveryService.deliver_inbox(user, raw_content, folder)
+      end
+    rescue => e
+      Rails.logger.warn "[DispatchMailbox] Physical delivery error: #{e.message}"
+    end
+
+    email
   end
 
   def find_or_create_thread(user)

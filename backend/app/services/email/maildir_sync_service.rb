@@ -1,4 +1,9 @@
 class Email::MaildirSyncService
+  # Normalize message id (strip < and > and whitespace)
+  def self.clean_msg_id(raw)
+    raw.to_s.gsub(/[<>]/, "").strip
+  end
+
   # Synchronize Dovecot Maildir state with Rails Database for a user
   def self.sync_user(user)
     return unless user
@@ -6,8 +11,8 @@ class Email::MaildirSyncService
     base_dir = "/home/#{username}/Mail"
     return unless File.directory?(base_dir)
 
-    # 1. Map all existing files in Maildir by Message-ID across standard and dot folders
-    maildir_map = {} # message_id => { web_folder: "inbox|trash|sent...", path: "...", is_read: bool }
+    # 1. Map all existing files in Maildir by clean Message-ID across standard and dot folders
+    maildir_map = {} # clean_msg_id => { web_folder: "inbox|trash|sent...", path: "...", is_read: bool }
 
     folder_mapping = {
       "Inbox" => "inbox",
@@ -34,10 +39,12 @@ class Email::MaildirSyncService
           next if File.directory?(filepath)
 
           is_read = filepath.include?(":2,") && filepath.split(":2,").last.include?("S")
-          msg_id = extract_message_id_from_file(filepath)
-          next if msg_id.blank?
+          raw_msg_id = extract_message_id_from_file(filepath)
+          next if raw_msg_id.blank?
+          clean_id = clean_msg_id(raw_msg_id)
+          next if clean_id.blank?
 
-          maildir_map[msg_id] = {
+          maildir_map[clean_id] = {
             web_folder: web_folder,
             dovecot_folder: dovecot_folder,
             filepath: filepath,
@@ -53,44 +60,64 @@ class Email::MaildirSyncService
     # 2. Update existing DB emails according to Maildir changes from Thunderbird
     user.emails.where(folder: ["inbox", "approvals", "sent", "trash", "archive"]).find_each do |email|
       next if email.message_id.blank?
-      clean_msg_id = email.message_id.strip
+      clean_id = clean_msg_id(email.message_id)
       from_clean = email.from_address.to_s.gsub(/.*<([^>]+)>.*/, '\1').strip.downcase
+      is_sender_approved = approved_senders.include?(from_clean) || !user.approval_system_enabled
 
-      if maildir_map.key?(clean_msg_id)
-        info = maildir_map[clean_msg_id]
+      if maildir_map.key?(clean_id)
+        info = maildir_map[clean_id]
         
-        # If approved in rules or in DB inbox, ensure physical file is in Inbox
-        if (email.folder == "inbox" || approved_senders.include?(from_clean) || !user.approval_system_enabled)
+        if is_sender_approved
+          # If sender is approved: ensure file and DB are in inbox
           if info[:web_folder] == "approvals"
             on_email_moved_or_deleted(email, "inbox")
             email.update_columns(folder: "inbox", updated_at: Time.current) if email.folder != "inbox"
           elsif email.folder != info[:web_folder] && info[:web_folder] != "approvals"
             email.update_columns(folder: info[:web_folder], updated_at: Time.current)
           end
-        elsif email.folder != info[:web_folder]
-          email.update_columns(folder: info[:web_folder], updated_at: Time.current)
+        else
+          # If sender is UNAPPROVED and approval system is on: ensure email stays in approvals
+          if user.approval_system_enabled && email.folder == "approvals"
+            if info[:web_folder] == "inbox"
+              on_email_moved_or_deleted(email, "approvals")
+            end
+          elsif email.folder != info[:web_folder]
+            email.update_columns(folder: info[:web_folder], updated_at: Time.current)
+          end
         end
 
         # If read in Thunderbird
         if !email.is_read && info[:is_read]
           email.update_columns(is_read: true, updated_at: Time.current)
         end
-      else
-        # If Thunderbird expunged/permanently deleted from Inbox
-        if email.folder == "inbox" || email.folder == "approvals"
-          email.update_columns(folder: "trash", updated_at: Time.current)
-        end
       end
     end
 
     # 3. If Thunderbird created new Sent or Inbox emails directly via IMAP/SMTP
-    maildir_map.each do |msg_id, info|
-      next if user.emails.where(message_id: msg_id).exists?
+    existing_clean_ids = user.emails.pluck(:message_id).compact.map { |m| clean_msg_id(m) }.to_set
+
+    maildir_map.each do |clean_id, info|
+      next if existing_clean_ids.include?(clean_id)
 
       begin
         raw = File.read(info[:filepath])
         parsed = Mail.new(raw)
-        thread = user.emails.find_by(message_id: parsed.in_reply_to)&.thread
+        thread = user.emails.find_by(message_id: clean_msg_id(parsed.in_reply_to))&.thread
+        parsed_from = parsed.from&.first.to_s.gsub(/.*<([^>]+)>.*/, '\1').strip.downcase
+        parsed_subj = parsed.subject.to_s.strip
+
+        # Deduplication check against recently created emails with same from and subject
+        if user.emails.where("lower(from_address) LIKE ?", "%#{parsed_from}%").where(subject: parsed_subj).where("created_at > ?", 5.minutes.ago).exists?
+          existing_clean_ids.add(clean_id)
+          next
+        end
+
+        is_appr = approved_senders.include?(parsed_from) || !user.approval_system_enabled
+        target_web_folder = if info[:web_folder] == "inbox" && !is_appr && user.approval_system_enabled
+                              "approvals"
+                            else
+                              info[:web_folder]
+                            end
 
         user.emails.create!(
           thread: thread,
@@ -100,10 +127,11 @@ class Email::MaildirSyncService
           subject: parsed.subject.presence || "(Başlıksız)",
           body_text: (parsed.text_part&.body&.decoded || (parsed.multipart? ? "" : (parsed.body&.decoded rescue ""))).to_s.force_encoding("UTF-8").scrub,
           body_html: (parsed.html_part&.body&.decoded rescue nil)&.to_s&.force_encoding("UTF-8")&.scrub,
-          message_id: msg_id,
-          folder: info[:web_folder],
+          message_id: clean_id,
+          folder: target_web_folder,
           is_read: info[:is_read]
         )
+        existing_clean_ids.add(clean_id)
       rescue => e
         Rails.logger.warn "Failed to sync new mail from Maildir #{info[:filepath]}: #{e.message}"
       end
@@ -132,11 +160,13 @@ class Email::MaildirSyncService
     require "fileutils"
     FileUtils.mkdir_p(dest_dir)
 
+    clean_target_id = clean_msg_id(email.message_id)
+
     # Find the existing file across ALL Maildir folders including dot-folders
     Dir.glob(File.join(base_dir, "{.*,*}", "{cur,new}", "*")).each do |filepath|
       next if File.directory?(filepath)
-      msg_id = extract_message_id_from_file(filepath)
-      if msg_id == email.message_id.strip
+      raw_id = extract_message_id_from_file(filepath)
+      if clean_msg_id(raw_id) == clean_target_id
         new_path = File.join(dest_dir, File.basename(filepath))
         FileUtils.mv(filepath, new_path) unless filepath == new_path
         File.chmod(0666, new_path) rescue nil
