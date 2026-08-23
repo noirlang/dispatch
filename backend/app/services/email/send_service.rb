@@ -156,41 +156,13 @@ class Email::SendService
     recipient_addresses.each do |to_addr|
       # Check if sending to blog@ address
       if to_addr.downcase.start_with?("blog@")
-        post = BlogPost.create!(
+        BlogPost.create!(
           title: params[:subject],
           content: raw_body,
           author_email: user.email,
           author_name: user.name,
           author_avatar: user.avatar_path,
           published_at: Time.current
-        )
-
-        confirm_body = <<~MD
-          ::: callout success
-          🎉 **Tebrikler! Blog Yazınız Başarıyla Yayınlandı**
-          :::
-
-          Sayın **#{user.name}**,
-
-          `#{params[:subject]}` başlıklı blog yazınız sisteme kaydedildi ve başarıyla yayınlandı.
-
-          - **Yazar:** #{user.name} (@#{post.author_handle})
-          - **Başlık:** #{post.title}
-          - **Yayın Tarihi:** #{Time.current.strftime('%d.%m.%Y %H:%M')}
-          - **Yazı Bağlantısı:** `/@#{post.author_handle}/#{post.slug}`
-
-          [Yazıyı Görüntüle](/@#{post.author_handle}/#{post.slug}){button}
-        MD
-        confirm_html = markdown_to_html(confirm_body)
-
-        user.emails.create!(
-          from_address: "blog@#{server_domain}",
-          to_address: user.email,
-          subject: "🎉 Blog Yazınız Yayınlandı: #{params[:subject]}",
-          body_text: confirm_body,
-          body_html: confirm_html,
-          folder: "inbox",
-          is_read: false
         )
         next
       end

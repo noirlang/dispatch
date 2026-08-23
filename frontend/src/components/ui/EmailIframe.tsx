@@ -58,6 +58,9 @@ export default function EmailIframe({ html, allowRemoteImages = true, className 
     })
   }
 
+  // Strip hardcoded dark inline text colors
+  processedHtml = processedHtml.replace(/color:\s*(#[0-9a-f]{3,6}|rgb\([^)]+\)|black|navy)/gi, "color: #f4f4f5")
+
   const customStyle = `
     <base target="_blank">
     <style>
