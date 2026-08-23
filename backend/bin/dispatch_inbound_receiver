@@ -36,8 +36,7 @@ if raw_email.present?
         filename = "#{Time.now.to_i}.#{SecureRandom.hex(8)}.debian"
         filepath = File.join(mail_dir, filename)
         File.write(filepath, raw_email)
-        system("chown -R #{username}:mail /home/#{username}/Mail 2>/dev/null")
-        system("chmod -R 770 /home/#{username}/Mail 2>/dev/null")
+        File.chmod(0666, filepath)
         Rails.logger.info "[Dispatch Inbound Receiver] Delivered IMAP copy to #{filepath}"
       end
     rescue => e
