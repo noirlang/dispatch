@@ -20,11 +20,10 @@ raw_email = STDIN.read
 
 if raw_email.present?
   begin
-    inbound = ActionMailbox::InboundEmail.create_and_extract_message_id!(raw_email)
-    
-    # Deliver copy to Dovecot Maildir for Thunderbird / IMAP
+    # 1. Deliver copy immediately to Dovecot Maildir for Thunderbird / IMAP (< 1ms)
     begin
-      recipients = [inbound.mail.to, inbound.mail.cc, inbound.mail.header["X-Original-To"]&.value, inbound.mail.header["Delivered-To"]&.value, inbound.mail.header["Envelope-To"]&.value].flatten.compact
+      parsed_mail = Mail.new(raw_email)
+      recipients = [parsed_mail.to, parsed_mail.cc, parsed_mail.header["X-Original-To"]&.value, parsed_mail.header["Delivered-To"]&.value, parsed_mail.header["Envelope-To"]&.value].flatten.compact
       clean_addrs = recipients.map { |a| a.to_s.gsub(/.*<([^>]+)>.*/, '\1').strip.downcase }.reject(&:blank?)
       
       matched_user = User.where("LOWER(email) IN (?)", clean_addrs).first || User.first
@@ -42,6 +41,10 @@ if raw_email.present?
     rescue => e
       Rails.logger.warn "Dovecot local delivery warning: #{e.message}"
     end
+
+    # 2. Process immediately into Dispatch Webmail PostgreSQL DB
+    inbound = ActionMailbox::InboundEmail.create_and_extract_message_id!(raw_email)
+    ActionMailbox::RoutingJob.perform_now(inbound)
     
     log_msg = "[#{Time.now.iso8601}] [Dispatch Inbound Receiver] Successfully processed email (ID: #{inbound.id}, Message-ID: #{inbound.message_id})\n"
     Rails.logger.info log_msg.strip

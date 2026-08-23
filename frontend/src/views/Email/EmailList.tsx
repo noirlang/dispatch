@@ -39,7 +39,7 @@ export default function EmailList({ folder, selectedId, onSelect }: Props) {
   const { data = [], isLoading } = useQuery({
     queryKey: ["emails", folder],
     queryFn: () => api.get<Email[]>(`/emails?folder=${folder}`),
-    refetchInterval: 3000,
+    refetchInterval: 1500,
   })
 
   const toggleFlag = useMutation({
