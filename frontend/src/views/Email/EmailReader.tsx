@@ -674,17 +674,19 @@ export default function EmailReader({ id, folder, onReply, onForward, onClose }:
 
       {/* Email Body */}
       <div className="flex-1 p-3.5 sm:p-10 pb-24 md:pb-10 overflow-y-auto max-w-4xl">
-        {translation && !showOriginal ? (
-          <div className="text-sm leading-relaxed font-sans text-[var(--text-main)]">
-            <EmailMdView content={translation.translated_body} />
-          </div>
-        ) : isHtml ? (
-          <EmailIframe html={safeHtml} allowRemoteImages={showRemoteImages} />
-        ) : (
-          <div className="text-sm leading-relaxed font-sans text-[var(--text-main)]">
-            <EmailMdView content={email.body_text || email.body || ""} />
-          </div>
-        )}
+        <div className="rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] p-6 sm:p-8 shadow-xs">
+          {translation && !showOriginal ? (
+            <div className="text-sm leading-relaxed font-sans text-[var(--text-main)]">
+              <EmailMdView content={translation.translated_body} />
+            </div>
+          ) : isHtml ? (
+            <EmailIframe html={safeHtml} allowRemoteImages={showRemoteImages} />
+          ) : (
+            <div className="text-sm leading-relaxed font-sans text-[var(--text-main)]">
+              <EmailMdView content={email.body_text || email.body || ""} />
+            </div>
+          )}
+        </div>
 
         {/* Attachments Section */}
         {email.attachments && email.attachments.length > 0 && (
