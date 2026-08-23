@@ -109,10 +109,14 @@ pg_exec "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;" 2>/dev/null || 
 echo -e "\n▶ 5. Backend derleniyor ve optimize ediliyor..."
 cd "$DISPATCH_DIR/backend"
 
-PROD_SECRET="dispatch_prod_master_secret_key_$(openssl rand -hex 32)"
-
-# .env yapılandırması (Otomatik Şifre & Güvenlik Güvencesi)
-cat << ENVEOF > "$DISPATCH_DIR/backend/.env"
+if [ -f "$DISPATCH_DIR/backend/.env" ]; then
+  echo "✔ Mevcut .env yapılandırması bulundu ve korunuyor..."
+  set -a
+  source "$DISPATCH_DIR/backend/.env"
+  set +a
+else
+  PROD_SECRET="dispatch_prod_master_secret_key_$(openssl rand -hex 32)"
+  cat << ENVEOF > "$DISPATCH_DIR/backend/.env"
 DATABASE_URL=postgresql://$DB_USER:$PG_PASS@127.0.0.1:5432/$DB_NAME
 REDIS_URL=redis://127.0.0.1:6379
 SECRET_KEY_BASE=$PROD_SECRET
@@ -122,14 +126,14 @@ RAILS_MAX_THREADS=5
 WEB_CONCURRENCY=1
 MALLOC_ARENA_MAX=2
 ENVEOF
-chmod 600 "$DISPATCH_DIR/backend/.env"
+  chmod 600 "$DISPATCH_DIR/backend/.env"
 
-# Shell ortamına doğrudan aktar
-export DATABASE_URL="postgresql://$DB_USER:$PG_PASS@127.0.0.1:5432/$DB_NAME"
-export REDIS_URL="redis://127.0.0.1:6379"
-export SECRET_KEY_BASE="$PROD_SECRET"
-export SERVER_IPV4="$SERVER_IP"
-export RAILS_ENV="production"
+  export DATABASE_URL="postgresql://$DB_USER:$PG_PASS@127.0.0.1:5432/$DB_NAME"
+  export REDIS_URL="redis://127.0.0.1:6379"
+  export SECRET_KEY_BASE="$PROD_SECRET"
+  export SERVER_IPV4="$SERVER_IP"
+  export RAILS_ENV="production"
+fi
 
 gem install bundler --no-document 2>/dev/null || true
 bundle install --quiet || bundle install
