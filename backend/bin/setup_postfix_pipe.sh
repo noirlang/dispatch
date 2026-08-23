@@ -12,46 +12,38 @@ CERTDIR="/etc/letsencrypt/live/$MAILDOMAIN"
 [ ! -d "$CERTDIR" ] && CERTDIR="/etc/letsencrypt/live/dispatch.$DOMAIN"
 
 # 2. Dovecot Yapılandırması (Thunderbird IMAP/POP3 + SASL Auth)
-cat << DOVECOT_EOF > /etc/dovecot/dovecot.conf
-protocols = imap pop3 lmtp
-listen = *
-
-ssl = yes
-$( [ -f "$CERTDIR/fullchain.pem" ] && echo "ssl_cert = <$CERTDIR/fullchain.pem" )
-$( [ -f "$CERTDIR/privkey.pem" ] && echo "ssl_key = <$CERTDIR/privkey.pem" )
-
-auth_mechanisms = plain login
-auth_username_format = %n
-
-userdb {
-  driver = passwd
-}
-passdb {
-  driver = pam
-}
-
-mail_location = maildir:~/Mail:INBOX=~/Mail/Inbox:LAYOUT=fs
+cat << 'DOVECOT_EOF' > /etc/dovecot/local.conf
+mail_driver = maildir
+mail_home = /home/%{user | username}
+mail_path = %{home}/Mail
+mail_inbox_path = %{home}/Mail/Inbox
 
 namespace inbox {
   inbox = yes
+  separator = /
+  prefix = 
+
   mailbox Drafts {
-    special_use = \\Drafts
+    special_use = \Drafts
     auto = subscribe
   }
   mailbox Junk {
-    special_use = \\Junk
-    auto = subscribe
-  }
-  mailbox Sent {
-    special_use = \\Sent
+    special_use = \Junk
     auto = subscribe
   }
   mailbox Trash {
-    special_use = \\Trash
+    special_use = \Trash
+    auto = subscribe
+  }
+  mailbox Sent {
+    special_use = \Sent
     auto = subscribe
   }
   mailbox Archive {
-    special_use = \\Archive
+    special_use = \Archive
+    auto = subscribe
+  }
+  mailbox Approvals {
     auto = subscribe
   }
 }
