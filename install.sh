@@ -41,11 +41,11 @@ export DEBIAN_FRONTEND=noninteractive
 
 apt-get update -y -q
 apt-get install -y -q \
-  curl wget gnupg2 build-essential git \
+  sudo curl wget gnupg2 build-essential git \
   postgresql postgresql-contrib redis-server \
   nginx certbot python3-certbot-nginx \
   postfix postfix-pcre dovecot-imapd dovecot-pop3d opendkim opendkim-tools spamassassin fail2ban ufw \
-  ruby-full ruby-bundler libpq-dev zlib1g-dev
+  ruby-full ruby-bundler libpq-dev zlib1g-dev libyaml-dev
 
 # Node.js kontrolü ve kurulumu (Node 20 LTS)
 if ! command -v node >/dev/null 2>&1; then
@@ -64,21 +64,44 @@ fi
 
 # 4. PostgreSQL Veritabanı ve Kullanıcısını Hazırla (Otomatik & Güvenli)
 echo -e "▶ 4. PostgreSQL veritabanı güvenli şekilde yapılandırılıyor..."
-systemctl start postgresql redis-server 2>/dev/null || true
+systemctl start postgresql redis-server 2>/dev/null || service postgresql start 2>/dev/null || true
+systemctl start redis 2>/dev/null || true
 
 # Kuruluma özel rastgele güçlü 32-karakter şifre üret
 PG_PASS=$(openssl rand -hex 16)
 DB_NAME="dispatch_prod"
 DB_USER="dispatch"
 
-sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" 2>/dev/null | grep -q 1 || \
-  sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$PG_PASS' CREATEDB;"
+# PostgreSQL komut çalıştırıcı (sudo bağımlılığı olmadan native su / runuser desteği)
+pg_exec() {
+  local sql="$1"
+  if command -v runuser >/dev/null 2>&1; then
+    runuser -u postgres -- psql -c "$sql"
+  elif command -v sudo >/dev/null 2>&1; then
+    sudo -u postgres psql -c "$sql"
+  else
+    su - postgres -c "psql -c $(printf '%q' "$sql")"
+  fi
+}
 
-# Şifreyi güncelle ve yetkilendir
-sudo -u postgres psql -c "ALTER USER $DB_USER WITH PASSWORD '$PG_PASS';" 2>/dev/null || true
+pg_check() {
+  local sql="$1"
+  if command -v runuser >/dev/null 2>&1; then
+    runuser -u postgres -- psql -tc "$sql" 2>/dev/null
+  elif command -v sudo >/dev/null 2>&1; then
+    sudo -u postgres psql -tc "$sql" 2>/dev/null
+  else
+    su - postgres -c "psql -tc $(printf '%q' "$sql")" 2>/dev/null
+  fi
+}
 
-sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" 2>/dev/null | grep -q 1 || \
-  sudo -u postgres psql -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;"
+pg_check "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1 || \
+  pg_exec "CREATE USER $DB_USER WITH PASSWORD '$PG_PASS' CREATEDB;"
+
+pg_exec "ALTER USER $DB_USER WITH PASSWORD '$PG_PASS';" 2>/dev/null || true
+
+pg_check "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" | grep -q 1 || \
+  pg_exec "CREATE DATABASE $DB_NAME OWNER $DB_USER;"
 
 # 5. Backend Bağımlılıkları ve Migrasyonlar
 echo -e "\n▶ 5. Backend derleniyor ve optimize ediliyor..."
@@ -97,6 +120,7 @@ MALLOC_ARENA_MAX=2
 ENVEOF
 chmod 600 "$DISPATCH_DIR/backend/.env"
 
+gem install bundler --no-document 2>/dev/null || true
 bundle install --quiet || bundle install
 bin/rails db:migrate RAILS_ENV=production
 
