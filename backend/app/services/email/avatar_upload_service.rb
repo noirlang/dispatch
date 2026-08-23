@@ -42,6 +42,7 @@ class Email::AvatarUploadService
     elsif file.respond_to?(:path) && File.exist?(file.path)
       FileUtils.cp(file.path, path)
     end
+    File.chmod(0644, path) rescue nil
 
     avatar_url = "/avatars/#{filename}"
     user.update!(avatar_path: avatar_url)
