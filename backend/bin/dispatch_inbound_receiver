@@ -21,7 +21,6 @@ raw_email = STDIN.read
 if raw_email.present?
   begin
     inbound = ActionMailbox::InboundEmail.create_and_extract_message_id!(raw_email)
-    ActionMailbox::RoutingJob.perform_now(inbound)
     
     # Deliver copy to Dovecot Maildir for Thunderbird / IMAP
     begin

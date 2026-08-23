@@ -9,6 +9,13 @@ class DispatchMailbox < ApplicationMailbox
     user ||= User.first if User.count == 1
     return unless user
 
+    # Deduplication check: prevent multiple deliveries of the exact same message
+    msg_id = mail.message_id.to_s.strip
+    if msg_id.present? && user.emails.where(message_id: msg_id).exists?
+      Rails.logger.info "[DispatchMailbox] Skipping duplicate email #{msg_id} for #{user.email}"
+      return
+    end
+
     # Check speakeasy code first
     if speakeasy_trusted?(user, mail)
       deliver_to_inbox(user, "inbox")

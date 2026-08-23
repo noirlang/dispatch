@@ -21,8 +21,8 @@ class Email::EmailMdService
     end
 
     # Strip dangerous script tags, svg exploits, and inline event handlers while preserving <style>
-    doc = Nokogiri::HTML(html.to_s)
-    doc.xpath('//script|//object|//embed|//applet|//form|//iframe').remove
+    doc = Nokogiri::HTML.fragment(html.to_s)
+    doc.xpath('.//script|.//object|.//embed|.//applet|.//form|.//iframe').remove
     doc.traverse do |node|
       if node.is_a?(Nokogiri::XML::Element)
         node.attributes.each do |name, _|
@@ -30,7 +30,35 @@ class Email::EmailMdService
         end
       end
     end
-    doc.to_html
+    cleaned_body = doc.to_html
+
+    <<~HTML
+      <!DOCTYPE html>
+      <html lang="tr">
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <style>
+          body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-size: 15px;
+            line-height: 1.6;
+            color: #1f2937;
+          }
+          p { margin: 0 0 1em 0; }
+          a { color: #2563eb; text-decoration: underline; }
+          img { max-width: 100%; height: auto; }
+          table { width: 100%; border-collapse: collapse; }
+        </style>
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 15px; line-height: 1.6; color: #1f2937; margin: 0; padding: 16px;">
+        #{cleaned_body}
+      </body>
+      </html>
+    HTML
   end
 
 
