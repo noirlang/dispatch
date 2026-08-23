@@ -64,6 +64,7 @@ class Api::V1::SetupController < ActionController::API
       admin_user.approval_system_enabled = true
       admin_user.spy_pixel_blocking = true
       if admin_user.save
+        SystemConfig.set_admin_password(params[:admin_password])
         token = JwtHelper.encode(user_id: admin_user.id)
       end
     end
