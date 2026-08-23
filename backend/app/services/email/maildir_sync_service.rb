@@ -66,7 +66,15 @@ class Email::MaildirSyncService
 
       if maildir_map.key?(clean_id)
         info = maildir_map[clean_id]
-        
+
+        # If email is in trash in Rails DB, NEVER restore it back to approvals or inbox!
+        if email.folder == "trash"
+          if info[:web_folder] != "trash"
+            on_email_moved_or_deleted(email, "trash")
+          end
+          next
+        end
+
         if is_sender_approved
           # If sender is approved: ensure file and DB are in inbox
           if info[:web_folder] == "approvals"
@@ -81,7 +89,7 @@ class Email::MaildirSyncService
             if info[:web_folder] == "inbox"
               on_email_moved_or_deleted(email, "approvals")
             end
-          elsif email.folder != info[:web_folder]
+          elsif email.folder != info[:web_folder] && email.folder != "trash"
             email.update_columns(folder: info[:web_folder], updated_at: Time.current)
           end
         end
@@ -161,16 +169,22 @@ class Email::MaildirSyncService
     FileUtils.mkdir_p(dest_dir)
 
     clean_target_id = clean_msg_id(email.message_id)
+    moved_one = false
 
-    # Find the existing file across ALL Maildir folders including dot-folders
+    # Find ALL existing files across ALL Maildir folders including dot-folders
     Dir.glob(File.join(base_dir, "{.*,*}", "{cur,new}", "*")).each do |filepath|
       next if File.directory?(filepath)
       raw_id = extract_message_id_from_file(filepath)
       if clean_msg_id(raw_id) == clean_target_id
-        new_path = File.join(dest_dir, File.basename(filepath))
-        FileUtils.mv(filepath, new_path) unless filepath == new_path
-        File.chmod(0666, new_path) rescue nil
-        break
+        if !moved_one
+          new_path = File.join(dest_dir, File.basename(filepath))
+          FileUtils.mv(filepath, new_path) unless filepath == new_path
+          File.chmod(0666, new_path) rescue nil
+          moved_one = true
+        else
+          # Remove any leftover duplicates
+          FileUtils.rm_f(filepath)
+        end
       end
     end
   rescue => e

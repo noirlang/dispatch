@@ -12,7 +12,6 @@ import {
   ArrowRight,
   ArrowLeft,
   Lock,
-  Globe,
   Terminal,
   RefreshCw,
   Sparkles
@@ -303,21 +302,6 @@ export default function SetupWizard() {
               exit={{ opacity: 0, x: 10 }}
               className="flex flex-col gap-5"
             >
-              {/* Architecture Info Banner */}
-              <div className="p-4 rounded-2xl bg-[#3b82f610] border border-[#3b82f630] flex items-start gap-3">
-                <Globe size={18} className="text-[#3b82f6] shrink-0 mt-0.5" />
-                <div className="text-xs space-y-1">
-                  <p className="font-bold text-[var(--text-main)]">
-                    {lang === "tr" ? "Mevcut Web Siteniz (Cloudflare Pages) Asla Etkilenmez" : "Your Existing Website is Safe"}
-                  </p>
-                  <p className="text-[var(--text-muted)] leading-relaxed">
-                    {lang === "tr"
-                      ? "Ana siteniz (noirlang.tr) Cloudflare Pages üzerinde çalışmaya devam eder. Dispatch Webmail (dispatch.noirlang.tr) ve Posta Sunucusu (mail.noirlang.tr) subdomain üzerinden ayrılır."
-                      : "Your apex domain continues pointing to your website. Dispatch Webmail and Postfix Mail Server use isolated subdomains."}
-                  </p>
-                </div>
-              </div>
-
               <div>
                 <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">
                   {lang === "tr" ? "Ana Alan Adı (Apex Root Domain)" : "Apex Root Domain"}
