@@ -80,17 +80,26 @@ class Email::SendService
           end
         end
 
-        mail.delivery_method :smtp, {
-          address: ENV.fetch("MAIL_HOST", "127.0.0.1"),
-          port: ENV.fetch("MAIL_PORT", 1025).to_i,
-          user_name: user.email,
-          password: ENV["MAIL_PASSWORD"],
-          authentication: :plain,
+        mail_host = ENV.fetch("MAIL_HOST", "127.0.0.1")
+        mail_port = ENV.fetch("MAIL_PORT", 25).to_i
+
+        delivery_options = {
+          address: mail_host,
+          port: mail_port,
           enable_starttls_auto: false
         }
-        mail.deliver! rescue nil
+
+        if ENV["MAIL_PASSWORD"].present?
+          delivery_options[:user_name] = user.email
+          delivery_options[:password] = ENV["MAIL_PASSWORD"]
+          delivery_options[:authentication] = :plain
+        end
+
+        mail.delivery_method :smtp, delivery_options
+        mail.deliver!
+        Rails.logger.info "[Email SendService] Outgoing mail delivered to #{dest_addr} (Subject: #{params[:subject]})"
       rescue => e
-        Rails.logger.warn "SMTP delivery warning: #{e.message}"
+        Rails.logger.error "[Email SendService SMTP Error] #{e.message}\n#{e.backtrace&.join("\n")}"
       end
     end
 
