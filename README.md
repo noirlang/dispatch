@@ -40,49 +40,49 @@
 ### 1. Onay Sistemi, Yapay Zeka Pano & Takvim Entegrasyonu
 > İlk kez e-posta gönderen kişilerin güvenlik amacıyla Onay Bekleyenler kuyruğuna düşmesi, tek tıkla onaylama veya engelleme, e-posta içeriğindeki toplantı ve kargo gibi önemli verilerin Yapay Zeka tarafından otomatik tespiti, Pano kartlarına dönüştürülmesi ve doğrudan Takvim'e aktarılması.
 
-<video src="dispatch/videos/dispatch-onay-ai-pano-takvim.webm" controls width="100%"></video>
+[▶️ **Demo Videosunu İzle** (`dispatch-onay-ai-pano-takvim.mp4`)](https://dispatch.noirlang.tr/videos/dispatch-onay-ai-pano-takvim.mp4)
 
 ---
 
 ### 2. Yapay Zeka E-Posta Özeti & Akıllı Yanıt Motoru
 > Uzun ve karmaşık e-postaların Google Gemini, Claude veya OpenAI modelleriyle saniyeler içinde 2-3 maddelik özetinin çıkarılması; gelen iletiye uygun akıllı ve bağlamsal yanıt taslaklarının tek tıkla oluşturulması.
 
-<video src="dispatch/videos/dispatch-aiozet-aiyanit.webm" controls width="100%"></video>
+[▶️ **Demo Videosunu İzle** (`dispatch-aiozet-aiyanit.mp4`)](https://dispatch.noirlang.tr/videos/dispatch-aiozet-aiyanit.mp4)
 
 ---
 
 ### 3. Yapay Zeka Destekli Çok Dilli E-Posta Çevirisi
 > Yabancı dilde gelen e-postaların doğrudan arayüz içinden anlam bütünlüğü korunarak Türkçe ve diğer hedef dillere anında çevrilmesi ve orijinal biçimlendirmesi bozulmadan okunabilmesi.
 
-<video src="dispatch/videos/dispatch-ai-ceviri.webm" controls width="100%"></video>
+[▶️ **Demo Videosunu İzle** (`dispatch-ai-ceviri.mp4`)](https://dispatch.noirlang.tr/videos/dispatch-ai-ceviri.mp4)
 
 ---
 
 ### 4. E-Posta Yönetimi, Kişi Grupları & Akıllı Takma Adlar
 > Gelen, giden ve taslak maillerin yönetimi; `@grup_adi` (örn. `@ekip`) sözdizimi kullanılarak kayıtlı kişi gruplarına tek seferde toplu e-posta gönderimi ve otomatik üye çözümlemesi.
 
-<video src="dispatch/videos/dispatch-mail-grup.webm" controls width="100%"></video>
+[▶️ **Demo Videosunu İzle** (`dispatch-mail-grup.mp4`)](https://dispatch.noirlang.tr/videos/dispatch-mail-grup.mp4)
 
 ---
 
 ### 5. Entegre RSS Akış Okuyucusu & Arka Plan Senkronizasyonu
 > Sık takip edilen teknoloji, haber ve blog kaynaklarının sisteme eklenmesi; Sidekiq arka plan işçileriyle düzenli aralıklarla yeni içeriklerin çekilmesi ve e-posta deneyiminden kopmadan okunması.
 
-<video src="dispatch/videos/dispatch-akis-rss.webm" controls width="100%"></video>
+[▶️ **Demo Videosunu İzle** (`dispatch-akis-rss.mp4`)](https://dispatch.noirlang.tr/videos/dispatch-akis-rss.mp4)
 
 ---
 
 ### 6. Zengin Markdown Formatlama Desteği
 > E-posta yazarken ve yanıtlarken tam GitHub Flavored Markdown (GFM) desteği; başlıklar, kod blokları, listeler, kalın/italik vurgular, tablolar ve şık alıntı (blockquote) bloklarıyla profesyonel e-posta oluşturma.
 
-<video src="dispatch/videos/dispatch-markdown.webm" controls width="100%"></video>
+[▶️ **Demo Videosunu İzle** (`dispatch-markdown.mp4`)](https://dispatch.noirlang.tr/videos/dispatch-markdown.mp4)
 
 ---
 
 ### 7. E-Posta ile Blog Yayınlama Sistemi
 > Sadece `blog@alanadiniz.com` adresine e-posta göndererek dahili genel blogda (`/@kullanici_adi/yazi-basligi`) anında makale yayınlama. Yazarlar, `Rm: <Blog Başlığı>` veya `rm: <slug>` konulu bir mail atarak yayınladıkları yazıları sistemden anında silebilir.
 
-<video src="dispatch/videos/dispatch-blog.webm" controls width="100%"></video>
+[▶️ **Demo Videosunu İzle** (`dispatch-blog.mp4`)](https://dispatch.noirlang.tr/videos/dispatch-blog.mp4)
 
 ---
 
