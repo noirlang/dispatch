@@ -18,6 +18,45 @@ export default function EmailIframe({ html, allowRemoteImages = true, className 
       try {
         if (iframe && iframe.contentDocument && iframe.contentDocument.body) {
           const doc = iframe.contentDocument
+
+          // Direct DOM injection of dark mode override to guarantee bright white text
+          if (!doc.getElementById("dispatch-dark-override")) {
+            const style = doc.createElement("style")
+            style.id = "dispatch-dark-override"
+            style.textContent = `
+              * {
+                color: #f4f4f5 !important;
+                background-color: transparent !important;
+                background: transparent !important;
+              }
+              html, body {
+                background: transparent !important;
+                background-color: transparent !important;
+                color: #f4f4f5 !important;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+                font-size: 15px !important;
+                line-height: 1.6 !important;
+              }
+              p, div, span, td, th, li, h1, h2, h3, h4, h5, h6, font, b, strong, em, i, u, s, mark, blockquote, center, label, small {
+                color: #f4f4f5 !important;
+                background-color: transparent !important;
+              }
+              a, a *, [href] {
+                color: #60a5fa !important;
+                text-decoration: underline !important;
+              }
+              pre, code {
+                background-color: #18181b !important;
+                color: #f4f4f5 !important;
+              }
+            `
+            if (doc.head) {
+              doc.head.appendChild(style)
+            } else if (doc.body) {
+              doc.body.appendChild(style)
+            }
+          }
+
           const scrollHeight = Math.max(
             doc.body.scrollHeight,
             doc.documentElement.scrollHeight,
