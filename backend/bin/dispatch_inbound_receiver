@@ -16,8 +16,8 @@ end
 
 require_relative "../config/environment"
 
-raw_email = STDIN.read
-
+if raw_email.present?
+  begin
     # Process into Dispatch Webmail via ActionMailbox
     inbound = ActionMailbox::InboundEmail.create_and_extract_message_id!(raw_email)
     
