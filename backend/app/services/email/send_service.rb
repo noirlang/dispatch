@@ -156,14 +156,28 @@ class Email::SendService
     recipient_addresses.each do |to_addr|
       # Check if sending to blog@ address
       if to_addr.downcase.start_with?("blog@")
-        BlogPost.create!(
-          title: params[:subject],
-          content: raw_body,
-          author_email: user.email,
-          author_name: user.name,
-          author_avatar: user.avatar_path,
-          published_at: Time.current
-        )
+        if params[:subject].to_s.strip =~ /\A\s*rm:\s*(.+)/i
+          target_title = $1.strip
+          post = BlogPost.where("LOWER(author_email) = ?", user.email.downcase.strip)
+                         .where("LOWER(title) = ? OR LOWER(slug) = ?", target_title.downcase, target_title.parameterize)
+                         .first
+
+          if post
+            post.destroy!
+            Rails.logger.info "[SendService] User #{user.email} successfully deleted blog post: #{post.title}"
+          else
+            Rails.logger.warn "[SendService] Delete failed: No post with title '#{target_title}' found for author #{user.email}"
+          end
+        else
+          BlogPost.create!(
+            title: params[:subject],
+            content: raw_body,
+            author_email: user.email,
+            author_name: user.name,
+            author_avatar: user.avatar_path,
+            published_at: Time.current
+          )
+        end
         next
       end
 

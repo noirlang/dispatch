@@ -4,7 +4,25 @@ class BlogMailbox < ApplicationMailbox
     subject = mail.subject.to_s.strip
     body    = extract_body
 
-    return if subject.blank? || body.blank?
+    return if subject.blank?
+
+    # Check if this is a deletion request (e.g. Rm: Blog Başlığı)
+    if subject =~ /\A\s*rm:\s*(.+)/i
+      target_title = $1.strip
+      post = BlogPost.where("LOWER(author_email) = ?", from.downcase.strip)
+                     .where("LOWER(title) = ? OR LOWER(slug) = ?", target_title.downcase, target_title.parameterize)
+                     .first
+
+      if post
+        post.destroy!
+        Rails.logger.info "[BlogMailbox] Author #{from} successfully deleted blog post: #{post.title}"
+      else
+        Rails.logger.warn "[BlogMailbox] Delete failed: No post with title '#{target_title}' found for author #{from}"
+      end
+      return
+    end
+
+    return if body.blank?
 
     # Deduplication check: if post with same author and title was created in the last 2 minutes, skip
     if BlogPost.where(author_email: from, title: subject).where("created_at > ?", 2.minutes.ago).exists?
