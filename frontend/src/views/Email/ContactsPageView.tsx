@@ -387,10 +387,11 @@ export default function ContactsPageView({ onCompose, onOpenEmail }: Props) {
                 <button
                   type="button"
                   onClick={() => setSelectedContactEmail(null)}
-                  className="flex items-center gap-1.5 text-xs font-bold text-[var(--text-muted)] hover:text-[var(--text-main)] px-3 py-1.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)]"
+                  className="flex items-center gap-1.5 text-xs font-bold text-[var(--text-muted)] hover:text-[var(--text-main)] p-2 sm:px-3 sm:py-1.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] shadow-xs"
+                  title="Kişiler Listesine Dön"
                 >
                   <ArrowLeft size={14} />
-                  <span>Kişiler Listesine Dön</span>
+                  <span className="hidden sm:inline">Kişiler Listesine Dön</span>
                 </button>
               </div>
 
@@ -640,10 +641,11 @@ export default function ContactsPageView({ onCompose, onOpenEmail }: Props) {
                 <button
                   type="button"
                   onClick={() => setSelectedGroupId(null)}
-                  className="flex items-center gap-1.5 text-xs font-bold text-[var(--text-muted)] hover:text-[var(--text-main)] px-3 py-1.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)]"
+                  className="flex items-center gap-1.5 text-xs font-bold text-[var(--text-muted)] hover:text-[var(--text-main)] p-2 sm:px-3 sm:py-1.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] shadow-xs"
+                  title="Gruplar Listesine Dön"
                 >
                   <ArrowLeft size={14} />
-                  <span>Gruplar Listesine Dön</span>
+                  <span className="hidden sm:inline">Gruplar Listesine Dön</span>
                 </button>
               </div>
 
