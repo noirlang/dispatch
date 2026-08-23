@@ -67,6 +67,8 @@ class Api::V1::SetupController < ActionController::API
         SystemConfig.set_admin_password(params[:admin_password])
         token = JwtHelper.encode(user_id: admin_user.id)
       end
+    end
+
     # Configure Postfix automatically for the domain
     begin
       system("postconf -e 'myhostname = #{mail_subdomain}.#{domain}' 2>/dev/null")
