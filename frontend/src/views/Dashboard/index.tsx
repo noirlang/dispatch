@@ -108,17 +108,18 @@ export default function DashboardView() {
   }
 
   return (
-    <div className="h-full flex flex-col bg-[var(--bg-primary)] overflow-y-auto p-8 max-w-6xl mx-auto animate-fadeIn">
+    <div className="h-full flex flex-col bg-[var(--bg-primary)] overflow-y-auto p-3 sm:p-8 pb-24 md:pb-8 max-w-6xl mx-auto animate-fadeIn">
       {/* Dashboard Header */}
-      <div className="flex items-center justify-between mb-8 pb-6 border-b border-[var(--border-color)]">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-center">
-            <Sparkles size={18} className="text-[var(--text-main)]" />
+      <div className="flex items-center justify-between mb-4 sm:mb-8 pb-3 sm:pb-6 border-b border-[var(--border-color)] gap-2">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="p-1.5 sm:p-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-center shrink-0">
+            <Sparkles size={16} className="text-[var(--text-main)]" />
           </div>
-          <h1 className="text-xl font-bold text-[var(--text-main)] leading-none">{t("dashboard")}</h1>
+          <h1 className="text-sm sm:text-xl font-bold text-[var(--text-main)] leading-none truncate">{t("dashboard")}</h1>
         </div>
-        <span className="text-xs font-mono font-semibold text-[var(--text-muted)] px-3 py-1.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] shadow-xs">
-          {cards.length} {t("active_notes")}
+        <span className="text-xs font-mono font-semibold text-[var(--text-muted)] px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] shadow-xs shrink-0">
+          <span className="hidden sm:inline">{cards.length} {t("active_notes")}</span>
+          <span className="sm:hidden">{cards.length} not</span>
         </span>
       </div>
 
@@ -150,7 +151,7 @@ export default function DashboardView() {
               exit={{ opacity: 0, scale: 0.95 }}
               transition={{ delay: idx * 0.03 }}
               whileHover={{ y: -2, scale: 1.01 }}
-              className={`p-6 rounded-2xl border flex flex-col justify-between transition-all shadow-xs ${
+              className={`p-4 sm:p-6 rounded-2xl border flex flex-col justify-between transition-all shadow-xs ${
                 card.priority === "high"
                   ? "bg-[var(--bg-card)] border-[var(--text-main)] shadow-sm"
                   : "bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:border-[var(--text-dim)]"

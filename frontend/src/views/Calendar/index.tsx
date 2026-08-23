@@ -166,30 +166,29 @@ export default function CalendarView() {
   }
 
   return (
-    <div className="h-full flex flex-col max-w-5xl mx-auto p-6 animate-fadeIn">
+    <div className="h-full flex flex-col max-w-5xl mx-auto p-3 sm:p-6 pb-24 md:pb-6 animate-fadeIn">
       {/* Top Header & Week Navigation */}
-      <div className="flex items-center justify-between pb-6 mb-4 border-b border-[var(--border-color)]">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-center">
-            <CalIcon size={18} className="text-[var(--text-main)]" />
+      <div className="flex items-center justify-between pb-3 sm:pb-5 mb-3 sm:mb-4 border-b border-[var(--border-color)] gap-2">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="p-1.5 sm:p-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-center shrink-0">
+            <CalIcon size={16} className="text-[var(--text-main)]" />
           </div>
-          <h1 className="text-xl font-bold text-[var(--text-main)] leading-none">{t("calendar")}</h1>
+          <h1 className="text-sm sm:text-xl font-bold text-[var(--text-main)] leading-none truncate">{t("calendar")}</h1>
         </div>
 
-
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           {/* Week Selector */}
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] shadow-xs">
+          <div className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] shadow-xs">
             <motion.button
               whileTap={{ scale: 0.9 }}
               onClick={() => setWeekStart((w) => subWeeks(w, 1))}
               className="p-1 text-[var(--text-muted)] hover:text-[var(--text-main)] rounded"
               title="Previous Week"
             >
-              <ChevronLeft size={16} />
+              <ChevronLeft size={14} />
             </motion.button>
-            <span className="text-xs font-semibold font-mono text-[var(--text-main)] px-2">
-              {format(weekStart, "MMM d")} – {format(weekEnd, "MMM d, yyyy")}
+            <span className="text-[11px] sm:text-xs font-semibold font-mono text-[var(--text-main)] px-1 sm:px-2">
+              {format(weekStart, "d MMM")} – {format(weekEnd, "d MMM", { locale: dateLocale })}
             </span>
             <motion.button
               whileTap={{ scale: 0.9 }}
@@ -197,7 +196,7 @@ export default function CalendarView() {
               className="p-1 text-[var(--text-muted)] hover:text-[var(--text-main)] rounded"
               title="Next Week"
             >
-              <ChevronRight size={16} />
+              <ChevronRight size={14} />
             </motion.button>
           </div>
 
@@ -205,21 +204,22 @@ export default function CalendarView() {
             whileTap={{ scale: 0.94 }}
             whileHover={{ scale: 1.03 }}
             onClick={() => setSyncModalOpen(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border border-[var(--border-color)] bg-[var(--bg-secondary)] hover:bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-[var(--text-main)] transition-all shadow-xs"
+            className="flex items-center gap-1.5 p-2 sm:px-3.5 sm:py-2 rounded-xl text-xs font-semibold border border-[var(--border-color)] bg-[var(--bg-secondary)] hover:bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-[var(--text-main)] transition-all shadow-xs"
             title="iPhone, Mac ve Thunderbird ile Eşitle"
           >
-            <Share2 size={13} className="text-[#3b82f6]" />
-            <span>{lang === "tr" ? "Cihazla Eşitle" : "Sync Calendar"}</span>
+            <Share2 size={14} className="text-[#3b82f6]" />
+            <span className="hidden sm:inline">{lang === "tr" ? "Cihazla Eşitle" : "Sync Calendar"}</span>
           </motion.button>
 
           <motion.button
             whileTap={{ scale: 0.94 }}
             whileHover={{ scale: 1.03 }}
             onClick={() => openCreateModal()}
-            className="flex items-center gap-1.5 bg-[var(--accent)] text-[var(--accent-invert)] px-4 py-2 rounded-xl text-xs font-bold hover:opacity-90 transition-all shadow-sm"
+            className="flex items-center gap-1.5 bg-[var(--accent)] text-[var(--accent-invert)] p-2 sm:px-4 sm:py-2 rounded-xl text-xs font-bold hover:opacity-90 transition-all shadow-sm"
+            title={t("add_event")}
           >
-            <Plus size={14} />
-            <span>{t("add_event")}</span>
+            <Plus size={15} />
+            <span className="hidden sm:inline">{t("add_event")}</span>
           </motion.button>
         </div>
       </div>
@@ -231,7 +231,7 @@ export default function CalendarView() {
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ type: "spring", damping: 25, stiffness: 300 }}
-        className="flex-1 overflow-y-auto pr-2 flex flex-col gap-4"
+        className="flex-1 overflow-y-auto pr-1 sm:pr-2 flex flex-col gap-3 sm:gap-4"
       >
         {days.map((day, dIdx) => {
           const dayEvents = eventsForDay(day)
@@ -243,27 +243,27 @@ export default function CalendarView() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: dIdx * 0.03 }}
-              className={`p-5 rounded-2xl border transition-all ${
+              className={`p-4 sm:p-5 rounded-2xl border transition-all ${
                 today
                   ? "bg-[var(--bg-secondary)] border-[var(--text-main)] shadow-sm"
                   : "bg-[var(--bg-card)] border-[var(--border-color)] hover:border-[var(--text-dim)]"
               }`}
             >
               {/* Day Header */}
-              <div className="flex items-center justify-between pb-3 mb-3 border-b border-[var(--border-color)]">
-                <div className="flex items-center gap-2.5">
+              <div className="flex items-center justify-between pb-2.5 sm:pb-3 mb-2.5 sm:mb-3 border-b border-[var(--border-color)]">
+                <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
                   <span
-                    className={`text-xs uppercase font-bold tracking-wider ${
+                    className={`text-[11px] sm:text-xs uppercase font-bold tracking-wider ${
                       today ? "text-[var(--text-main)]" : "text-[var(--text-dim)]"
                     }`}
                   >
                     {format(day, "EEEE", { locale: dateLocale })}
                   </span>
-                  <span className="text-sm font-extrabold text-[var(--text-main)]">
+                  <span className="text-xs sm:text-sm font-extrabold text-[var(--text-main)] truncate">
                     {format(day, "d MMMM yyyy", { locale: dateLocale })}
                   </span>
                   {today && (
-                    <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-[#22c55e15] text-[#22c55e] border border-[#22c55e30]">
+                    <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-[#22c55e15] text-[#22c55e] border border-[#22c55e30] shrink-0">
                       {t("today")}
                     </span>
                   )}
@@ -273,10 +273,11 @@ export default function CalendarView() {
                   whileTap={{ scale: 0.9 }}
                   whileHover={{ scale: 1.05 }}
                   onClick={() => openCreateModal(day)}
-                  className="text-xs text-[var(--text-dim)] hover:text-[var(--text-main)] flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-[var(--bg-secondary)]"
+                  className="text-xs text-[var(--text-dim)] hover:text-[var(--text-main)] flex items-center gap-1 p-1.5 sm:px-2 sm:py-1 rounded-lg hover:bg-[var(--bg-secondary)] transition-colors shrink-0"
+                  title={t("add_event")}
                 >
-                  <Plus size={12} />
-                  <span>{t("add_event")}</span>
+                  <Plus size={13} />
+                  <span className="hidden sm:inline">{t("add_event")}</span>
                 </motion.button>
               </div>
 

@@ -145,38 +145,38 @@ export default function FeedView() {
   }, [rawArticleContent, allowImages])
 
   return (
-    <div className="h-full flex flex-col max-w-6xl mx-auto p-6 animate-fadeIn">
+    <div className="h-full flex flex-col max-w-6xl mx-auto p-3 sm:p-6 pb-24 md:pb-6 animate-fadeIn">
       {/* Feed Header */}
-      <div className="flex items-center justify-between pb-4 mb-3 border-b border-[var(--border-color)]">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-center">
-            <Rss size={18} className="text-[#f59e0b]" />
+      <div className="flex items-center justify-between pb-3 sm:pb-4 mb-3 border-b border-[var(--border-color)] gap-2">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="p-1.5 sm:p-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-center shrink-0">
+            <Rss size={16} className="text-[#f59e0b]" />
           </div>
-          <h1 className="text-xl font-bold text-[var(--text-main)] leading-none">{t("feed")}</h1>
+          <h1 className="text-sm sm:text-xl font-bold text-[var(--text-main)] leading-none truncate">{t("feed")}</h1>
         </div>
 
-
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
           <motion.button
             whileTap={{ scale: 0.94 }}
             whileHover={{ scale: 1.03 }}
             onClick={() => refreshAll.mutate()}
             disabled={refreshAll.isPending || isFetching}
             title="Akışları Yenile"
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text-main)] transition-all shadow-xs"
+            className="flex items-center gap-1.5 p-2 sm:px-3 sm:py-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text-main)] transition-all shadow-xs"
           >
-            <RotateCw size={13} className={refreshAll.isPending || isFetching ? "animate-spin text-[#f59e0b]" : ""} />
-            <span>Yenile</span>
+            <RotateCw size={14} className={refreshAll.isPending || isFetching ? "animate-spin text-[#f59e0b]" : ""} />
+            <span className="hidden sm:inline">Yenile</span>
           </motion.button>
 
           <motion.button
             whileTap={{ scale: 0.94 }}
             whileHover={{ scale: 1.03 }}
             onClick={() => setShowAdd((s) => !s)}
-            className="flex items-center gap-1.5 bg-[var(--accent)] text-[var(--accent-invert)] px-4 py-2 rounded-xl text-xs font-bold hover:opacity-90 transition-all shadow-sm"
+            className="flex items-center gap-1.5 bg-[var(--accent)] text-[var(--accent-invert)] p-2 sm:px-4 sm:py-2 rounded-xl text-xs font-bold hover:opacity-90 transition-all shadow-sm"
+            title={t("add_feed")}
           >
-            <Plus size={14} />
-            <span>{t("add_feed")}</span>
+            <Plus size={15} />
+            <span className="hidden sm:inline">{t("add_feed")}</span>
           </motion.button>
         </div>
       </div>
