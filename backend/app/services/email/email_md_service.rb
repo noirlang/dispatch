@@ -23,25 +23,27 @@ class Email::EmailMdService
   def self.render_markdown(text)
     require "kramdown"
 
-    lines = text.to_s.split("\n")
-    processed_lines = []
-    in_code_block = false
+    # Convert markdown using GitHub Flavored Markdown and hard wraps
+    html = Kramdown::Document.new(
+      text.to_s,
+      input: "GFM",
+      hard_wrap: true,
+      smart_quotes: %w[lsquo rsquo ldquo rdquo]
+    ).to_html
 
-    lines.each do |line|
-      if line.start_with?("```")
-        in_code_block = !in_code_block
-        processed_lines << line
-      elsif in_code_block || line.start_with?("#") || line.start_with?(">") || line.start_with?("- ") || line.start_with?("* ") || line.match?(/^\d+\.\s/) || line.blank? || line.start_with?("<")
-        processed_lines << line
-      else
-        processed_lines << "#{line}  "
-      end
+    # Style blockquotes and links cleanly for email clients
+    doc = Nokogiri::HTML.fragment(html.to_s)
+    doc.css("blockquote").each do |bq|
+      bq["style"] = "border-left: 2px solid #52525b; margin: 12px 0; padding: 4px 0 4px 12px; color: #a1a1aa; font-style: normal;"
+    end
+    doc.css("a").each do |a|
+      a["style"] = "color: #3b82f6; text-decoration: underline;"
+    end
+    doc.css("pre, code").each do |c|
+      c["style"] = "background-color: #18181b; color: #f4f4f5; padding: 2px 6px; border-radius: 4px; font-family: monospace;"
     end
 
-    html = Kramdown::Document.new(processed_lines.join("\n")).to_html
-
     # Strip dangerous script tags, svg exploits, and inline event handlers
-    doc = Nokogiri::HTML.fragment(html.to_s)
     doc.xpath('.//script|.//object|.//embed|.//applet|.//form|.//iframe').remove
     doc.traverse do |node|
       if node.is_a?(Nokogiri::XML::Element)

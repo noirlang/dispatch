@@ -67,20 +67,18 @@ export default function EmailView() {
     const cleanSig = String(rawSig).replace(/\\n/g, "\n").trim()
     const signature = cleanSig ? `\n\n--\n${cleanSig}` : ""
 
+    const cleanFrom = String(email.from || "").replace(/.*<([^>]+)>.*/, "$1").trim()
+    const cleanName = email.sender_name && !email.sender_name.includes("@") && email.sender_name !== cleanFrom
+      ? email.sender_name.trim()
+      : ""
+    const senderHeader = cleanName ? `${cleanName} <${cleanFrom}>` : cleanFrom
+
     const rawQuoted = email.body_text || email.body || ""
     const cleanQuoted = rawQuoted
-      .replace(/<!DOCTYPE.*?>/gi, "")
-      .replace(/<html.*?>/gi, "")
-      .replace(/<\/html>/gi, "")
-      .replace(/<body.*?>/gi, "")
-      .replace(/<\/body>/gi, "")
-      .replace(/<head>[\s\S]*?<\/head>/gi, "")
-      .replace(/<style>[\s\S]*?<\/style>/gi, "")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\r\n/g, "\n")
+      .replace(/\r/g, "\n")
       .trim()
-
-    const senderHeader = email.sender_name 
-      ? `${email.sender_name} <${email.from}>`
-      : `<${email.from}>`
 
     const formattedDate = new Date(email.created_at).toLocaleDateString(lang === "tr" ? "tr-TR" : "en-US", {
       year: "numeric",
@@ -93,13 +91,16 @@ export default function EmailView() {
     const quoteHeader = `\n\nOn ${formattedDate}, ${senderHeader} wrote:`
     const quotedLines = cleanQuoted
       .split("\n")
-      .map((line: string) => `> ${line}`)
+      .map((line: string) => {
+        const trimmed = line.trim()
+        return trimmed ? `> ${trimmed}` : `>`
+      })
       .join("\n")
 
     const defaultQuoted = `${quoteHeader}\n${quotedLines}`
     
     setComposeConfig({
-      to: email.from,
+      to: cleanFrom,
       subject: email.subject?.startsWith("Re:") ? email.subject : `Re: ${email.subject || ""}`,
       body: (customBody ? `${customBody}${signature}` : "") + defaultQuoted,
       isReply: true,
