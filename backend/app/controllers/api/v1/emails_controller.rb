@@ -112,8 +112,13 @@ class Api::V1::EmailsController < Api::V1::BaseController
 
   def reply
     result = Email::SendService.call(current_user, reply_params(@email))
+    if !result.success?
+      return render json: { error: result.error || "Yanıt gönderilemedi" }, status: :unprocessable_entity
+    end
+
     if @email.folder == "approvals"
-      SenderRule.find_or_create_by(user: current_user, email_address: @email.from_address) do |r|
+      clean_from = @email.from_address.to_s.gsub(/.*<([^>]+)>.*/, '\1').strip.downcase
+      SenderRule.find_or_create_by(user: current_user, email_address: clean_from) do |r|
         r.status = "approved"
         r.approved_at = Time.current
       end
@@ -123,6 +128,9 @@ class Api::V1::EmailsController < Api::V1::BaseController
 
   def forward
     result = Email::SendService.call(current_user, forward_params(@email))
+    if !result.success?
+      return render json: { error: result.error || "İleti yönlendirilemedi" }, status: :unprocessable_entity
+    end
     render json: email_json(result.email), status: :created
   end
 
@@ -269,7 +277,8 @@ class Api::V1::EmailsController < Api::V1::BaseController
   end
 
   def reply_params(original)
-    base = { to: original.from_address, subject: "Re: #{original.subject}", body: params[:body] }
+    clean_from = original.from_address.to_s.gsub(/.*<([^>]+)>.*/, '\1').strip
+    base = { to: clean_from, subject: original.subject.to_s.start_with?("Re:") ? original.subject : "Re: #{original.subject}", body: params[:body] }
     base[:attachments] = params[:attachments] if params[:attachments].present?
     base
   end

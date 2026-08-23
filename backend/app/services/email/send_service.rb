@@ -310,7 +310,8 @@ class Email::SendService
           addresses << "#{group_name}@#{server_domain}"
         end
       elsif clean_target.include?("@")
-        addresses << clean_target.downcase.strip
+        extracted = clean_target.gsub(/.*<([^>]+)>.*/, '\1').strip.downcase
+        addresses << extracted
       else
         addresses << "#{clean_target.downcase.strip}@#{server_domain}"
       end

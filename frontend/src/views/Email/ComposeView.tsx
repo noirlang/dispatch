@@ -118,8 +118,11 @@ export default function ComposeView({
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["emails"] })
       onClose()
+    },
+    onError: (err: any) => {
+      console.error("Failed to send email:", err)
+      alert("E-posta gönderilemedi: " + (err.response?.data?.error || err.message || "Bilinmeyen hata"))
     }
-
   })
 
 
