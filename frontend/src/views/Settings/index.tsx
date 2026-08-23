@@ -97,12 +97,12 @@ export default function SettingsView() {
         </div>
 
         {/* Company & Version Footer */}
-        <div className="mt-12 pt-6 border-t border-[var(--border-color)] flex flex-col sm:flex-row items-center justify-between text-xs text-[var(--text-dim)] gap-3 pb-8 sm:pb-0">
+        <div className="mt-12 pt-6 border-t border-[var(--border-color)] flex flex-col sm:flex-row items-center justify-between text-xs text-[var(--text-dim)] gap-4 pb-24 sm:pb-6">
           <div className="flex items-center gap-2">
-            <span className="font-mono text-[11px]">v1.0.0 (Build 2026.08)</span>
+            <span className="font-mono text-xs text-[var(--text-muted)]">v1.0.0 (Build 2026.08)</span>
           </div>
-          <a href="https://noirlang.tr" target="_blank" rel="noopener noreferrer" title="NoirLang">
-            <img src="/sirket.png" alt="Company Logo" className="h-5 w-auto object-contain opacity-70 hover:opacity-100 transition-opacity" />
+          <a href="https://noirlang.tr" target="_blank" rel="noopener noreferrer" title="NoirLang" className="transition-transform hover:scale-105">
+            <img src="/sirket.png" alt="NoirLang" className="h-8 sm:h-9 w-auto object-contain opacity-90 hover:opacity-100 transition-opacity" />
           </a>
         </div>
       </main>
