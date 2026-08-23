@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL || "${API_BASE}"
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000"
 
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
@@ -186,7 +186,7 @@ function AdminLogin({ onLogin }: { onLogin: (token: string) => void }) {
     setLoading(true)
 
     try {
-      const res = await fetch("${API_BASE}/api/v1/admin/auth/login", {
+      const res = await fetch(`${API_BASE}/api/v1/admin/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password })
@@ -293,7 +293,7 @@ function AdminUpdatesTab({ token }: { token: string }) {
   const { data: updateInfo } = useQuery({
     queryKey: ["admin-updates"],
     queryFn: async () => {
-      const res = await fetch("${API_BASE}/api/v1/admin/updates/check", {
+      const res = await fetch(`${API_BASE}/api/v1/admin/updates/check`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       if (!res.ok) throw new Error("Durum bilgisi alınamadı")
@@ -303,7 +303,7 @@ function AdminUpdatesTab({ token }: { token: string }) {
 
   const applyUpdate = useMutation({
     mutationFn: async () => {
-      const res = await fetch("${API_BASE}/api/v1/admin/updates/apply", {
+      const res = await fetch(`${API_BASE}/api/v1/admin/updates/apply`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` }
       })
@@ -419,7 +419,7 @@ function AdminInvitesTab({ token }: { token: string }) {
   const { data: settings } = useQuery({
     queryKey: ["admin-settings"],
     queryFn: async () => {
-      const res = await fetch("${API_BASE}/api/v1/admin/system/settings", {
+      const res = await fetch(`${API_BASE}/api/v1/admin/system/settings`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       if (!res.ok) throw new Error("Ayarlar alınamadı")
@@ -431,7 +431,7 @@ function AdminInvitesTab({ token }: { token: string }) {
   const { data: invites = [], isLoading } = useQuery({
     queryKey: ["admin-invites"],
     queryFn: async () => {
-      const res = await fetch("${API_BASE}/api/v1/admin/invite_codes", {
+      const res = await fetch(`${API_BASE}/api/v1/admin/invite_codes`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       if (!res.ok) throw new Error("Davet kodları alınamadı")
@@ -442,7 +442,7 @@ function AdminInvitesTab({ token }: { token: string }) {
   // Update registration mode mutation
   const updateMode = useMutation({
     mutationFn: async (mode: string) => {
-      const res = await fetch("${API_BASE}/api/v1/admin/system/settings", {
+      const res = await fetch(`${API_BASE}/api/v1/admin/system/settings`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -462,7 +462,7 @@ function AdminInvitesTab({ token }: { token: string }) {
   // Create invite code mutation
   const createInvite = useMutation({
     mutationFn: async () => {
-      const res = await fetch("${API_BASE}/api/v1/admin/invite_codes", {
+      const res = await fetch(`${API_BASE}/api/v1/admin/invite_codes`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -718,7 +718,7 @@ function AdminUsersTab({ token }: { token: string }) {
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["admin-users"],
     queryFn: async () => {
-      const res = await fetch("${API_BASE}/api/v1/admin/system/users", {
+      const res = await fetch(`${API_BASE}/api/v1/admin/system/users`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       if (!res.ok) throw new Error("Kullanıcılar alınamadı")
@@ -733,7 +733,7 @@ function AdminUsersTab({ token }: { token: string }) {
     setMsg(null)
 
     try {
-      const res = await fetch("${API_BASE}/api/v1/admin/system/create_user", {
+      const res = await fetch(`${API_BASE}/api/v1/admin/system/create_user`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -880,7 +880,7 @@ function AdminStatusTab({ token }: { token: string }) {
   const { data: status, isLoading } = useQuery({
     queryKey: ["admin-status"],
     queryFn: async () => {
-      const res = await fetch("${API_BASE}/api/v1/admin/system/status", {
+      const res = await fetch(`${API_BASE}/api/v1/admin/system/status`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       if (!res.ok) throw new Error("Sunucu durumu alınamadı")
@@ -1012,7 +1012,7 @@ function AdminSecurityTab({ token }: { token: string }) {
     setMsg(null)
 
     try {
-      const res = await fetch("${API_BASE}/api/v1/admin/system/change_password", {
+      const res = await fetch(`${API_BASE}/api/v1/admin/system/change_password`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
