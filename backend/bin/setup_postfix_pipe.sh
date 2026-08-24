@@ -3,15 +3,15 @@ set -e
 
 echo "▶ EmailWiz (Postfix + Dovecot) ve Dispatch motoru senkronize ediliyor..."
 
-DOMAIN="noirlang.tr"
-MAILDOMAIN="mail.noirlang.tr"
+DOMAIN="${1:-dispatch.local}"
+MAILDOMAIN="mail.$DOMAIN"
 
 # 1. SSL Sertifika tespiti
 CERTDIR="/etc/letsencrypt/live/$MAILDOMAIN"
 [ ! -d "$CERTDIR" ] && CERTDIR="/etc/letsencrypt/live/$DOMAIN"
 [ ! -d "$CERTDIR" ] && CERTDIR="/etc/letsencrypt/live/dispatch.$DOMAIN"
 
-# 2. Dovecot Yapılandırması (Thunderbird IMAP/POP3 + SASL Auth)
+# 2. Dovecot Yapılandırması (IMAP/POP3 + SASL Auth)
 cat << 'DOVECOT_EOF' > /etc/dovecot/local.conf
 mail_driver = maildir
 mail_home = /home/%{user | username}
@@ -104,7 +104,7 @@ mkdir -p /etc/opendkim/keys/$DOMAIN
 cd /root/dispatch/backend 2>/dev/null || cd "$(pwd)/backend"
 RAILS_ENV=production bundle exec bin/rails runner "
 if ServerConfig.current&.dkim_private_key.present?
-  File.write('/etc/opendkim/keys/#{ServerConfig.current.domain}/mail.private', ServerConfig.current.dkim_private_key)
+  File.write(\"/etc/opendkim/keys/#{ServerConfig.current.domain}/mail.private\", ServerConfig.current.dkim_private_key)
 end
 " 2>/dev/null || true
 
@@ -135,7 +135,6 @@ cat << OPENDKIM_HOSTS > /etc/opendkim/TrustedHosts
 127.0.0.1
 localhost
 ::1
-127.0.0.1
 $MAILDOMAIN
 $DOMAIN
 *.$DOMAIN
@@ -154,7 +153,7 @@ postconf -e "myhostname = $MAILDOMAIN" 2>/dev/null || true
 postconf -e "mydomain = $DOMAIN" 2>/dev/null || true
 postconf -e "myorigin = \$mydomain" 2>/dev/null || true
 postconf -e "mydestination = \$myhostname, \$mydomain, localhost.\$mydomain, localhost" 2>/dev/null || true
-postconf -e "mynetworks = 127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128 127.0.0.1" 2>/dev/null || true
+postconf -e "mynetworks = 127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128" 2>/dev/null || true
 postconf -e "smtpd_relay_restrictions = permit_mynetworks, permit_sasl_authenticated, reject_unauth_destination" 2>/dev/null || true
 postconf -e "smtpd_recipient_restrictions = permit_mynetworks, permit_sasl_authenticated, reject_unauth_destination" 2>/dev/null || true
 postconf -e "mailbox_transport = dispatch-pipe" 2>/dev/null || true
@@ -185,38 +184,20 @@ PIPE_EOF
 chmod +x /usr/local/bin/dispatch-inbound-pipe
 chmod +x /root/dispatch/backend/bin/dispatch_inbound_receiver 2>/dev/null || true
 
-# 6. Linux Kullanıcı Senkronizasyonu & Maildir (Thunderbird & Webmail)
+# 7. Linux Kullanıcı Senkronizasyonu & Maildir
 cd /root/dispatch/backend 2>/dev/null || cd "$(pwd)/backend"
 RAILS_ENV=production bundle exec bin/rails runner "
-u = User.find_or_initialize_by(email: 'melihemik@noirlang.tr')
-u.name = 'Melih Emik'
-u.password = SecureRandom.hex(16)
-u.password_confirmation = u.password
-u.approval_system_enabled = true
-u.spy_pixel_blocking = true
-u.save!
-
-# admin password configured via setup wizard
-
-cfg = ServerConfig.first_or_create!
-cfg.update!(
-  domain: 'noirlang.tr',
-  mail_subdomain: 'mail',
-  ipv4: '127.0.0.1',
-  mode: 'production',
-  is_configured: true
-)
+User.find_each do |u|
+  uname = u.email.split('@').first.downcase
+  next if uname.blank?
+  system('useradd', '-m', '-G', 'mail', '-s', '/bin/bash', uname, out: File::NULL, err: File::NULL) unless system('id', '-u', uname, out: File::NULL, err: File::NULL)
+  system('mkdir', '-p', \"/home/\#{uname}/Mail/Inbox/cur\", \"/home/\#{uname}/Mail/Inbox/new\", \"/home/\#{uname}/Mail/Inbox/tmp\")
+  system('chown', '-R', \"\#{uname}:\#{uname}\", \"/home/\#{uname}/Mail\")
+  system('chmod', '-R', '700', \"/home/\#{uname}/Mail\")
+end
 " 2>/dev/null || true
 
-# Linux sistem kullanıcısı ve şifresi oluştur
-id -u melihemik >/dev/null 2>&1 || useradd -m -G mail -s /bin/bash melihemik 2>/dev/null || true
-# chpasswd handled dynamically
-mkdir -p /home/melihemik/Mail/Inbox/{cur,new,tmp}
-mkdir -p /home/melihemik/Mail/{Sent,Drafts,Trash,Junk,Archive}/{cur,new,tmp}
-chown -R melihemik:melihemik /home/melihemik/Mail 2>/dev/null || true
-chmod -R 700 /home/melihemik/Mail 2>/dev/null || true
-
-# 7. Frontend kopyası
+# 8. Frontend kopyası
 if [ -d "/root/dispatch/frontend/dist" ]; then
   mkdir -p /var/www/dispatch
   cp -r /root/dispatch/frontend/dist/* /var/www/dispatch/
@@ -224,12 +205,10 @@ if [ -d "/root/dispatch/frontend/dist" ]; then
   chmod -R 755 /var/www/dispatch 2>/dev/null || true
 fi
 
-# 8. Servisleri yeniden başlat
+# 9. Servisleri yeniden başlat
 systemctl daemon-reload 2>/dev/null || true
 systemctl restart dovecot postfix dispatch-backend dispatch-sidekiq nginx 2>/dev/null || true
 
 echo "============================================================="
 echo "✔ Postfix (SMTP), Dovecot (IMAP) ve Dispatch %100 Hazır!"
-echo "  Kullanıcı: melihemik@noirlang.tr"
-echo "  Webmail:   https://mail.noirlang.tr"
 echo "============================================================="
