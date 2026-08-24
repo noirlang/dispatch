@@ -38,7 +38,7 @@
 ---
 
 ### 1. Onay Sistemi, Yapay Zeka Pano & Takvim Entegrasyonu
-> İlk kez e-posta gönderen kişilerin güvenlik amacıyla Onay Bekleyenler kuyruğuna düşmesi, tek tıkla onaylama veya engelleme, e-posta içeriğindeki toplantı ve kargo gibi önemli verilerin Yapay Zeka tarafından otomatik tespiti, Pano kartlarına dönüştürülmesi ve doğrudan Takvim'e aktarılması.
+> İlk kez e-posta gönderen kişilerin güvenlik amacıyla Onay Bekleyenler kuyruğuna düşmesi, tek tıkla onaylama veya engelleme; e-posta içeriğindeki toplantı ve kargo gibi önemli verilerin Yapay Zeka tarafından otomatik tespiti, Pano kartlarına dönüştürülmesi ve doğrudan Takvim'e aktarılması.
 
 https://github.com/user-attachments/assets/4c2144c2-2961-4a14-8772-d13d6be57483
 
@@ -59,7 +59,7 @@ https://github.com/user-attachments/assets/7399f831-7b33-42b9-bca9-0424fdfc1623
 ---
 
 ### 4. E-Posta Yönetimi, Kişi Grupları & Akıllı Takma Adlar
-> Gelen, giden ve taslak maillerin yönetimi; `@grup_adi` (örn. `@ekip`) sözdizimi kullanılarak kayıtlı kişi gruplarına tek seferde toplu e-posta gönderimi ve otomatik üye çözümlemesi.
+> E-posta gönderme, yanıtlama, taslaklar ve klasör yönetimi; Ayarlar'da tanımlanan Kişi Gruplarına `@grup_adi` (örn. `@ekip`) yazılarak gruptaki tüm kişilere tek seferde toplu e-posta gönderimi ve otomatik üye çözümlemesi.
 
 https://github.com/user-attachments/assets/43f933de-e011-46ec-bc5d-7be8266c4435
 
@@ -80,7 +80,7 @@ https://github.com/user-attachments/assets/5a040d85-aba6-4593-8843-3df55de66e67
 ---
 
 ### 7. E-Posta ile Blog Yayınlama Sistemi
-> Sadece `blog@alanadiniz.com` adresine e-posta göndererek dahili genel blogda (`/@kullanici_adi/yazi-basligi`) anında makale yayınlama. Yazarlar, `Rm: <Blog Başlığı>` veya `rm: <slug>` konulu bir mail atarak yayınladıkları yazıları sistemden anında silebilir.
+> Sadece `blog@alanadiniz.com` adresine e-posta göndererek genel blogda (`/blog/@kullanici_adi/yazi-basligi`) anında makale yayınlama. Yazarlar, `Rm: <Blog Başlığı>` veya `rm: <slug>` konulu bir mail atarak yayınladıkları yazıları sistemden anında silebilir.
 
 https://github.com/user-attachments/assets/fb36caec-6d15-4952-a5f8-fb4d8598b3bb
 

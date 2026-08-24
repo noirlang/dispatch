@@ -38,7 +38,7 @@
 ---
 
 ### 1. Sender Approval Queue, AI Dashboard & Calendar Integration
-> First-time incoming senders are safely routed to an Approvals queue with 1-click Approve or Block actions. Key details like meetings, tracking codes, and deadlines are automatically detected by AI, converted into Dashboard cards, and synced to the Calendar.
+> First-time incoming senders are safely routed to an Approvals queue with 1-click Approve or Block actions. Key details like meetings, tracking codes, and deadlines are automatically detected by AI, converted into Dashboard cards, and synced directly to the Calendar.
 
 https://github.com/user-attachments/assets/4c2144c2-2961-4a14-8772-d13d6be57483
 
@@ -59,7 +59,7 @@ https://github.com/user-attachments/assets/7399f831-7b33-42b9-bca9-0424fdfc1623
 ---
 
 ### 4. Email Management, Contact Groups & Smart Aliases
-> Manage Inbox, Sent, and Draft folders with full search; broadcast messages to saved contact groups using `@group_name` syntax (e.g. `@team`) with automatic member resolution and simultaneous delivery.
+> Compose, reply, draft, and folder management; broadcast emails to saved contact groups using `@group_name` syntax (e.g. `@team`) with automatic member resolution and simultaneous delivery.
 
 https://github.com/user-attachments/assets/43f933de-e011-46ec-bc5d-7be8266c4435
 
@@ -80,7 +80,7 @@ https://github.com/user-attachments/assets/5a040d85-aba6-4593-8843-3df55de66e67
 ---
 
 ### 7. Email-Powered Blogging Engine
-> Publish articles to the built-in public blog (`/@username/slug`) simply by emailing `blog@yourdomain.com`. Authors can instantly unpublish or delete articles by sending an email with `Rm: <Blog Title>` or `rm: <slug>`.
+> Publish articles to the public blog (`/blog/@username/slug`) simply by emailing `blog@yourdomain.com`. Authors can instantly unpublish or delete articles by sending an email with `Rm: <Blog Title>` or `rm: <slug>`.
 
 https://github.com/user-attachments/assets/fb36caec-6d15-4952-a5f8-fb4d8598b3bb
 
