@@ -72,8 +72,8 @@ https://github.com/user-attachments/assets/225acb31-1ca8-48e1-bd4c-847f873f168a
 
 ---
 
-### 6. Zengin Markdown Formatlama Desteği
-> E-posta yazarken ve yanıtlarken tam GitHub Flavored Markdown (GFM) desteği; başlıklar, kod blokları, listeler, kalın/italik vurgular, tablolar ve şık alıntı (blockquote) bloklarıyla profesyonel e-posta oluşturma.
+### 6. EmailMd Markdown Formatlama
+> E-posta yazarken ve yanıtlarken dahili EmailMd motoru; başlıklar, kod blokları, listeler, kalın/italik vurgular, bağlantılar ve şık alıntı (blockquote) bloklarıyla temiz ve profesyonel e-posta biçimlendirmesi sağlar.
 
 https://github.com/user-attachments/assets/5a040d85-aba6-4593-8843-3df55de66e67
 

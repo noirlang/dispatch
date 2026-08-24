@@ -72,8 +72,8 @@ https://github.com/user-attachments/assets/225acb31-1ca8-48e1-bd4c-847f873f168a
 
 ---
 
-### 6. Rich Markdown Formatting Support
-> Full GitHub Flavored Markdown (GFM) support when composing and replying to emails; craft clean emails with headers, code blocks, syntax highlighting, lists, tables, and styled blockquotes.
+### 6. EmailMd Markdown Formatting
+> Built-in EmailMd engine for composing and replying to emails; creates clean and professional email formatting with headers, code blocks, lists, bold/italic text, links, and styled blockquotes.
 
 https://github.com/user-attachments/assets/5a040d85-aba6-4593-8843-3df55de66e67
 
