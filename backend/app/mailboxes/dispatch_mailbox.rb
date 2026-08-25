@@ -61,14 +61,36 @@ class DispatchMailbox < ApplicationMailbox
     to_addr = mail.to&.first.to_s.presence || user.email
     clean_id = (mail.message_id.presence || SecureRandom.uuid).to_s.gsub(/[<>]/, "").strip
 
+    raw_html = if mail.html_part
+                 (mail.html_part.body&.decoded rescue nil)
+               elsif mail.content_type.to_s.downcase.include?("text/html")
+                 (mail.body&.decoded rescue nil)
+               end&.to_s&.force_encoding("UTF-8")&.scrub
+
+    raw_text = if mail.text_part
+                 (mail.text_part.body&.decoded rescue nil)
+               elsif !mail.multipart? && !mail.content_type.to_s.downcase.include?("text/html")
+                 (mail.body&.decoded rescue nil)
+               end&.to_s&.force_encoding("UTF-8")&.scrub
+
+    if raw_text.blank? && raw_html.present?
+      begin
+        doc = Nokogiri::HTML(raw_html)
+        doc.xpath('//style|//script|//head').remove
+        raw_text = doc.text.gsub(/\r\n?/, "\n").gsub(/[ \t]+/, " ").strip
+      rescue => e
+        raw_text = raw_html
+      end
+    end
+
     email = user.emails.create!(
       thread: thread,
       from_address: from_addr,
       to_address: to_addr,
       cc: mail.cc&.join(", "),
       subject: mail.subject.presence || "(Başlıksız)",
-      body_text: (mail.text_part&.body&.decoded || (mail.multipart? ? "" : (mail.body&.decoded rescue ""))).to_s.force_encoding("UTF-8").scrub,
-      body_html: (mail.html_part&.body&.decoded rescue nil)&.to_s&.force_encoding("UTF-8")&.scrub,
+      body_text: raw_text.to_s,
+      body_html: raw_html.presence,
       message_id: clean_id,
       folder: folder,
       is_read: false,
