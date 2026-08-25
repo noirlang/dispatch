@@ -138,20 +138,29 @@ class Email::SendService
       attachments: processed_attachments
     )
 
-    # Sync copy to Thunderbird Sent Maildir folder
+    # Sync copy to Thunderbird & IMAP Sent Maildir folder
     begin
-      raw_sent_msg = <<~RAW
-        From: #{from_header}
-        To: #{to_addresses.join(', ')}
-        Cc: #{cc_addresses.join(', ') if cc_addresses.any?}
-        Subject: #{params[:subject]}
-        Date: #{Time.now.rfc2822}
-        Message-ID: #{email.message_id}
-        Content-Type: text/plain; charset=UTF-8
+      sent_mail_copy = Mail.new do
+        from       from_header
+        to         to_addresses.join(', ')
+        cc         cc_addresses.join(', ') if cc_addresses.any?
+        subject    params[:subject]
+        date       Time.now
+        message_id email.message_id
 
-        #{raw_body}
-      RAW
-      Email::MaildirDeliveryService.deliver_sent(user, raw_sent_msg)
+        text_part do
+          content_type 'text/plain; charset=UTF-8'
+          body raw_body
+        end
+
+        if styled_html.present?
+          html_part do
+            content_type 'text/html; charset=UTF-8'
+            body styled_html
+          end
+        end
+      end
+      Email::MaildirDeliveryService.deliver_sent(user, sent_mail_copy.encoded)
     rescue => e
       Rails.logger.warn "Failed to write sent copy to Maildir: #{e.message}"
     end
@@ -260,20 +269,29 @@ class Email::SendService
         attachments: processed_attachments
       )
 
-      # Deliver copy to local recipient's Dovecot Maildir for Thunderbird
+      # Deliver copy to local recipient's Dovecot Maildir for Thunderbird & IMAP
       begin
-        raw_recipient_msg = <<~RAW
-          From: #{from_header}
-          To: #{recipient_user.email}
-          Cc: #{params[:cc]}
-          Subject: #{params[:subject]}
-          Date: #{Time.now.rfc2822}
-          Message-ID: #{recipient_email.message_id}
-          Content-Type: text/plain; charset=UTF-8
+        local_msg = Mail.new do
+          from       from_header
+          to         recipient_user.email
+          cc         params[:cc] if params[:cc].present?
+          subject    params[:subject]
+          date       Time.now
+          message_id recipient_email.message_id
 
-          #{raw_body}
-        RAW
-        Email::MaildirDeliveryService.deliver_inbox(recipient_user, raw_recipient_msg, recipient_folder)
+          text_part do
+            content_type 'text/plain; charset=UTF-8'
+            body raw_body
+          end
+
+          if styled_html.present?
+            html_part do
+              content_type 'text/html; charset=UTF-8'
+              body styled_html
+            end
+          end
+        end
+        Email::MaildirDeliveryService.deliver_inbox(recipient_user, local_msg.encoded, recipient_folder)
       rescue => e
         Rails.logger.warn "Failed to deliver to recipient Maildir: #{e.message}"
       end
