@@ -355,14 +355,14 @@ function AdminUpdatesTab({ token }: { token: string }) {
       <div className="p-5 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)] flex items-center justify-center font-mono text-xs font-bold text-[#3b82f6]">
-            SYS
+            GIT
           </div>
           <div>
             <div className="text-xs font-bold text-[var(--text-main)]">
-              Güncelleme Kaynağı: <span className="font-mono text-[#3b82f6]">Git / Sistem Çekirdeği</span>
+              Kaynak Depo: <span className="font-mono text-[#3b82f6]">noirlang/dispatch (Master)</span>
             </div>
             <div className="text-[11px] text-[var(--text-dim)] mt-0.5">
-              Çekirdek: #{updateInfo?.current_commit || "v1.2.0"} · {updateInfo?.current_message || "Dispatch Sistemi"}
+              Çekirdek Commit: #{updateInfo?.current_commit || "v1.2.0"} · {updateInfo?.current_message || "Dispatch Sistemi"}
             </div>
           </div>
         </div>

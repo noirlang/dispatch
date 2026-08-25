@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-echo "▶ Dispatch güncelleniyor..."
+echo "▶ Dispatch güncelleniyor (noirlang/dispatch)..."
 
 # Çalışma dizinine geç
 if [ -d "/root/dispatch" ]; then
@@ -10,10 +10,10 @@ else
   cd "$(dirname "$0")"
 fi
 
-# 1. En son master commit'lerini çek ve eşitle
-echo "▶ Git güncellemeleri çekiliyor..."
-git fetch origin master
-git reset --hard origin/master
+# 1. En son master commit'lerini noirlang/dispatch üzerinden çek ve eşitle
+echo "▶ noirlang/dispatch üzerinden güncellemeler çekiliyor..."
+git fetch https://github.com/noirlang/dispatch.git master
+git reset --hard FETCH_HEAD
 
 # 2. Frontend derlemesi ve web dizinine kopyalama
 echo "▶ Frontend derleniyor..."
