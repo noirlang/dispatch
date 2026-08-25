@@ -105,9 +105,11 @@ export default function EmailReader({ id, folder, onReply, onForward, onClose }:
 
   // Remote Images Security State (Thunderbird style - per email)
   const [showRemoteImages, setShowRemoteImages] = useState(false)
+  const [emailTheme, setEmailTheme] = useState<"dark" | "light">("dark")
 
   useEffect(() => {
     setShowRemoteImages(false)
+    setEmailTheme("dark")
   }, [id])
 
   // Custom Avatar Modal State
@@ -704,15 +706,33 @@ export default function EmailReader({ id, folder, onReply, onForward, onClose }:
         </div>
       )}
 
+      {/* HTML Email Theme Mode Switcher */}
+      {isHtml && (
+        <div className="mx-3 sm:mx-8 mt-3 flex items-center justify-end">
+          <button
+            onClick={() => setEmailTheme(prev => prev === "dark" ? "light" : "dark")}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs font-semibold text-[var(--text-dim)] hover:text-[var(--text-main)] hover:border-[var(--border-light)] transition-all cursor-pointer shadow-2xs"
+            title="E-posta tema görünümünü değiştir"
+          >
+            <span>{emailTheme === "dark" ? "☀️" : "🌙"}</span>
+            <span>{emailTheme === "dark" ? "Açık Tema (Orijinal)" : "Karanlık Mod"}</span>
+          </button>
+        </div>
+      )}
+
       {/* Email Body */}
       <div className="flex-1 p-3.5 sm:p-10 pb-24 md:pb-10 overflow-y-auto max-w-4xl">
-        <div className="rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] p-6 sm:p-8 shadow-xs">
+        <div className={`rounded-2xl p-6 sm:p-8 transition-all shadow-xs ${
+          emailTheme === "light" && isHtml
+            ? "bg-white text-zinc-900 border border-zinc-200"
+            : "bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-main)]"
+        }`}>
           {translation && !showOriginal ? (
             <div className="text-sm leading-relaxed font-sans text-[var(--text-main)]">
               <EmailMdView content={translation.translated_body} />
             </div>
           ) : isHtml ? (
-            <EmailIframe html={safeHtml} allowRemoteImages={showRemoteImages} />
+            <EmailIframe html={safeHtml} allowRemoteImages={showRemoteImages} themeMode={emailTheme} />
           ) : (
             <div className="text-sm leading-relaxed font-sans text-[var(--text-main)]">
               <EmailMdView content={email.body_text || email.body || ""} />
