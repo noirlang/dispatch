@@ -138,6 +138,33 @@ class AuthProvider extends ChangeNotifier {
     } catch (_) {}
   }
 
+  String get effectiveDomain {
+    if (_serverStatus.domain != null && _serverStatus.domain!.isNotEmpty) {
+      return _serverStatus.domain!;
+    }
+    if (_serverUrl != null && _serverUrl!.isNotEmpty) {
+      try {
+        final uri = Uri.parse(_serverUrl!);
+        String host = uri.host;
+        if (host.startsWith('mail.')) {
+          host = host.substring(5);
+        } else if (host.startsWith('api.')) {
+          host = host.substring(4);
+        }
+        if (host.isNotEmpty) return host;
+      } catch (_) {}
+    }
+    return 'noirlang.tr';
+  }
+
+  String normalizeEmail(String input) {
+    var clean = input.trim().toLowerCase().replaceAll(RegExp(r'^@+'), '');
+    if (clean.contains('@')) {
+      return clean;
+    }
+    return '$clean@$effectiveDomain';
+  }
+
   // 3. Login
   Future<bool> login(String email, String password, {String? totpCode}) async {
     _isLoading = true;
@@ -145,8 +172,9 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      final cleanEmail = normalizeEmail(email);
       final body = {
-        'email': email.trim().toLowerCase(),
+        'email': cleanEmail,
         'password': password,
       };
       if (totpCode != null && totpCode.isNotEmpty) {
@@ -191,9 +219,10 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      final cleanEmail = normalizeEmail(email);
       final body = {
         'name': name.trim(),
-        'email': email.trim().toLowerCase(),
+        'email': cleanEmail,
         'password': password,
       };
       if (inviteCode != null && inviteCode.isNotEmpty) {

@@ -335,21 +335,48 @@ class _AuthViewState extends State<AuthView> {
                             ],
                           ],
 
-                          // Email Input
-                          const Text('E-POSTA ADRESİ', style: _labelStyle),
+                          // Email / Username Input
+                          Text(_isLogin ? 'KULLANICI ADI VEYA E-POSTA' : 'E-POSTA ADRESİ', style: _labelStyle),
                           const SizedBox(height: 8),
                           TextFormField(
                             controller: _emailController,
                             keyboardType: TextInputType.emailAddress,
                             autocorrect: false,
-                            style: const TextStyle(color: AppTheme.textPrimary, fontSize: 14),
+                            onChanged: (_) => setState(() {}),
+                            style: const TextStyle(
+                              color: AppTheme.textPrimary,
+                              fontSize: 14,
+                              fontFamily: 'monospace',
+                            ),
                             decoration: InputDecoration(
-                              hintText: 'kullanici@${auth.serverStatus.domain ?? "domain.com"}',
+                              hintText: 'kullanici_adi',
                               prefixIcon: const Icon(LucideIcons.mail, size: 16, color: AppTheme.textMuted),
+                              suffixIcon: _emailController.text.contains('@')
+                                  ? null
+                                  : Padding(
+                                      padding: const EdgeInsets.only(right: 8, top: 8, bottom: 8),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.bgTertiary,
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(color: AppTheme.borderColor),
+                                        ),
+                                        child: Text(
+                                          '@${auth.effectiveDomain}',
+                                          style: const TextStyle(
+                                            color: AppTheme.textSecondary,
+                                            fontSize: 12,
+                                            fontFamily: 'monospace',
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
                             ),
                             validator: (val) {
                               if (val == null || val.trim().isEmpty) {
-                                return 'Lütfen e-posta adresinizi girin';
+                                return 'Lütfen kullanıcı adınızı veya e-postanızı girin';
                               }
                               return null;
                             },
