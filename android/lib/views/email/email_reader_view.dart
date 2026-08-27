@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/email.dart';
 import '../../providers/email_provider.dart';
+import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/sender_avatar.dart';
 import 'compose_view.dart';
@@ -738,12 +739,8 @@ class _EmailReaderViewState extends State<EmailReaderView> {
                     )
                   : hasHtml
                       ? HtmlWidget(
-                          _showRemoteImages
-                              ? rawHtml
-                              : rawHtml.replaceAllMapped(
-                                  RegExp(r'<img([^>]*)>', caseSensitive: false),
-                                  (m) => '<span style="color:#6b7280; font-size:11px;">[Fotoğraf Gizlendi]</span>',
-                                ),
+                          _prepareHtml(rawHtml, _showRemoteImages),
+                          baseUrl: Uri.tryParse(ApiService.baseUrl),
                           textStyle: TextStyle(
                             color: _isLightMode ? const Color(0xFF111827) : const Color(0xFFF3F4F6),
                             fontSize: 14,
@@ -780,6 +777,27 @@ class _EmailReaderViewState extends State<EmailReaderView> {
         ),
       ),
     );
+  }
+
+  String _prepareHtml(String html, bool showImages) {
+    if (html.isEmpty) return '';
+    var prepared = html;
+
+    final serverBase = ApiService.baseUrl;
+    // Fix all relative src attributes (/api/v1/image_proxy... or /uploads/...)
+    prepared = prepared.replaceAllMapped(
+      RegExp(r'''src=["'](/[^"']+)["']''', caseSensitive: false),
+      (m) => 'src="$serverBase${m[1]}"',
+    );
+
+    if (!showImages) {
+      prepared = prepared.replaceAllMapped(
+        RegExp(r'<img([^>]*)>', caseSensitive: false),
+        (m) => '<span style="display:inline-block; padding:4px 8px; margin:4px 0; background:#1e293b; color:#94a3b8; border-radius:6px; font-size:11px; border:1px dashed #475569;">📷 [Fotoğraf Gizlendi - Üstteki Butondan Yükleyin]</span>',
+      );
+    }
+
+    return prepared;
   }
 
   Widget _buildAiActionButton({required IconData icon, required String label, required VoidCallback onTap}) {

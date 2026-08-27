@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 
 class SenderAvatar extends StatelessWidget {
@@ -19,13 +20,26 @@ class SenderAvatar extends StatelessWidget {
     this.size = 40,
   });
 
+  String? _resolveUrl(String? url) {
+    if (url == null || url.trim().isEmpty) return null;
+    final trimmed = url.trim();
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return trimmed;
+    }
+    if (trimmed.startsWith('/')) {
+      return '${ApiService.baseUrl}$trimmed';
+    }
+    return '${ApiService.baseUrl}/$trimmed';
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (avatarUrl != null && avatarUrl!.isNotEmpty) {
+    final resolved = _resolveUrl(avatarUrl);
+    if (resolved != null && resolved.isNotEmpty) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(size / 2),
         child: Image.network(
-          avatarUrl!,
+          resolved,
           width: size,
           height: size,
           fit: BoxFit.cover,
