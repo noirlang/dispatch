@@ -737,40 +737,53 @@ class _EmailReaderViewState extends State<EmailReaderView> {
                         height: 1.6,
                       ),
                     )
-                  : hasHtml
-                      ? HtmlWidget(
-                          _prepareHtml(rawHtml, _showRemoteImages),
-                          baseUrl: Uri.tryParse(ApiService.baseUrl),
-                          textStyle: TextStyle(
-                            color: _isLightMode ? const Color(0xFF111827) : const Color(0xFFF3F4F6),
-                            fontSize: 14,
-                            height: 1.6,
+                  : (_isLoading && !hasHtml && (email.bodyText == null || email.bodyText!.isEmpty))
+                      ? const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(32),
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.textMuted),
                           ),
-                          customStylesBuilder: (element) {
-                            if (!_isLightMode) {
-                              if (element.localName == 'table' || element.localName == 'td' || element.localName == 'th') {
-                                return {'background-color': 'transparent', 'color': '#f3f4f6'};
-                              }
-                              if (element.localName == 'p' || element.localName == 'span' || element.localName == 'div') {
-                                return {'color': '#f3f4f6'};
-                              }
-                            }
-                            return null;
-                          },
-                          onTapUrl: (url) async {
-                            await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-                            return true;
-                          },
                         )
-                      : SelectableText(
-                          email.bodyText ?? email.body ?? '',
-                          style: TextStyle(
-                            color: _isLightMode ? const Color(0xFF111827) : AppTheme.textPrimary,
-                            fontSize: 14,
-                            height: 1.6,
-                            fontFamily: 'sans-serif',
-                          ),
-                        ),
+                      : hasHtml
+                          ? HtmlWidget(
+                              _prepareHtml(rawHtml, _showRemoteImages, _isLightMode),
+                              baseUrl: Uri.tryParse(ApiService.baseUrl),
+                              textStyle: TextStyle(
+                                color: _isLightMode ? const Color(0xFF111827) : const Color(0xFFF3F4F6),
+                                fontSize: 14,
+                                height: 1.6,
+                              ),
+                              customStylesBuilder: (element) {
+                                if (!_isLightMode) {
+                                  if (element.localName == 'table' || element.localName == 'td' || element.localName == 'th') {
+                                    return {'background-color': 'transparent', 'color': '#f3f4f6'};
+                                  }
+                                  if (element.localName == 'p' || element.localName == 'span' || element.localName == 'div' || element.localName == 'font' || element.localName == 'li' || element.localName == 'b' || element.localName == 'strong') {
+                                    return {'color': '#f3f4f6'};
+                                  }
+                                } else {
+                                  if (element.localName == 'p' || element.localName == 'span' || element.localName == 'div' || element.localName == 'font' || element.localName == 'li' || element.localName == 'td' || element.localName == 'th') {
+                                    return {'color': '#111827'};
+                                  }
+                                }
+                                return null;
+                              },
+                              onTapUrl: (url) async {
+                                await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+                                return true;
+                              },
+                            )
+                          : SelectableText(
+                              (email.bodyText != null && email.bodyText!.isNotEmpty)
+                                  ? email.bodyText!
+                                  : (email.body != null && email.body!.isNotEmpty ? email.body! : 'Bu e-postada metin içeriği bulunamadı.'),
+                              style: TextStyle(
+                                color: _isLightMode ? const Color(0xFF111827) : AppTheme.textPrimary,
+                                fontSize: 14,
+                                height: 1.6,
+                                fontFamily: 'sans-serif',
+                              ),
+                            ),
             ),
             const SizedBox(height: 40),
           ],
@@ -779,7 +792,7 @@ class _EmailReaderViewState extends State<EmailReaderView> {
     );
   }
 
-  String _prepareHtml(String html, bool showImages) {
+  String _prepareHtml(String html, bool showImages, bool isLightMode) {
     if (html.isEmpty) return '';
     var prepared = html;
 

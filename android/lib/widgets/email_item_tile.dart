@@ -25,9 +25,7 @@ class EmailItemTile extends StatelessWidget {
         ? email.senderName!
         : email.from.split('@').first;
 
-    final snippet = (email.bodyText ?? email.body ?? '')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
+    final snippet = email.effectiveSnippet;
 
     return InkWell(
       onTap: onTap,

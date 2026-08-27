@@ -63,6 +63,7 @@ class EmailItem {
   final String? cc;
   final String? bcc;
   final String subject;
+  final String? snippet;
   final String? body;
   final String? bodyText;
   final String? bodyHtml;
@@ -86,6 +87,7 @@ class EmailItem {
     this.cc,
     this.bcc,
     required this.subject,
+    this.snippet,
     this.body,
     this.bodyText,
     this.bodyHtml,
@@ -102,6 +104,28 @@ class EmailItem {
     this.isKnownCompany = false,
     this.isDispatchUser = false,
   });
+
+  String get effectiveSnippet {
+    if (snippet != null && snippet!.trim().isNotEmpty) {
+      return snippet!.replaceAll(RegExp(r'\s+'), ' ').trim();
+    }
+    if (bodyText != null && bodyText!.trim().isNotEmpty) {
+      return bodyText!.replaceAll(RegExp(r'\s+'), ' ').trim();
+    }
+    if (body != null && body!.trim().isNotEmpty) {
+      return body!.replaceAll(RegExp(r'\s+'), ' ').trim();
+    }
+    if (bodyHtml != null && bodyHtml!.trim().isNotEmpty) {
+      final clean = bodyHtml!
+          .replaceAll(RegExp(r'<style[^>]*>.*?</style>', caseSensitive: false, dotAll: true), '')
+          .replaceAll(RegExp(r'<script[^>]*>.*?</script>', caseSensitive: false, dotAll: true), '')
+          .replaceAll(RegExp(r'<[^>]*>'), ' ')
+          .replaceAll(RegExp(r'\s+'), ' ')
+          .trim();
+      if (clean.isNotEmpty) return clean;
+    }
+    return subject.isNotEmpty ? subject : 'İletiyi görüntülemek için dokunun';
+  }
 
   factory EmailItem.fromJson(Map<String, dynamic> json) {
     var rawAttachments = json['attachments'];
@@ -132,6 +156,7 @@ class EmailItem {
       cc: json['cc'],
       bcc: json['bcc'],
       subject: json['subject'] ?? '(Başlıksız)',
+      snippet: json['snippet'],
       body: json['body'],
       bodyText: json['body_text'] ?? json['body'],
       bodyHtml: json['body_html'],

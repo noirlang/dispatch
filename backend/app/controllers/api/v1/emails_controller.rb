@@ -342,11 +342,17 @@ class Api::V1::EmailsController < Api::V1::BaseController
   def email_list_json(email)
     profile = Email::SenderAvatarService.for(email.from_address)
     rule = current_user.sender_rules.find_by(email_address: email.from_address.downcase.strip)
+    plain_body = clean_plain_text(email)
 
     {
       id:           email.id,
       from:         email.from_address,
+      to:           email.to_address,
       subject:      email.subject,
+      body:         plain_body,
+      body_text:    plain_body,
+      body_html:    email.body_html,
+      snippet:      plain_body.present? ? plain_body.truncate(160) : (email.subject.presence || "İletiyi görüntülemek için dokunun"),
       is_read:      email.is_read,
       is_flagged:   email.is_flagged || false,
       is_important_sender: rule&.status == "important",
