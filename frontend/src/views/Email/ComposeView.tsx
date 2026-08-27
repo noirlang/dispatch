@@ -104,7 +104,14 @@ export default function ComposeView({
   const sendEmail = useMutation({
     mutationFn: async () => {
       if (isReply && replyEmailId) {
-        return api.post(`/emails/${replyEmailId}/reply`, { body, attachments })
+        return api.post(`/emails/${replyEmailId}/reply`, {
+          to,
+          cc: showCc ? cc : undefined,
+          bcc: showBcc ? bcc : undefined,
+          subject,
+          body,
+          attachments
+        })
       }
       return api.post("/emails", {
         to,

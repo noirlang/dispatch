@@ -207,7 +207,14 @@ class _ComposeViewState extends State<ComposeView> {
     try {
       final emailProvider = context.read<EmailProvider>();
       if (widget.isReply && widget.replyEmailId != null) {
-        await emailProvider.replyEmail(widget.replyEmailId!, body: body);
+        await emailProvider.replyEmail(
+          widget.replyEmailId!,
+          body: body,
+          to: to,
+          cc: _ccController.text.isNotEmpty ? _ccController.text : null,
+          bcc: _bccController.text.isNotEmpty ? _bccController.text : null,
+          subject: subject.isNotEmpty ? subject : null,
+        );
       } else {
         await emailProvider.sendEmail(
           to: to,

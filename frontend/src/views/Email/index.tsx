@@ -68,6 +68,11 @@ export default function EmailView() {
     const signature = cleanSig ? `\n\n--\n${cleanSig}` : ""
 
     const cleanFrom = String(email.from || "").replace(/.*<([^>]+)>.*/, "$1").trim()
+    const cleanTo = String(email.to || "").replace(/.*<([^>]+)>.*/, "$1").trim()
+    const myEmail = user?.email?.toLowerCase().trim() || ""
+    const isSentByMe = email.folder === "sent" || (myEmail && cleanFrom.toLowerCase() === myEmail)
+    const targetRecipient = isSentByMe ? (cleanTo || cleanFrom) : cleanFrom
+
     const cleanName = email.sender_name && !email.sender_name.includes("@") && email.sender_name !== cleanFrom
       ? email.sender_name.trim()
       : ""
@@ -100,7 +105,7 @@ export default function EmailView() {
     const defaultQuoted = `${quoteHeader}\n${quotedLines}`
     
     setComposeConfig({
-      to: cleanFrom,
+      to: targetRecipient,
       subject: email.subject?.startsWith("Re:") ? email.subject : `Re: ${email.subject || ""}`,
       body: (customBody ? `${customBody}${signature}` : "") + defaultQuoted,
       isReply: true,

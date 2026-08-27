@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/email.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/email_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/sender_avatar.dart';
@@ -200,10 +201,16 @@ class _EmailReaderViewState extends State<EmailReaderView> {
                       tone: selectedTone,
                     );
                     if (reply != null && mounted) {
+                      final authUser = context.read<AuthProvider>().user;
+                      final cleanFrom = _email?.from.toLowerCase().trim() ?? '';
+                      final cleanMyEmail = authUser?.email.toLowerCase().trim() ?? '';
+                      final isSentByMe = _email?.folder == 'sent' || (cleanMyEmail.isNotEmpty && cleanFrom.contains(cleanMyEmail));
+                      final targetRecipient = isSentByMe ? ((_email?.to != null && _email!.to.isNotEmpty) ? _email!.to : (_email?.from ?? '')) : (_email?.from ?? '');
+
                       Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => ComposeView(
-                            initialTo: _email?.from ?? '',
+                            initialTo: targetRecipient,
                             initialSubject: 'Re: ${_email?.subject ?? ""}',
                             initialBody: reply,
                             isReply: true,
@@ -427,11 +434,17 @@ class _EmailReaderViewState extends State<EmailReaderView> {
                   icon: const Icon(LucideIcons.reply, size: 16),
                   label: const Text('Yanıtla', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                   onPressed: () {
+                    final authUser = context.read<AuthProvider>().user;
+                    final cleanFrom = email.from.toLowerCase().trim();
+                    final cleanMyEmail = authUser?.email.toLowerCase().trim() ?? '';
+                    final isSentByMe = email.folder == 'sent' || (cleanMyEmail.isNotEmpty && cleanFrom.contains(cleanMyEmail));
+                    final targetRecipient = isSentByMe ? (email.to.isNotEmpty ? email.to : email.from) : email.from;
+
                     Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => ComposeView(
-                          initialTo: email.from,
-                          initialSubject: 'Re: ${email.subject}',
+                          initialTo: targetRecipient,
+                          initialSubject: email.subject.startsWith('Re:') ? email.subject : 'Re: ${email.subject}',
                           initialBody: '\n\n---\n${email.bodyText ?? ""}',
                           isReply: true,
                           replyEmailId: email.id,

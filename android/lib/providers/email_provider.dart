@@ -317,12 +317,26 @@ class EmailProvider extends ChangeNotifier {
   }
 
   // 12. Reply email
-  Future<bool> replyEmail(int id, {required String body, List<dynamic>? attachments}) async {
+  Future<bool> replyEmail(
+    int id, {
+    required String body,
+    String? to,
+    String? cc,
+    String? bcc,
+    String? subject,
+    List<dynamic>? attachments,
+  }) async {
     try {
-      await ApiService.post('/emails/$id/reply', body: {
+      final payload = <String, dynamic>{
         'body': body,
         'attachments': attachments ?? [],
-      });
+      };
+      if (to != null && to.isNotEmpty) payload['to'] = to;
+      if (cc != null && cc.isNotEmpty) payload['cc'] = cc;
+      if (bcc != null && bcc.isNotEmpty) payload['bcc'] = bcc;
+      if (subject != null && subject.isNotEmpty) payload['subject'] = subject;
+
+      await ApiService.post('/emails/$id/reply', body: payload);
       return true;
     } catch (e) {
       rethrow;

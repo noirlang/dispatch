@@ -278,7 +278,25 @@ class Api::V1::EmailsController < Api::V1::BaseController
 
   def reply_params(original)
     clean_from = original.from_address.to_s.gsub(/.*<([^>]+)>.*/, '\1').strip
-    base = { to: clean_from, subject: original.subject.to_s.start_with?("Re:") ? original.subject : "Re: #{original.subject}", body: params[:body] }
+    clean_to = original.to_address.to_s.gsub(/.*<([^>]+)>.*/, '\1').strip
+
+    # If replying to an email sent by current user, reply to the original recipient instead of self
+    fallback_recipient = if original.folder == "sent" || clean_from.downcase == current_user.email.downcase
+                           clean_to.presence || clean_from
+                         else
+                           clean_from
+                         end
+
+    recipient = params[:to].presence || fallback_recipient
+    subject = params[:subject].presence || (original.subject.to_s.start_with?("Re:") ? original.subject : "Re: #{original.subject}")
+
+    base = {
+      to: recipient,
+      cc: params[:cc],
+      bcc: params[:bcc],
+      subject: subject,
+      body: params[:body]
+    }
     base[:attachments] = params[:attachments] if params[:attachments].present?
     base
   end
