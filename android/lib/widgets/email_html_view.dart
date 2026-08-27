@@ -45,9 +45,43 @@ class _EmailHtmlViewState extends State<EmailHtmlView> {
           },
           onPageFinished: (String url) async {
             if (!mounted) return;
+            // 1. Run DOM cleanup script for absolute dark/light contrast
+            try {
+              if (!widget.isLightMode) {
+                await _controller.runJavaScript('''
+                  (function() {
+                    document.querySelectorAll('[bgcolor], [background], [color]').forEach(function(el) {
+                      el.removeAttribute('bgcolor');
+                      el.removeAttribute('background');
+                      el.removeAttribute('color');
+                    });
+                    document.querySelectorAll('p, span, td, th, div, font, li, h1, h2, h3, h4, h5, h6, b, strong, em, i, u, s, mark, center, blockquote, small, label').forEach(function(el) {
+                      el.style.setProperty('color', '#f4f4f5', 'important');
+                      el.style.setProperty('background-color', 'transparent', 'important');
+                      el.style.setProperty('background', 'transparent', 'important');
+                    });
+                    document.querySelectorAll('table, tbody, thead, tfoot, tr, td, th').forEach(function(el) {
+                      el.style.setProperty('background-color', 'transparent', 'important');
+                      el.style.setProperty('background', 'transparent', 'important');
+                      el.style.setProperty('border-color', '#27272a', 'important');
+                    });
+                    if (document.body) {
+                      document.body.style.setProperty('background-color', '#111111', 'important');
+                      document.body.style.setProperty('color', '#f4f4f5', 'important');
+                    }
+                    if (document.documentElement) {
+                      document.documentElement.style.setProperty('background-color', '#111111', 'important');
+                      document.documentElement.style.setProperty('color', '#f4f4f5', 'important');
+                    }
+                  })();
+                ''');
+              }
+            } catch (_) {}
+
+            // 2. Measure actual scrollHeight
             try {
               final result = await _controller.runJavaScriptReturningResult(
-                'Math.max(document.body.scrollHeight, document.documentElement.scrollHeight, document.body.offsetHeight);',
+                'Math.max(document.body ? document.body.scrollHeight : 0, document.documentElement ? document.documentElement.scrollHeight : 0, document.body ? document.body.offsetHeight : 0);',
               );
               final height = double.tryParse(result.toString());
               if (height != null && height > 50 && mounted) {
@@ -102,12 +136,16 @@ class _EmailHtmlViewState extends State<EmailHtmlView> {
       );
     }
 
-    // 3. Exact Webmail Dark Mode Filter
+    // 3. Exact Webmail Dark Mode Pre-Processing
     if (!isLightMode) {
-      // Strip bgcolor and background attributes so table/body background can never be white
-      processed = processed.replaceAll(RegExp(r'\s+(bgcolor|background)=["\x27][^"\x27]*["\x27]', caseSensitive: false), '');
+      // Strip bgcolor, background, and color attributes
+      processed = processed.replaceAll(RegExp(r'\s+(bgcolor|background|color)=["\x27][^"\x27]*["\x27]', caseSensitive: false), '');
 
-      // Strip inline background and color styles that cause white containers or unreadable text
+      // Replace font tags with span
+      processed = processed.replaceAll(RegExp(r'<font[^>]*>', caseSensitive: false), '<span>');
+      processed = processed.replaceAll(RegExp(r'<\/font>', caseSensitive: false), '</span>');
+
+      // Strip inline color, background, and background-color styles
       processed = processed.replaceAllMapped(
         RegExp(r'style\s*=\s*["\x27]([^"\x27]*)["\x27]', caseSensitive: false),
         (m) {
@@ -196,14 +234,16 @@ class _EmailHtmlViewState extends State<EmailHtmlView> {
           }
         ''';
 
-    final styleTag = '<base target="_blank"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0"><style>$customStyle</style>';
+    final overrideTag = '<style id="dispatch-dark-override">$customStyle</style>';
+    final metaViewport = '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0"><base target="_blank">';
 
-    if (processed.contains('<head>')) {
-      return processed.replaceFirst('<head>', '<head>$styleTag');
-    } else if (processed.contains('<html>') || processed.contains('<!DOCTYPE') || processed.contains('<!doctype')) {
-      return '<!DOCTYPE html><html><head>$styleTag</head><body>$processed</body></html>';
+    // Always inject overrideTag at the VERY END of the document so it has highest specificity!
+    if (processed.contains('</body>')) {
+      return processed.replaceFirst('</body>', '$overrideTag</body>');
+    } else if (processed.contains('</html>')) {
+      return processed.replaceFirst('</html>', '$overrideTag</html>');
     } else {
-      return '<!DOCTYPE html><html><head>$styleTag</head><body>$processed</body></html>';
+      return '<!DOCTYPE html><html><head>$metaViewport</head><body style="background-color:${isLightMode ? '#ffffff' : '#111111'};color:${isLightMode ? '#18181b' : '#f4f4f5'};">$processed$overrideTag</body></html>';
     }
   }
 
