@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/email.dart';
 import '../../providers/email_provider.dart';
-import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/sender_avatar.dart';
+import '../../widgets/email_html_view.dart';
 import 'compose_view.dart';
 
 class EmailReaderView extends StatefulWidget {
@@ -752,33 +751,10 @@ class _EmailReaderViewState extends State<EmailReaderView> {
                           ),
                         )
                       : hasHtml
-                          ? HtmlWidget(
-                              _prepareHtml(rawHtml, _showRemoteImages, _isLightMode),
-                              baseUrl: Uri.tryParse(ApiService.baseUrl),
-                              textStyle: TextStyle(
-                                color: _isLightMode ? const Color(0xFF111827) : const Color(0xFFF3F4F6),
-                                fontSize: 14,
-                                height: 1.6,
-                              ),
-                              customStylesBuilder: (element) {
-                                if (!_isLightMode) {
-                                  if (element.localName == 'table' || element.localName == 'td' || element.localName == 'th') {
-                                    return {'background-color': 'transparent', 'color': '#f3f4f6'};
-                                  }
-                                  if (element.localName == 'p' || element.localName == 'span' || element.localName == 'div' || element.localName == 'font' || element.localName == 'li' || element.localName == 'b' || element.localName == 'strong') {
-                                    return {'color': '#f3f4f6'};
-                                  }
-                                } else {
-                                  if (element.localName == 'p' || element.localName == 'span' || element.localName == 'div' || element.localName == 'font' || element.localName == 'li' || element.localName == 'td' || element.localName == 'th') {
-                                    return {'color': '#111827'};
-                                  }
-                                }
-                                return null;
-                              },
-                              onTapUrl: (url) async {
-                                await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-                                return true;
-                              },
+                          ? EmailHtmlView(
+                              html: rawHtml,
+                              allowRemoteImages: _showRemoteImages,
+                              isLightMode: _isLightMode,
                             )
                           : SelectableText(
                               (email.bodyText != null && email.bodyText!.isNotEmpty)
@@ -797,42 +773,6 @@ class _EmailReaderViewState extends State<EmailReaderView> {
         ),
       ),
     );
-  }
-
-  String _prepareHtml(String html, bool showImages, bool isLightMode) {
-    if (html.isEmpty) return '';
-    var prepared = html;
-
-    // 1. Strip DOCTYPE, head, style, script, meta, title, comments, and outer html/body tags
-    prepared = prepared.replaceAll(RegExp(r'<!DOCTYPE[^>]*>', caseSensitive: false), '');
-    prepared = prepared.replaceAll(RegExp(r'<!--[\s\S]*?-->'), '');
-    prepared = prepared.replaceAll(RegExp(r'<head[\s\S]*?<\/head>', caseSensitive: false), '');
-    prepared = prepared.replaceAll(RegExp(r'<style[\s\S]*?<\/style>', caseSensitive: false), '');
-    prepared = prepared.replaceAll(RegExp(r'<script[\s\S]*?<\/script>', caseSensitive: false), '');
-    prepared = prepared.replaceAll(RegExp(r'<meta[^>]*>', caseSensitive: false), '');
-    prepared = prepared.replaceAll(RegExp(r'<title[\s\S]*?<\/title>', caseSensitive: false), '');
-    prepared = prepared.replaceAll(RegExp(r'<link[^>]*>', caseSensitive: false), '');
-    prepared = prepared.replaceAll(RegExp(r'<html[^>]*>', caseSensitive: false), '');
-    prepared = prepared.replaceAll(RegExp(r'<\/html>', caseSensitive: false), '');
-    prepared = prepared.replaceAll(RegExp(r'<body[^>]*>', caseSensitive: false), '');
-    prepared = prepared.replaceAll(RegExp(r'<\/body>', caseSensitive: false), '');
-
-    final serverBase = ApiService.baseUrl;
-    // 2. Fix all relative src attributes (/api/v1/image_proxy... or /uploads/...)
-    prepared = prepared.replaceAllMapped(
-      RegExp(r'''src=["'](/[^"']+)["']''', caseSensitive: false),
-      (m) => 'src="$serverBase${m[1]}"',
-    );
-
-    // 3. If showImages is false, replace images with privacy placeholder
-    if (!showImages) {
-      prepared = prepared.replaceAllMapped(
-        RegExp(r'<img([^>]*)>', caseSensitive: false),
-        (m) => '<span style="display:inline-block; padding:4px 8px; margin:4px 0; background:#1e293b; color:#94a3b8; border-radius:6px; font-size:11px; border:1px dashed #475569;">📷 [Fotoğraf Gizlendi - Üstteki Butondan Yükleyin]</span>',
-      );
-    }
-
-    return prepared.trim();
   }
 
   Widget _buildAiActionButton({required IconData icon, required String label, required VoidCallback onTap}) {
