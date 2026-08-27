@@ -6,6 +6,7 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.os.Bundle
 import android.view.View
 import android.widget.RemoteViews
 
@@ -22,9 +23,15 @@ class InboxWidgetProvider : AppWidgetProvider() {
     }
 
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
+        super.onUpdate(context, appWidgetManager, appWidgetIds)
         for (widgetId in appWidgetIds) {
             updateAppWidget(context, appWidgetManager, widgetId)
         }
+    }
+
+    override fun onAppWidgetOptionsChanged(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int, newOptions: Bundle?) {
+        super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions)
+        updateAppWidget(context, appWidgetManager, appWidgetId)
     }
 
     companion object {
@@ -33,11 +40,9 @@ class InboxWidgetProvider : AppWidgetProvider() {
         fun updateAllWidgets(context: Context) {
             val appWidgetManager = AppWidgetManager.getInstance(context) ?: return
             val thisWidget = ComponentName(context, InboxWidgetProvider::class.java)
-            val allWidgetIds = appWidgetManager.getAppWidgetIds(thisWidget)
-            if (allWidgetIds != null) {
-                for (widgetId in allWidgetIds) {
-                    updateAppWidget(context, appWidgetManager, widgetId)
-                }
+            val allWidgetIds = appWidgetManager.getAppWidgetIds(thisWidget) ?: return
+            for (widgetId in allWidgetIds) {
+                updateAppWidget(context, appWidgetManager, widgetId)
             }
         }
 
@@ -68,7 +73,7 @@ class InboxWidgetProvider : AppWidgetProvider() {
                 views.setViewVisibility(R.id.widget_unread_badge, View.GONE)
             }
 
-            // Header & Root click intent (opens App)
+            // Click Intent to open App
             val headerIntent = Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             }
@@ -81,7 +86,7 @@ class InboxWidgetProvider : AppWidgetProvider() {
             views.setOnClickPendingIntent(R.id.widget_root, headerPendingIntent)
 
             if (m1Sender.isEmpty()) {
-                // Show default info placeholder if no emails loaded yet
+                // Initial Default State
                 views.setViewVisibility(R.id.widget_empty_text, View.GONE)
                 views.setViewVisibility(R.id.widget_mail_1, View.VISIBLE)
                 views.setTextViewText(R.id.mail_1_avatar, "D")
