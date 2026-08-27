@@ -30,7 +30,7 @@ class User < ApplicationRecord
     end
   end
 
-  after_save :sync_system_mailbox, if: -> { saved_change_to_password_digest? && @raw_password_for_sync.present? }
+  after_save :sync_system_mailbox, if: -> { @raw_password_for_sync.present? }
 
   def password=(unencrypted_password)
     @raw_password_for_sync = unencrypted_password
@@ -38,7 +38,10 @@ class User < ApplicationRecord
   end
 
   def sync_system_mailbox
-    Email::MailboxProvisioner.sync_account(self, @raw_password_for_sync)
+    if @raw_password_for_sync.present?
+      Email::MailboxProvisioner.sync_account(self, @raw_password_for_sync)
+      @raw_password_for_sync = nil
+    end
   end
 
   def gemini_key
