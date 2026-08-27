@@ -173,8 +173,10 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       final cleanEmail = normalizeEmail(email);
+      final rawUsername = email.trim().toLowerCase().replaceAll(RegExp(r'^@+'), '').split('@').first;
       final body = {
         'email': cleanEmail,
+        'username': rawUsername,
         'password': password,
       };
       if (totpCode != null && totpCode.isNotEmpty) {

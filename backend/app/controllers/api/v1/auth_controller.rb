@@ -47,9 +47,16 @@ class Api::V1::AuthController < ActionController::API
   end
 
   def login
-    clean_email = normalize_email(params[:email].presence || params[:username])
-    user = User.find_by(email: clean_email)
-    if user&.authenticate(params[:password])
+    clean_input = (params[:email].presence || params[:username]).to_s.strip.downcase
+    clean_email = normalize_email(clean_input)
+
+    user = User.where("LOWER(email) = ?", clean_email).first
+    if user.nil?
+      uname = clean_input.split("@").first
+      user = User.where("LOWER(email) = ? OR LOWER(email) LIKE ?", uname, "#{uname}@%").first
+    end
+
+    if user&.authenticate(params[:password].to_s)
       token = JwtHelper.encode(user_id: user.id)
       render json: { token: token, user: user_json(user) }
     else
@@ -59,12 +66,15 @@ class Api::V1::AuthController < ActionController::API
 
   # H1 Fix: Return only exists: true/false — do NOT expose name/email/avatar to unauthenticated callers
   def check_email
-    clean_email = normalize_email(params[:email].presence || params[:username])
-    # Validate format before querying DB
-    unless clean_email.match?(/\A[^@\s]+@[^@\s]+\z/)
-      return render json: { exists: false }, status: :ok
+    clean_input = (params[:email].presence || params[:username]).to_s.strip.downcase
+    clean_email = normalize_email(clean_input)
+
+    user = User.where("LOWER(email) = ?", clean_email).first
+    if user.nil?
+      uname = clean_input.split("@").first
+      user = User.where("LOWER(email) = ? OR LOWER(email) LIKE ?", uname, "#{uname}@%").first
     end
-    user = User.find_by(email: clean_email)
+
     if user
       render json: {
         exists: true,
