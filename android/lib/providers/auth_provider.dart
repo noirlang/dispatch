@@ -173,22 +173,34 @@ class AuthProvider extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
 
-    final cleanUser = email.trim().toLowerCase().replaceAll(RegExp(r'^@+'), '');
-    try {
-      ApiService.setToken(null);
-      final res = await ApiService.post('/auth/check_email', body: {'email': cleanUser});
-      _isLoading = false;
-      notifyListeners();
-      if (res is Map<String, dynamic> && (res['exists'] == true || res['exists'] == 'true')) {
-        return res;
-      }
-      return null;
-    } catch (e) {
-      _isLoading = false;
-      _errorMessage = e.toString();
-      notifyListeners();
-      return null;
+    final rawUser = email.trim().toLowerCase().replaceAll(RegExp(r'^@+'), '');
+    final uname = rawUser.split('@').first;
+
+    final Set<String> candidates = {
+      rawUser,
+      uname,
+      if (_serverStatus.domain != null && _serverStatus.domain!.isNotEmpty)
+        '$uname@${_serverStatus.domain}',
+      '$uname@$effectiveDomain',
+      '$uname@dispatch.local',
+    };
+
+    for (final candidate in candidates) {
+      if (candidate.isEmpty) continue;
+      try {
+        ApiService.setToken(null);
+        final res = await ApiService.post('/auth/check_email', body: {'email': candidate, 'username': uname});
+        if (res is Map<String, dynamic> && (res['exists'] == true || res['exists'] == 'true')) {
+          _isLoading = false;
+          notifyListeners();
+          return res;
+        }
+      } catch (_) {}
     }
+
+    _isLoading = false;
+    notifyListeners();
+    return null;
   }
 
   // Verify invite code (Step 1 of invite_only Registration)
@@ -221,44 +233,76 @@ class AuthProvider extends ChangeNotifier {
     _errorDetails = null;
     notifyListeners();
 
-    final cleanUser = email.trim().toLowerCase().replaceAll(RegExp(r'^@+'), '');
+    final rawUser = email.trim().toLowerCase().replaceAll(RegExp(r'^@+'), '');
+    final uname = rawUser.split('@').first;
 
-    try {
-      ApiService.setToken(null);
-      final body = {
-        'email': cleanUser,
-        'password': password,
-      };
-      if (totpCode != null && totpCode.isNotEmpty) {
-        body['totp_code'] = totpCode.trim();
-      }
+    final Set<String> emailCandidates = {
+      rawUser,
+      uname,
+      if (_serverStatus.domain != null && _serverStatus.domain!.isNotEmpty)
+        '$uname@${_serverStatus.domain}',
+      '$uname@$effectiveDomain',
+      '$uname@dispatch.local',
+    };
 
-      final res = await ApiService.post('/auth/login', body: body);
-      if (res is Map<String, dynamic> && res['token'] != null) {
-        _token = res['token'];
-        ApiService.setToken(_token);
-        await CacheService.saveAuthToken(_token!);
+    final Set<String> passCandidates = {
+      password,
+      if (password != password.trim()) password.trim(),
+    };
 
-        if (res['user'] != null) {
-          _user = User.fromJson(res['user']);
-          await CacheService.saveUser(_user!.toJson());
+    String lastError = 'Geçersiz şifre veya kullanıcı adı.';
+    final List<String> debugLog = [];
+
+    for (final candidate in emailCandidates) {
+      if (candidate.isEmpty) continue;
+      for (final pass in passCandidates) {
+        try {
+          ApiService.setToken(null);
+          final body = {
+            'email': candidate,
+            'username': uname,
+            'password': pass,
+          };
+          if (totpCode != null && totpCode.isNotEmpty) {
+            body['totp_code'] = totpCode.trim();
+          }
+
+          final res = await ApiService.post('/auth/login', body: body);
+          if (res is Map<String, dynamic> && res['token'] != null) {
+            _token = res['token'];
+            ApiService.setToken(_token);
+            await CacheService.saveAuthToken(_token!);
+
+            if (res['user'] != null) {
+              _user = User.fromJson(res['user']);
+              await CacheService.saveUser(_user!.toJson());
+            }
+
+            _status = AuthStatus.authenticated;
+            _isLoading = false;
+            _errorMessage = null;
+            _errorDetails = null;
+            notifyListeners();
+            return true;
+          }
+        } catch (e) {
+          lastError = e.toString();
+          debugLog.add('[$candidate] ➜ $e');
+          if (lastError.contains('2FA') || lastError.contains('TOTP')) {
+            _errorMessage = lastError;
+            _isLoading = false;
+            notifyListeners();
+            return false;
+          }
         }
-
-        _status = AuthStatus.authenticated;
-        _isLoading = false;
-        _errorMessage = null;
-        _errorDetails = null;
-        notifyListeners();
-        return true;
-      } else {
-        throw ApiException('Geçersiz sunucu yanıtı.');
       }
-    } catch (e) {
-      _errorMessage = e.toString();
-      _isLoading = false;
-      notifyListeners();
-      return false;
     }
+
+    _errorMessage = lastError;
+    _errorDetails = 'Sunucu: ${ApiService.baseUrl}\nDenenen formatlar:\n${debugLog.join('\n')}';
+    _isLoading = false;
+    notifyListeners();
+    return false;
   }
 
   // 4. Register
