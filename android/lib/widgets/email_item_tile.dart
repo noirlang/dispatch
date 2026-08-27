@@ -153,15 +153,21 @@ class EmailItemTile extends StatelessWidget {
   }
 
   String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final difference = now.difference(date);
+    try {
+      final now = DateTime.now();
+      final difference = now.difference(date);
 
-    if (difference.inDays == 0 && now.day == date.day) {
-      return DateFormat('HH:mm').format(date);
-    } else if (difference.inDays < 7) {
-      return DateFormat('E', 'tr').format(date);
-    } else {
-      return DateFormat('d MMM', 'tr').format(date);
+      if (difference.inDays == 0 && now.day == date.day) {
+        return DateFormat('HH:mm').format(date);
+      } else if (difference.inDays < 7) {
+        return DateFormat('E', 'tr').format(date);
+      } else {
+        return DateFormat('d MMM', 'tr').format(date);
+      }
+    } catch (_) {
+      final h = date.hour.toString().padLeft(2, '0');
+      final m = date.minute.toString().padLeft(2, '0');
+      return '$h:$m';
     }
   }
 }

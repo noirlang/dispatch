@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../../providers/email_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/email_item_tile.dart';
-import '../../widgets/ios_quick_widget.dart';
 import 'email_reader_view.dart';
 import 'compose_view.dart';
 
@@ -144,13 +142,6 @@ class _EmailListViewState extends State<EmailListView> {
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: [
-                  // Show iOS Live Status Widget only on Inbox
-                  if (currentFolder == 'inbox' && !_isSearching)
-                    IosQuickWidget(
-                      onApprovalsTap: () => _onFolderChange('approvals'),
-                      onCalendarTap: () => widget.onNavigateToTab?.call(2),
-                    ).animate().fadeIn(duration: 300.ms),
-
                   if (emailProvider.isLoading && emails.isEmpty) ...[
                     const SizedBox(height: 80),
                     const Center(

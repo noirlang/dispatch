@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/email_provider.dart';
@@ -24,6 +25,12 @@ class CustomHttpOverrides extends HttpOverrides {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   HttpOverrides.global = CustomHttpOverrides();
+
+  // Initialize Turkish date symbols for DateFormat
+  try {
+    await initializeDateFormatting('tr_TR', null);
+    await initializeDateFormatting('tr', null);
+  } catch (_) {}
 
   // Request notification permissions on launch as requested
   await NotificationService.requestPermissionOnLaunch();
