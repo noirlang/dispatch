@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/settings_provider.dart';
 import '../../providers/email_provider.dart';
 import '../../providers/contacts_provider.dart';
 import '../../theme/app_theme.dart';
@@ -43,7 +45,26 @@ class _ComposeViewState extends State<ComposeView> {
     _ccController = TextEditingController();
     _bccController = TextEditingController();
     _subjectController = TextEditingController(text: widget.initialSubject ?? '');
-    _bodyController = TextEditingController(text: widget.initialBody ?? '');
+
+    final auth = context.read<AuthProvider>();
+    final settings = context.read<SettingsProvider>();
+    final sig = (settings.settings['default_signature']?.toString().trim().isNotEmpty == true)
+        ? settings.settings['default_signature'].toString().trim()
+        : (auth.user?.defaultSignature?.trim().isNotEmpty == true ? auth.user!.defaultSignature!.trim() : '');
+
+    String initialBodyText = widget.initialBody ?? '';
+    if (sig.isNotEmpty) {
+      if (initialBodyText.isEmpty) {
+        initialBodyText = '\n\n--\n$sig';
+      } else if (!initialBodyText.contains(sig)) {
+        initialBodyText = '\n\n--\n$sig\n\n$initialBodyText';
+      }
+    }
+
+    _bodyController = TextEditingController(text: initialBodyText);
+    if (initialBodyText.startsWith('\n\n')) {
+      _bodyController.selection = const TextSelection.collapsed(offset: 0);
+    }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ContactsProvider>().fetchAll();

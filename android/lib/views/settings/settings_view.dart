@@ -215,6 +215,134 @@ class _SettingsViewState extends State<SettingsView> {
     );
   }
 
+  // 1b. Signature Settings Modal
+  void _showSignatureModal(BuildContext context) {
+    final settings = context.read<SettingsProvider>();
+    final auth = context.read<AuthProvider>();
+    final currentSig = settings.settings['default_signature'] ?? auth.user?.defaultSignature ?? '';
+    final sigController = TextEditingController(text: currentSig);
+    bool isSaving = false;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.bgSecondary,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+            left: 20,
+            right: 20,
+            top: 20,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(LucideIcons.fileSignature, color: AppTheme.blue, size: 18),
+                        SizedBox(width: 8),
+                        Text(
+                          'Varsayılan E-posta İmzası',
+                          style: TextStyle(color: AppTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                    IconButton(
+                      icon: const Icon(LucideIcons.x, size: 18),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Web ve mobilde gönderdiğiniz tüm yeni e-postaların ve yanıtların altına otomatik olarak eklenir.',
+                  style: TextStyle(color: AppTheme.textMuted, fontSize: 12, height: 1.3),
+                ),
+                const SizedBox(height: 16),
+                const Text('İMZA METNİ', style: _settingLabelStyle),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: sigController,
+                  maxLines: 4,
+                  minLines: 3,
+                  style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13, height: 1.5),
+                  decoration: const InputDecoration(
+                    hintText: 'Saygılarımla,\nAdınız Soyadınız\nŞirket / Unvan',
+                  ),
+                  onChanged: (_) => setModalState(() {}),
+                ),
+                const SizedBox(height: 14),
+                if (sigController.text.trim().isNotEmpty) ...[
+                  const Text('ÖNİZLEME', style: _settingLabelStyle),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppTheme.bgPrimary,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppTheme.borderColor),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('--', style: TextStyle(color: AppTheme.textMuted, fontSize: 12)),
+                        const SizedBox(height: 4),
+                        Text(
+                          sigController.text.trim(),
+                          style: const TextStyle(color: AppTheme.textPrimary, fontSize: 12, height: 1.4),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.blue,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  onPressed: isSaving
+                      ? null
+                      : () async {
+                          setModalState(() => isSaving = true);
+                          final navigator = Navigator.of(ctx);
+                          final messenger = ScaffoldMessenger.of(context);
+                          final newSig = sigController.text.trim();
+                          final success = await settings.updateSettings({'default_signature': newSig});
+                          if (ctx.mounted) {
+                            navigator.pop();
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text(success ? 'E-posta imzası kaydedildi' : 'İmza kaydedilemedi'),
+                                duration: const Duration(seconds: 2),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          }
+                        },
+                  child: isSaving
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Text('İmzayı Kaydet', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   // 2. Speakeasy Codes Modal
   void _showSpeakeasyModal(BuildContext context) {
     final labelController = TextEditingController();
@@ -588,6 +716,20 @@ class _SettingsViewState extends State<SettingsView> {
               title: 'Speakeasy Giriş Kodları',
               subtitle: 'Zamanlı özel e-posta geçiş kodları oluşturun',
               onTap: () => _showSpeakeasyModal(context),
+            ),
+
+            const SizedBox(height: 20),
+            _buildSectionHeader('E-POSTA AYARLARI'),
+            _buildSettingTile(
+              icon: LucideIcons.fileSignature,
+              iconColor: AppTheme.blue,
+              title: 'Varsayılan E-posta İmzası',
+              subtitle: (settings.settings['default_signature']?.toString().trim().isNotEmpty == true)
+                  ? settings.settings['default_signature'].toString().trim().replaceAll('\n', ' · ')
+                  : ((user?.defaultSignature?.trim().isNotEmpty == true)
+                      ? user!.defaultSignature!.trim().replaceAll('\n', ' · ')
+                      : 'Henüz imza ayarlanmadı (Dokunarak düzenleyin)'),
+              onTap: () => _showSignatureModal(context),
             ),
 
             const SizedBox(height: 20),
