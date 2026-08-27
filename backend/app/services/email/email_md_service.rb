@@ -25,8 +25,19 @@ class Email::EmailMdService
             line-height: 1.6;
             color: #18181b;
             background-color: #ffffff;
+            text-align: left;
             -webkit-text-size-adjust: 100%;
             -ms-text-size-adjust: 100%;
+          }
+          .dispatch-content {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-size: 15px;
+            line-height: 1.6;
+            color: #18181b;
+            margin: 0;
+            padding: 0;
+            text-align: left;
+            max-width: 100%;
           }
           @media (prefers-color-scheme: dark) {
             body, .dispatch-body {
@@ -58,8 +69,8 @@ class Email::EmailMdService
           }
         </style>
       </head>
-      <body class="dispatch-body" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 15px; line-height: 1.6; color: #18181b; background-color: #ffffff; margin: 0; padding: 0;">
-        <div class="dispatch-content" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 15px; line-height: 1.6; color: #18181b; max-width: 680px; margin: 0 auto; padding: 16px;">
+      <body class="dispatch-body" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 15px; line-height: 1.6; color: #18181b; background-color: #ffffff; margin: 0; padding: 0; text-align: left;">
+        <div class="dispatch-content" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 15px; line-height: 1.6; color: #18181b; margin: 0; padding: 0; text-align: left; max-width: 100%;">
           #{cleaned_body}
         </div>
       </body>

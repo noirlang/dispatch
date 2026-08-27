@@ -170,6 +170,13 @@ class _EmailHtmlViewState extends State<EmailHtmlView> {
             word-wrap: break-word !important;
             color: #18181b !important;
             background-color: #ffffff !important;
+            text-align: left !important;
+          }
+          .dispatch-content, .dispatch-body {
+            margin: 0 !important;
+            padding: 0 !important;
+            max-width: 100% !important;
+            text-align: left !important;
           }
           * { max-width: 100% !important; box-sizing: border-box; }
           table { max-width: 100% !important; width: 100% !important; }
@@ -196,6 +203,13 @@ class _EmailHtmlViewState extends State<EmailHtmlView> {
             font-size: 15px !important;
             line-height: 1.6 !important;
             word-wrap: break-word !important;
+            text-align: left !important;
+          }
+          .dispatch-content, .dispatch-body {
+            margin: 0 !important;
+            padding: 0 !important;
+            max-width: 100% !important;
+            text-align: left !important;
           }
           table, tbody, thead, tfoot, tr, td, th, div, section, article, main, header, footer, center, blockquote {
             background-color: transparent !important;
@@ -205,6 +219,7 @@ class _EmailHtmlViewState extends State<EmailHtmlView> {
           p, div, span, td, th, li, h1, h2, h3, h4, h5, h6, font, b, strong, em, i, u, s, mark, blockquote, center, label, small {
             color: #f4f4f5 !important;
             background-color: transparent !important;
+            text-align: left;
           }
           a, a *, [href] {
             color: #60a5fa !important;

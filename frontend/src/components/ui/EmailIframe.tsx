@@ -52,6 +52,13 @@ export default function EmailIframe({
                 line-height: 1.6 !important;
                 margin: 0 !important;
                 padding: 0 !important;
+                text-align: left !important;
+              }
+              .dispatch-content, .dispatch-body {
+                margin: 0 !important;
+                padding: 0 !important;
+                max-width: 100% !important;
+                text-align: left !important;
               }
               table, tbody, thead, tfoot, tr, td, th, div, section, article, main, header, footer, center, blockquote {
                 background-color: transparent !important;
