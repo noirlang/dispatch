@@ -6,6 +6,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/email_item_tile.dart';
 import 'email_reader_view.dart';
 import 'compose_view.dart';
+import 'contacts_view.dart';
 
 class EmailListView extends StatefulWidget {
   final Function(int)? onNavigateToTab;
@@ -90,7 +91,17 @@ class _EmailListViewState extends State<EmailListView> {
             },
           ),
           IconButton(
+            icon: const Icon(LucideIcons.users, size: 18),
+            tooltip: 'Kişiler & Gruplar',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ContactsView()),
+              );
+            },
+          ),
+          IconButton(
             icon: const Icon(LucideIcons.refreshCw, size: 18),
+            tooltip: 'Yenile',
             onPressed: () => emailProvider.fetchEmails(currentFolder, forceRefresh: true),
           ),
           const SizedBox(width: 4),
@@ -129,6 +140,8 @@ class _EmailListViewState extends State<EmailListView> {
                 _buildFolderPill('drafts', 'Taslaklar', LucideIcons.fileText),
                 const SizedBox(width: 8),
                 _buildFolderPill('trash', 'Çöp Kutusu', LucideIcons.trash2),
+                const SizedBox(width: 8),
+                _buildFolderPill('contacts', 'Kişiler & Gruplar', LucideIcons.users),
               ],
             ),
           ),
@@ -211,7 +224,15 @@ class _EmailListViewState extends State<EmailListView> {
   Widget _buildFolderPill(String folderId, String label, IconData icon, {int? badge}) {
     final isSelected = context.watch<EmailProvider>().currentFolder == folderId;
     return InkWell(
-      onTap: () => _onFolderChange(folderId),
+      onTap: () {
+        if (folderId == 'contacts') {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const ContactsView()),
+          );
+        } else {
+          _onFolderChange(folderId);
+        }
+      },
       borderRadius: BorderRadius.circular(12),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),

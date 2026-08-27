@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../../providers/email_provider.dart';
+import '../../providers/contacts_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/sender_avatar.dart';
 
 class ComposeView extends StatefulWidget {
   final String? initialTo;
@@ -42,6 +44,119 @@ class _ComposeViewState extends State<ComposeView> {
     _bccController = TextEditingController();
     _subjectController = TextEditingController(text: widget.initialSubject ?? '');
     _bodyController = TextEditingController(text: widget.initialBody ?? '');
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<ContactsProvider>().fetchAll();
+    });
+  }
+
+  void _openContactPicker(TextEditingController targetController) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.bgSecondary,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        final contactsProvider = ctx.watch<ContactsProvider>();
+        final contacts = contactsProvider.contacts;
+        final groups = contactsProvider.groups;
+
+        return DraggableScrollableSheet(
+          initialChildSize: 0.6,
+          maxChildSize: 0.85,
+          minChildSize: 0.4,
+          expand: false,
+          builder: (_, scrollCtrl) => Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Kişi veya Grup Seç',
+                      style: TextStyle(color: AppTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    IconButton(
+                      icon: const Icon(LucideIcons.x, size: 18),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: ListView(
+                    controller: scrollCtrl,
+                    children: [
+                      if (groups.isNotEmpty) ...[
+                        const Text('GRUPLAR', style: TextStyle(color: AppTheme.textMuted, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                        const SizedBox(height: 6),
+                        ...groups.map((g) => ListTile(
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                              leading: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.blue.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(LucideIcons.usersRound, size: 16, color: AppTheme.blue),
+                              ),
+                              title: Text(g.name, style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13, fontWeight: FontWeight.bold)),
+                              subtitle: Text('@${g.alias} · ${g.members.length} Üye', style: const TextStyle(color: AppTheme.textMuted, fontSize: 11)),
+                              trailing: const Icon(LucideIcons.plus, size: 16, color: AppTheme.blue),
+                              onTap: () {
+                                final current = targetController.text.trim();
+                                final groupAddrs = g.members.join(', ');
+                                if (current.isEmpty) {
+                                  targetController.text = groupAddrs;
+                                } else {
+                                  targetController.text = '$current, $groupAddrs';
+                                }
+                                Navigator.pop(ctx);
+                              },
+                            )),
+                        const SizedBox(height: 14),
+                      ],
+                      const Text('KİŞİLER', style: TextStyle(color: AppTheme.textMuted, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                      const SizedBox(height: 6),
+                      if (contacts.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: Center(child: Text('Kayıtlı kişi bulunamadı.', style: TextStyle(color: AppTheme.textMuted, fontSize: 12))),
+                        ),
+                      ...contacts.map((c) => ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                            leading: SenderAvatar(
+                              avatarUrl: c.avatarUrl,
+                              initials: c.initials ?? c.name.substring(0, 1).toUpperCase(),
+                              identifier: c.email,
+                              size: 34,
+                            ),
+                            title: Text(c.name, style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13, fontWeight: FontWeight.bold)),
+                            subtitle: Text(c.email, style: const TextStyle(color: AppTheme.textMuted, fontSize: 11, fontFamily: 'monospace')),
+                            trailing: const Icon(LucideIcons.plus, size: 16, color: AppTheme.blue),
+                            onTap: () {
+                              final current = targetController.text.trim();
+                              if (current.isEmpty) {
+                                targetController.text = c.email;
+                              } else {
+                                targetController.text = '$current, ${c.email}';
+                              }
+                              Navigator.pop(ctx);
+                            },
+                          )),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -150,10 +265,15 @@ class _ComposeViewState extends State<ComposeView> {
               controller: _toController,
               keyboardType: TextInputType.emailAddress,
               style: const TextStyle(color: AppTheme.textPrimary, fontSize: 14),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Kime:',
                 hintText: 'alici@domain.com veya @ekip',
-                prefixIcon: Icon(LucideIcons.user, size: 16, color: AppTheme.textMuted),
+                prefixIcon: const Icon(LucideIcons.user, size: 16, color: AppTheme.textMuted),
+                suffixIcon: IconButton(
+                  icon: const Icon(LucideIcons.users, size: 18, color: AppTheme.blue),
+                  tooltip: 'Kişi veya Grup Seç',
+                  onPressed: () => _openContactPicker(_toController),
+                ),
               ),
             ),
 

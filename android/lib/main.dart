@@ -8,6 +8,7 @@ import 'providers/dashboard_provider.dart';
 import 'providers/calendar_provider.dart';
 import 'providers/rss_provider.dart';
 import 'providers/settings_provider.dart';
+import 'providers/contacts_provider.dart';
 import 'services/notification_service.dart';
 import 'theme/app_theme.dart';
 import 'views/auth/server_connect_view.dart';
@@ -40,6 +41,7 @@ void main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()..initialize()),
         ChangeNotifierProvider(create: (_) => EmailProvider()),
+        ChangeNotifierProvider(create: (_) => ContactsProvider()),
         ChangeNotifierProvider(create: (_) => DashboardProvider()),
         ChangeNotifierProvider(create: (_) => CalendarProvider()),
         ChangeNotifierProvider(create: (_) => RssProvider()),
