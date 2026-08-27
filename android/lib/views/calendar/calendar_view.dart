@@ -176,6 +176,7 @@ class CalendarView extends StatelessWidget {
         ],
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'fab_calendar',
         backgroundColor: AppTheme.accent,
         foregroundColor: AppTheme.accentInvert,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),

@@ -108,6 +108,7 @@ class _EmailListViewState extends State<EmailListView> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'fab_compose',
         backgroundColor: AppTheme.accent,
         foregroundColor: AppTheme.accentInvert,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),

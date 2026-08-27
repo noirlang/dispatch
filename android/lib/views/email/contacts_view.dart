@@ -349,6 +349,7 @@ class _ContactsViewState extends State<ContactsView> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'fab_contacts',
         backgroundColor: AppTheme.accent,
         foregroundColor: AppTheme.accentInvert,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
