@@ -14,6 +14,7 @@ class AuthProvider extends ChangeNotifier {
   ServerRegistrationStatus _serverStatus = ServerRegistrationStatus();
   bool _isLoading = false;
   String? _errorMessage;
+  String? _errorDetails;
 
   AuthStatus get status => _status;
   User? get user => _user;
@@ -22,6 +23,7 @@ class AuthProvider extends ChangeNotifier {
   ServerRegistrationStatus get serverStatus => _serverStatus;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
+  String? get errorDetails => _errorDetails;
 
   bool get isAuthenticated => _status == AuthStatus.authenticated;
 
@@ -169,6 +171,7 @@ class AuthProvider extends ChangeNotifier {
   Future<bool> login(String email, String password, {String? totpCode}) async {
     _isLoading = true;
     _errorMessage = null;
+    _errorDetails = null;
     notifyListeners();
 
     final rawInput = email.trim().toLowerCase().replaceAll(RegExp(r'^@+'), '');
@@ -184,6 +187,7 @@ class AuthProvider extends ChangeNotifier {
     };
 
     String lastError = 'Geçersiz kullanıcı adı veya şifre';
+    final List<String> debugLog = [];
 
     for (final candidate in candidates) {
       if (candidate.isEmpty) continue;
@@ -211,11 +215,14 @@ class AuthProvider extends ChangeNotifier {
 
           _status = AuthStatus.authenticated;
           _isLoading = false;
+          _errorMessage = null;
+          _errorDetails = null;
           notifyListeners();
           return true;
         }
       } catch (e) {
         lastError = e.toString();
+        debugLog.add('[$candidate] ➜ $e');
         // If 2FA is required, don't keep looping with wrong candidates
         if (lastError.contains('2FA') || lastError.contains('TOTP')) {
           break;
@@ -224,6 +231,7 @@ class AuthProvider extends ChangeNotifier {
     }
 
     _errorMessage = lastError;
+    _errorDetails = 'Sunucu Adresi: ${ApiService.baseUrl}\nDenenen formatlar:\n${debugLog.join('\n')}';
     _isLoading = false;
     notifyListeners();
     return false;

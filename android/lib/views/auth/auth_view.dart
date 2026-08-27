@@ -241,7 +241,60 @@ class _AuthViewState extends State<AuthView> {
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  // Prominent Error & Diagnostic Banner
+                  if (auth.errorMessage != null) ...[
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppTheme.red.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppTheme.red.withOpacity(0.4)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(LucideIcons.triangleAlert, size: 18, color: AppTheme.red),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  auth.errorMessage!,
+                                  style: const TextStyle(
+                                    color: AppTheme.red,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (auth.errorDetails != null) ...[
+                            const SizedBox(height: 10),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppTheme.bgPrimary,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: AppTheme.borderColor),
+                              ),
+                              child: SelectableText(
+                                auth.errorDetails!,
+                                style: const TextStyle(
+                                  color: AppTheme.textSecondary,
+                                  fontSize: 11,
+                                  fontFamily: 'monospace',
+                                  height: 1.4,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
 
                   // Main Form Fields
                   if (!_isLogin && regMode == 'admin_only') ...[

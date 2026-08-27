@@ -5,11 +5,18 @@ import 'cache_service.dart';
 class ApiException implements Exception {
   final String message;
   final int? statusCode;
+  final String? url;
+  final dynamic rawBody;
 
-  ApiException(this.message, [this.statusCode]);
+  ApiException(this.message, [this.statusCode, this.url, this.rawBody]);
 
   @override
-  String toString() => message;
+  String toString() {
+    if (statusCode != null) {
+      return '$message (HTTP $statusCode)';
+    }
+    return message;
+  }
 }
 
 class ApiService {
@@ -57,63 +64,66 @@ class ApiService {
     final uri = Uri.parse(uriString);
     try {
       final response = await http.get(uri, headers: _headers).timeout(const Duration(seconds: 15));
-      return _processResponse(response);
+      return _processResponse(response, uriString);
     } catch (e) {
       if (e is ApiException) rethrow;
-      throw ApiException('Sunucuya bağlanılamadı: ${e.toString()}');
+      throw ApiException('Bağlantı hatası: ${e.toString()}', null, uriString);
     }
   }
 
   // 2. POST Request
   static Future<dynamic> post(String path, {dynamic body}) async {
-    final uri = Uri.parse('$baseUrl/api/v1$path');
+    final uriString = '$baseUrl/api/v1$path';
+    final uri = Uri.parse(uriString);
     try {
       final response = await http.post(
         uri,
         headers: _headers,
         body: body != null ? jsonEncode(body) : null,
       ).timeout(const Duration(seconds: 20));
-      return _processResponse(response);
+      return _processResponse(response, uriString);
     } catch (e) {
       if (e is ApiException) rethrow;
-      throw ApiException('İstek başarısız oldu: ${e.toString()}');
+      throw ApiException('İstek başarısız: ${e.toString()}', null, uriString);
     }
   }
 
   // 3. PATCH Request
   static Future<dynamic> patch(String path, {dynamic body}) async {
-    final uri = Uri.parse('$baseUrl/api/v1$path');
+    final uriString = '$baseUrl/api/v1$path';
+    final uri = Uri.parse(uriString);
     try {
       final response = await http.patch(
         uri,
         headers: _headers,
         body: body != null ? jsonEncode(body) : null,
       ).timeout(const Duration(seconds: 15));
-      return _processResponse(response);
+      return _processResponse(response, uriString);
     } catch (e) {
       if (e is ApiException) rethrow;
-      throw ApiException('Güncelleme başarısız oldu: ${e.toString()}');
+      throw ApiException('Güncelleme başarısız: ${e.toString()}', null, uriString);
     }
   }
 
   // 4. DELETE Request
   static Future<dynamic> delete(String path, {dynamic body}) async {
-    final uri = Uri.parse('$baseUrl/api/v1$path');
+    final uriString = '$baseUrl/api/v1$path';
+    final uri = Uri.parse(uriString);
     try {
       final response = await http.delete(
         uri,
         headers: _headers,
         body: body != null ? jsonEncode(body) : null,
       ).timeout(const Duration(seconds: 15));
-      return _processResponse(response);
+      return _processResponse(response, uriString);
     } catch (e) {
       if (e is ApiException) rethrow;
-      throw ApiException('Silme işlemi başarısız oldu: ${e.toString()}');
+      throw ApiException('Silme başarısız: ${e.toString()}', null, uriString);
     }
   }
 
   // Helper response processor
-  static dynamic _processResponse(http.Response response) {
+  static dynamic _processResponse(http.Response response, [String? url]) {
     if (response.statusCode >= 200 && response.statusCode < 300) {
       if (response.body.isEmpty) return {};
       try {
@@ -123,15 +133,17 @@ class ApiService {
       }
     } else {
       String errMsg = 'Hata (${response.statusCode})';
+      dynamic rawBody;
       try {
-        final decoded = jsonDecode(utf8.decode(response.bodyBytes));
-        if (decoded is Map) {
-          errMsg = decoded['error'] ?? decoded['message'] ?? decoded['errors']?.toString() ?? errMsg;
+        rawBody = jsonDecode(utf8.decode(response.bodyBytes));
+        if (rawBody is Map) {
+          errMsg = rawBody['error'] ?? rawBody['message'] ?? rawBody['errors']?.toString() ?? errMsg;
         }
       } catch (_) {
+        rawBody = response.body;
         if (response.body.isNotEmpty) errMsg = response.body;
       }
-      throw ApiException(errMsg, response.statusCode);
+      throw ApiException(errMsg, response.statusCode, url, rawBody);
     }
   }
 }
