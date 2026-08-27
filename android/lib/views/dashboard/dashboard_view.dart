@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/dashboard_card.dart';
 import '../../providers/dashboard_provider.dart';
+import '../../providers/calendar_provider.dart';
 import '../../theme/app_theme.dart';
 
 class DashboardView extends StatelessWidget {
@@ -182,6 +183,9 @@ class DashboardView extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    constraints: BoxConstraints(
+                      maxWidth: MediaQuery.of(context).size.width - 70,
+                    ),
                     decoration: BoxDecoration(
                       color: AppTheme.bgTertiary,
                       borderRadius: BorderRadius.circular(10),
@@ -194,13 +198,17 @@ class DashboardView extends StatelessWidget {
                           '${item.label}: ',
                           style: const TextStyle(color: AppTheme.textMuted, fontSize: 12),
                         ),
-                        Text(
-                          item.value,
-                          style: TextStyle(
-                            color: item.url != null ? AppTheme.blue : AppTheme.textPrimary,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: card.type == 'otp' ? 'monospace' : null,
+                        Flexible(
+                          child: Text(
+                            item.value,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: item.url != null ? AppTheme.blue : AppTheme.textPrimary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: card.type == 'otp' ? 'monospace' : null,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 4),
@@ -247,6 +255,7 @@ class DashboardView extends StatelessWidget {
                       ],
                     ),
                   ),
+                  const SizedBox(width: 8),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.green,
@@ -258,10 +267,14 @@ class DashboardView extends StatelessWidget {
                     onPressed: () async {
                       final ok = await context.read<DashboardProvider>().addToCalendar(card.id);
                       if (context.mounted) {
+                        if (ok) {
+                          context.read<CalendarProvider>().fetchEvents(forceRefresh: true);
+                        }
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text(ok ? 'Takvime eklendi!' : 'İşlem tamamlandı'),
+                            content: Text(ok ? 'Etkinlik takvime eklendi! 📅' : 'İşlem tamamlandı'),
                             backgroundColor: AppTheme.green,
+                            behavior: SnackBarBehavior.floating,
                           ),
                         );
                       }

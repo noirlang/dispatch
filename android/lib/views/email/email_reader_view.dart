@@ -28,6 +28,7 @@ class _EmailReaderViewState extends State<EmailReaderView> {
   EmailItem? _email;
   bool _isLoading = false;
   bool _isLightMode = false;
+  bool _showRemoteImages = false;
 
   // AI states
   String? _aiSummary;
@@ -305,17 +306,16 @@ class _EmailReaderViewState extends State<EmailReaderView> {
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
-          // Theme switch toggle for HTML emails
-          if (hasHtml)
-            IconButton(
-              icon: Icon(
-                _isLightMode ? LucideIcons.moon : LucideIcons.sun,
-                size: 18,
-                color: _isLightMode ? AppTheme.amber : AppTheme.textMuted,
-              ),
-              tooltip: _isLightMode ? 'Karanlık Mod' : 'Açık Tema (Orijinal)',
-              onPressed: () => setState(() => _isLightMode = !_isLightMode),
+          // Universal Theme switch toggle (Dark / Light)
+          IconButton(
+            icon: Icon(
+              _isLightMode ? LucideIcons.moon : LucideIcons.sun,
+              size: 18,
+              color: _isLightMode ? AppTheme.amber : AppTheme.textPrimary,
             ),
+            tooltip: _isLightMode ? 'Karanlık Mod' : 'Açık Tema',
+            onPressed: () => setState(() => _isLightMode = !_isLightMode),
+          ),
           // Important star toggle
           IconButton(
             icon: Icon(
@@ -472,6 +472,53 @@ class _EmailReaderViewState extends State<EmailReaderView> {
               ),
             ),
 
+            // Remote Image Security Banner (Thunderbird / Webmail style)
+            if (rawHtml.contains('<img') || rawHtml.contains('&lt;img')) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppTheme.bgSecondary,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppTheme.borderColor),
+                ),
+                child: Row(
+                  children: [
+                    const Text('🛡️', style: TextStyle(fontSize: 16)),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        _showRemoteImages
+                            ? 'Harici görseller ve fotoğraflar yüklendi.'
+                            : 'Gizliliğinizi korumak için harici fotoğraflar engellendi.',
+                        style: TextStyle(
+                          color: _showRemoteImages ? AppTheme.green : AppTheme.textSecondary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _showRemoteImages ? AppTheme.bgTertiary : AppTheme.accent,
+                        foregroundColor: _showRemoteImages ? AppTheme.textPrimary : AppTheme.accentInvert,
+                        side: const BorderSide(color: AppTheme.borderColor),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        minimumSize: Size.zero,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      onPressed: () => setState(() => _showRemoteImages = !_showRemoteImages),
+                      child: Text(
+                        _showRemoteImages ? 'Gizle' : 'Fotoğraflara Güven & Yükle',
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
             // Approval Queue Action Banner
             if (isApprovals) ...[
               const SizedBox(height: 12),
@@ -578,10 +625,10 @@ class _EmailReaderViewState extends State<EmailReaderView> {
             if (_aiSummary != null) ...[
               const SizedBox(height: 12),
               Container(
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppTheme.blue.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(16),
+                  color: AppTheme.bgSecondary,
+                  borderRadius: BorderRadius.circular(18),
                   border: Border.all(color: AppTheme.blue.withOpacity(0.3)),
                 ),
                 child: Column(
@@ -592,7 +639,7 @@ class _EmailReaderViewState extends State<EmailReaderView> {
                       children: [
                         const Row(
                           children: [
-                            Icon(LucideIcons.sparkles, size: 14, color: AppTheme.blue),
+                            Icon(LucideIcons.sparkles, color: AppTheme.blue, size: 16),
                             SizedBox(width: 6),
                             Text(
                               'YAPAY ZEKA ÖZETİ',
@@ -673,33 +720,42 @@ class _EmailReaderViewState extends State<EmailReaderView> {
 
             // Email Body Content Area
             Container(
+              width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: _isLightMode ? Colors.white : AppTheme.bgSecondary,
+                color: _isLightMode ? const Color(0xFFFFFFFF) : AppTheme.bgSecondary,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: _isLightMode ? Colors.grey.shade300 : AppTheme.borderColor),
+                border: Border.all(color: _isLightMode ? const Color(0xFFE5E7EB) : AppTheme.borderColor),
               ),
               child: _translation != null
                   ? Text(
                       _translation!['translated_body'],
                       style: TextStyle(
-                        color: _isLightMode ? Colors.black87 : AppTheme.textPrimary,
+                        color: _isLightMode ? const Color(0xFF111827) : AppTheme.textPrimary,
                         fontSize: 14,
                         height: 1.6,
                       ),
                     )
                   : hasHtml
                       ? HtmlWidget(
-                          rawHtml,
+                          _showRemoteImages
+                              ? rawHtml
+                              : rawHtml.replaceAllMapped(
+                                  RegExp(r'<img([^>]*)>', caseSensitive: false),
+                                  (m) => '<span style="color:#6b7280; font-size:11px;">[Fotoğraf Gizlendi]</span>',
+                                ),
                           textStyle: TextStyle(
-                            color: _isLightMode ? Colors.black87 : AppTheme.textPrimary,
+                            color: _isLightMode ? const Color(0xFF111827) : const Color(0xFFF3F4F6),
                             fontSize: 14,
                             height: 1.6,
                           ),
                           customStylesBuilder: (element) {
                             if (!_isLightMode) {
                               if (element.localName == 'table' || element.localName == 'td' || element.localName == 'th') {
-                                return {'background-color': 'transparent', 'color': '#f4f4f5'};
+                                return {'background-color': 'transparent', 'color': '#f3f4f6'};
+                              }
+                              if (element.localName == 'p' || element.localName == 'span' || element.localName == 'div') {
+                                return {'color': '#f3f4f6'};
                               }
                             }
                             return null;
@@ -712,7 +768,7 @@ class _EmailReaderViewState extends State<EmailReaderView> {
                       : SelectableText(
                           email.bodyText ?? email.body ?? '',
                           style: TextStyle(
-                            color: _isLightMode ? Colors.black87 : AppTheme.textPrimary,
+                            color: _isLightMode ? const Color(0xFF111827) : AppTheme.textPrimary,
                             fontSize: 14,
                             height: 1.6,
                             fontFamily: 'sans-serif',

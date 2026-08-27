@@ -517,7 +517,9 @@ class _SettingsViewState extends State<SettingsView> {
                 children: [
                   SenderAvatar(
                     avatarUrl: user?.avatarPath,
-                    initials: user?.name?.isNotEmpty == true ? user!.name!.substring(0, 2) : 'D',
+                    initials: (user?.name != null && user!.name!.isNotEmpty)
+                        ? user.name!.substring(0, user.name!.length >= 2 ? 2 : 1).toUpperCase()
+                        : (user?.email != null && user!.email.isNotEmpty ? user.email.substring(0, 1).toUpperCase() : 'D'),
                     identifier: user?.email ?? '',
                     size: 52,
                   ),
@@ -527,7 +529,9 @@ class _SettingsViewState extends State<SettingsView> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          user?.name ?? 'Dispatch Kullanıcısı',
+                          (user?.name != null && user!.name!.isNotEmpty)
+                              ? user.name!
+                              : (user?.email != null && user!.email.isNotEmpty ? user.email.split('@').first : 'Dispatch Kullanıcısı'),
                           style: const TextStyle(color: AppTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 2),

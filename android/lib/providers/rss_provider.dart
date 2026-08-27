@@ -6,37 +6,23 @@ import '../services/cache_service.dart';
 class RssProvider extends ChangeNotifier {
   List<RssFeed> _feeds = [];
   List<RssItem> _items = [];
-  String _selectedCategory = 'Tümü';
+  int? _selectedFeedId;
   bool _isLoading = false;
   String? _errorMessage;
 
   List<RssFeed> get feeds => _feeds;
   List<RssItem> get items => _items;
-  String get selectedCategory => _selectedCategory;
+  int? get selectedFeedId => _selectedFeedId;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
-  List<String> get categories {
-    final set = {'Tümü'};
-    for (var f in _feeds) {
-      if (f.category != null && f.category!.isNotEmpty) {
-        set.add(f.category!);
-      }
-    }
-    return set.toList();
-  }
-
   List<RssItem> get filteredItems {
-    if (_selectedCategory == 'Tümü') return _items;
-    final categoryFeedIds = _feeds
-        .where((f) => f.category == _selectedCategory)
-        .map((f) => f.id)
-        .toSet();
-    return _items.where((i) => categoryFeedIds.contains(i.feedId)).toList();
+    if (_selectedFeedId == null) return _items;
+    return _items.where((i) => i.feedId == _selectedFeedId).toList();
   }
 
-  void selectCategory(String cat) {
-    _selectedCategory = cat;
+  void selectFeed(int? feedId) {
+    _selectedFeedId = feedId;
     notifyListeners();
   }
 
@@ -115,15 +101,30 @@ class RssProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> refreshFeeds() async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      if (_selectedFeedId != null) {
+        await ApiService.post('/rss/feeds/$_selectedFeedId/refresh');
+      } else {
+        for (final f in _feeds) {
+          await ApiService.post('/rss/feeds/${f.id}/refresh');
+        }
+      }
+    } catch (_) {}
+    await fetchFeedsAndItems(forceRefresh: true);
+  }
+
   Future<bool> addFeed(String url, {String? category, int? interval}) async {
     try {
       final res = await ApiService.post('/rss/feeds', body: {
         'url': url,
-        'category': category ?? 'Genel',
+        if (category != null && category.isNotEmpty) 'category': category,
         'refresh_interval': interval ?? 15,
       });
       if (res is Map<String, dynamic>) {
-        fetchFeedsAndItems(forceRefresh: true);
+        await fetchFeedsAndItems(forceRefresh: true);
         return true;
       }
     } catch (_) {}

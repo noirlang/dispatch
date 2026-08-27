@@ -85,8 +85,9 @@ class FeedView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final rss = context.watch<RssProvider>();
-    final categories = rss.categories;
+    final feeds = rss.feeds;
     final items = rss.filteredItems;
+    final selectedFeedId = rss.selectedFeedId;
 
     return Scaffold(
       backgroundColor: AppTheme.bgPrimary,
@@ -101,48 +102,100 @@ class FeedView extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(LucideIcons.plus, size: 20),
+            tooltip: 'Yeni Kaynak Ekle',
             onPressed: () => _showAddFeedModal(context),
           ),
           IconButton(
             icon: const Icon(LucideIcons.refreshCw, size: 18),
-            onPressed: () => rss.fetchFeedsAndItems(forceRefresh: true),
+            tooltip: 'Yenile',
+            onPressed: () => rss.refreshFeeds(),
           ),
           const SizedBox(width: 4),
         ],
       ),
       body: Column(
         children: [
-          // Categories Filter Bar
+          // Feeds Filter Bar (Tümü + Feed Başlıkları)
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
-              children: categories.map((cat) {
-                final isSelected = rss.selectedCategory == cat;
-                return Padding(
+              children: [
+                // "Tümü" pill
+                Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: InkWell(
-                    onTap: () => rss.selectCategory(cat),
+                    onTap: () => rss.selectFeed(null),
                     borderRadius: BorderRadius.circular(12),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                       decoration: BoxDecoration(
-                        color: isSelected ? AppTheme.accent : AppTheme.bgSecondary,
+                        color: selectedFeedId == null ? AppTheme.accent : AppTheme.bgSecondary,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: isSelected ? AppTheme.accent : AppTheme.borderColor),
+                        border: Border.all(color: selectedFeedId == null ? AppTheme.accent : AppTheme.borderColor),
                       ),
                       child: Text(
-                        cat,
+                        'Tümü',
                         style: TextStyle(
-                          color: isSelected ? AppTheme.accentInvert : AppTheme.textSecondary,
+                          color: selectedFeedId == null ? AppTheme.accentInvert : AppTheme.textSecondary,
                           fontSize: 12,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          fontWeight: selectedFeedId == null ? FontWeight.bold : FontWeight.normal,
                         ),
                       ),
                     ),
                   ),
-                );
-              }).toList(),
+                ),
+                // Feed specific pills
+                ...feeds.map((feed) {
+                  final isSelected = selectedFeedId == feed.id;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: InkWell(
+                      onTap: () => rss.selectFeed(feed.id),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isSelected ? AppTheme.accent : AppTheme.bgSecondary,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: isSelected ? AppTheme.accent : AppTheme.borderColor),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              (feed.title != null && feed.title!.isNotEmpty) ? feed.title! : feed.url,
+                              style: TextStyle(
+                                color: isSelected ? AppTheme.accentInvert : AppTheme.textSecondary,
+                                fontSize: 12,
+                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              ),
+                            ),
+                            if (feed.unreadCount > 0) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: isSelected ? Colors.black : AppTheme.amber,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '${feed.unreadCount}',
+                                  style: TextStyle(
+                                    color: isSelected ? Colors.white : Colors.black,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ],
             ),
           ),
 
@@ -151,7 +204,7 @@ class FeedView extends StatelessWidget {
             child: RefreshIndicator(
               color: AppTheme.textPrimary,
               backgroundColor: AppTheme.bgSecondary,
-              onRefresh: () => rss.fetchFeedsAndItems(forceRefresh: true),
+              onRefresh: () => rss.refreshFeeds(),
               child: items.isEmpty && !rss.isLoading
                   ? Center(
                       child: Column(

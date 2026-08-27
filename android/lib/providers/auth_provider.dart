@@ -360,7 +360,8 @@ class AuthProvider extends ChangeNotifier {
     try {
       final res = await ApiService.get('/auth/me');
       if (res is Map<String, dynamic>) {
-        _user = User.fromJson(res);
+        final userData = (res['user'] is Map<String, dynamic>) ? res['user'] : res;
+        _user = User.fromJson(userData);
         await CacheService.saveUser(_user!.toJson());
         notifyListeners();
       }
