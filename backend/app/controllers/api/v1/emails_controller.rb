@@ -291,6 +291,10 @@ class Api::V1::EmailsController < Api::V1::BaseController
 
   def email_json(email)
     raw_html = email.body_html.presence
+    if raw_html.blank? && email.body_text.present? && email.body_text.include?("<") && (email.body_text.include?("<!DOCTYPE") || email.body_text.include?("<html") || email.body_text.include?("<div") || email.body_text.include?("<p"))
+      raw_html = email.body_text
+    end
+
     safe_html = if raw_html.present? && current_user.spy_pixel_blocking
                   Email::ImageProxyService.rewrite_html(raw_html)
                 else
@@ -331,15 +335,29 @@ class Api::V1::EmailsController < Api::V1::BaseController
   end
 
   def clean_plain_text(email)
-    return email.body_text.to_s.strip if email.body_text.present?
-    return "" if email.body_html.blank?
-    doc = Nokogiri::HTML(email.body_html)
-    doc.xpath('//style|//script|//head').remove
-    doc.text.gsub(/\r\n?/, "\n").gsub(/[ \t]+/, " ").strip
+    raw = email.body_text.presence || email.body_html.presence
+    return "" if raw.blank?
+
+    if raw.include?("<") && (raw.include?("</") || raw.include?("/>") || raw.include?("<!DOCTYPE") || raw.include?("<html") || raw.include?("<div") || raw.include?("<p"))
+      begin
+        doc = Nokogiri::HTML(raw)
+        doc.xpath('//style|//script|//head|//meta|//title|//link').remove
+        text = doc.text.gsub(/\r\n?/, "\n").gsub(/[ \t]+/, " ").strip
+        return text if text.present?
+      rescue
+      end
+    end
+
+    raw.to_s.strip
   end
 
 
   def email_list_json(email)
+    raw_html = email.body_html.presence
+    if raw_html.blank? && email.body_text.present? && email.body_text.include?("<") && (email.body_text.include?("<!DOCTYPE") || email.body_text.include?("<html") || email.body_text.include?("<div") || email.body_text.include?("<p"))
+      raw_html = email.body_text
+    end
+
     profile = Email::SenderAvatarService.for(email.from_address)
     rule = current_user.sender_rules.find_by(email_address: email.from_address.downcase.strip)
     plain_body = clean_plain_text(email)
@@ -351,7 +369,7 @@ class Api::V1::EmailsController < Api::V1::BaseController
       subject:      email.subject,
       body:         plain_body,
       body_text:    plain_body,
-      body_html:    email.body_html,
+      body_html:    raw_html,
       snippet:      plain_body.present? ? plain_body.truncate(160) : (email.subject.presence || "İletiyi görüntülemek için dokunun"),
       is_read:      email.is_read,
       is_flagged:   email.is_flagged || false,

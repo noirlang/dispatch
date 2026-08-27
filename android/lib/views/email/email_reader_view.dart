@@ -295,8 +295,15 @@ class _EmailReaderViewState extends State<EmailReaderView> {
     }
 
     final isApprovals = email.folder == 'approvals';
-    final rawHtml = email.bodyHtml?.trim() ?? '';
-    final hasHtml = rawHtml.isNotEmpty;
+    final candidateContent = (email.bodyHtml != null && email.bodyHtml!.trim().isNotEmpty)
+        ? email.bodyHtml!.trim()
+        : ((email.bodyText != null && (email.bodyText!.contains('<html') || email.bodyText!.contains('<!DOCTYPE') || email.bodyText!.contains('<!doctype') || email.bodyText!.contains('<table') || email.bodyText!.contains('<div') || email.bodyText!.contains('<p') || email.bodyText!.contains('</')))
+            ? email.bodyText!.trim()
+            : ((email.body != null && (email.body!.contains('<html') || email.body!.contains('<!DOCTYPE') || email.body!.contains('<!doctype') || email.body!.contains('<table') || email.body!.contains('<div') || email.body!.contains('<p') || email.body!.contains('</')))
+                ? email.body!.trim()
+                : ''));
+    final bool hasHtml = candidateContent.isNotEmpty && candidateContent.contains('<');
+    final String rawHtml = hasHtml ? candidateContent : '';
     final isImportant = email.isImportantSender;
 
     return Scaffold(
@@ -796,13 +803,28 @@ class _EmailReaderViewState extends State<EmailReaderView> {
     if (html.isEmpty) return '';
     var prepared = html;
 
+    // 1. Strip DOCTYPE, head, style, script, meta, title, comments, and outer html/body tags
+    prepared = prepared.replaceAll(RegExp(r'<!DOCTYPE[^>]*>', caseSensitive: false), '');
+    prepared = prepared.replaceAll(RegExp(r'<!--[\s\S]*?-->'), '');
+    prepared = prepared.replaceAll(RegExp(r'<head[\s\S]*?<\/head>', caseSensitive: false), '');
+    prepared = prepared.replaceAll(RegExp(r'<style[\s\S]*?<\/style>', caseSensitive: false), '');
+    prepared = prepared.replaceAll(RegExp(r'<script[\s\S]*?<\/script>', caseSensitive: false), '');
+    prepared = prepared.replaceAll(RegExp(r'<meta[^>]*>', caseSensitive: false), '');
+    prepared = prepared.replaceAll(RegExp(r'<title[\s\S]*?<\/title>', caseSensitive: false), '');
+    prepared = prepared.replaceAll(RegExp(r'<link[^>]*>', caseSensitive: false), '');
+    prepared = prepared.replaceAll(RegExp(r'<html[^>]*>', caseSensitive: false), '');
+    prepared = prepared.replaceAll(RegExp(r'<\/html>', caseSensitive: false), '');
+    prepared = prepared.replaceAll(RegExp(r'<body[^>]*>', caseSensitive: false), '');
+    prepared = prepared.replaceAll(RegExp(r'<\/body>', caseSensitive: false), '');
+
     final serverBase = ApiService.baseUrl;
-    // Fix all relative src attributes (/api/v1/image_proxy... or /uploads/...)
+    // 2. Fix all relative src attributes (/api/v1/image_proxy... or /uploads/...)
     prepared = prepared.replaceAllMapped(
       RegExp(r'''src=["'](/[^"']+)["']''', caseSensitive: false),
       (m) => 'src="$serverBase${m[1]}"',
     );
 
+    // 3. If showImages is false, replace images with privacy placeholder
     if (!showImages) {
       prepared = prepared.replaceAllMapped(
         RegExp(r'<img([^>]*)>', caseSensitive: false),
@@ -810,7 +832,7 @@ class _EmailReaderViewState extends State<EmailReaderView> {
       );
     }
 
-    return prepared;
+    return prepared.trim();
   }
 
   Widget _buildAiActionButton({required IconData icon, required String label, required VoidCallback onTap}) {
