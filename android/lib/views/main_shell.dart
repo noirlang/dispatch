@@ -21,10 +21,12 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
+  late final PageController _pageController;
 
   @override
   void initState() {
     super.initState();
+    _pageController = PageController(initialPage: _currentIndex);
     // Initial fetch of data
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<EmailProvider>().fetchEmails('inbox');
@@ -34,8 +36,19 @@ class _MainShellState extends State<MainShell> {
     });
   }
 
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
   void _onTabSelected(int index) {
     setState(() => _currentIndex = index);
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 240),
+      curve: Curves.easeOutCubic,
+    );
   }
 
   @override
@@ -53,8 +66,11 @@ class _MainShellState extends State<MainShell> {
 
     return Scaffold(
       backgroundColor: AppTheme.bgPrimary,
-      body: IndexedStack(
-        index: _currentIndex,
+      body: PageView(
+        controller: _pageController,
+        onPageChanged: (index) {
+          setState(() => _currentIndex = index);
+        },
         children: screens,
       ),
       bottomNavigationBar: Container(

@@ -25,6 +25,7 @@ class EmailReaderView extends StatefulWidget {
 }
 
 class _EmailReaderViewState extends State<EmailReaderView> {
+  late int _currentEmailId;
   EmailItem? _email;
   bool _isLoading = false;
   bool _isLightMode = false;
@@ -39,13 +40,14 @@ class _EmailReaderViewState extends State<EmailReaderView> {
   @override
   void initState() {
     super.initState();
+    _currentEmailId = widget.emailId;
     _email = widget.initialEmail;
     _fetchDetail();
   }
 
   Future<void> _fetchDetail() async {
     setState(() => _isLoading = true);
-    final email = await context.read<EmailProvider>().fetchEmailDetail(widget.emailId);
+    final email = await context.read<EmailProvider>().fetchEmailDetail(_currentEmailId);
     if (email != null && mounted) {
       setState(() {
         _email = email;
@@ -56,10 +58,46 @@ class _EmailReaderViewState extends State<EmailReaderView> {
     }
   }
 
+  void _navigateToNextEmail() {
+    final emailProvider = context.read<EmailProvider>();
+    final emails = emailProvider.emails;
+    final currentIdx = emails.indexWhere((e) => e.id == _currentEmailId);
+    if (currentIdx != -1 && currentIdx < emails.length - 1) {
+      final next = emails[currentIdx + 1];
+      setState(() {
+        _currentEmailId = next.id;
+        _email = next;
+        _showRemoteImages = false;
+        _aiSummary = null;
+        _translation = null;
+      });
+      emailProvider.markAsRead(next.id);
+      _fetchDetail();
+    }
+  }
+
+  void _navigateToPrevEmail() {
+    final emailProvider = context.read<EmailProvider>();
+    final emails = emailProvider.emails;
+    final currentIdx = emails.indexWhere((e) => e.id == _currentEmailId);
+    if (currentIdx > 0) {
+      final prev = emails[currentIdx - 1];
+      setState(() {
+        _currentEmailId = prev.id;
+        _email = prev;
+        _showRemoteImages = false;
+        _aiSummary = null;
+        _translation = null;
+      });
+      emailProvider.markAsRead(prev.id);
+      _fetchDetail();
+    }
+  }
+
   Future<void> _handleAiSummary() async {
     setState(() => _loadingSummary = true);
     try {
-      final summary = await context.read<EmailProvider>().fetchAiSummary(widget.emailId);
+      final summary = await context.read<EmailProvider>().fetchAiSummary(_currentEmailId);
       if (mounted) {
         setState(() {
           _aiSummary = summary;
@@ -305,6 +343,11 @@ class _EmailReaderViewState extends State<EmailReaderView> {
     final String rawHtml = hasHtml ? candidateContent : '';
     final isImportant = email.isImportantSender;
 
+    final emails = context.watch<EmailProvider>().emails;
+    final currentIdx = emails.indexWhere((e) => e.id == _currentEmailId);
+    final hasPrev = currentIdx > 0;
+    final hasNext = currentIdx != -1 && currentIdx < emails.length - 1;
+
     return Scaffold(
       backgroundColor: AppTheme.bgPrimary,
       appBar: AppBar(
@@ -312,7 +355,26 @@ class _EmailReaderViewState extends State<EmailReaderView> {
           icon: const Icon(LucideIcons.arrowLeft, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
+        title: emails.isNotEmpty && currentIdx != -1
+            ? Text(
+                '${currentIdx + 1} / ${emails.length}',
+                style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13, fontWeight: FontWeight.w600),
+              )
+            : null,
+        centerTitle: false,
         actions: [
+          // Previous email
+          IconButton(
+            icon: Icon(LucideIcons.chevronLeft, size: 20, color: hasPrev ? AppTheme.textPrimary : AppTheme.textMuted.withOpacity(0.3)),
+            tooltip: 'Önceki E-posta',
+            onPressed: hasPrev ? _navigateToPrevEmail : null,
+          ),
+          // Next email
+          IconButton(
+            icon: Icon(LucideIcons.chevronRight, size: 20, color: hasNext ? AppTheme.textPrimary : AppTheme.textMuted.withOpacity(0.3)),
+            tooltip: 'Sonraki E-posta',
+            onPressed: hasNext ? _navigateToNextEmail : null,
+          ),
           // Universal Theme switch toggle (Dark / Light)
           IconButton(
             icon: Icon(
@@ -406,14 +468,27 @@ class _EmailReaderViewState extends State<EmailReaderView> {
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Subject title
-            Text(
-              _translation != null ? _translation!['translated_subject'] : email.subject,
+      body: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onHorizontalDragEnd: (details) {
+          if (details.primaryVelocity != null) {
+            if (details.primaryVelocity! < -250) {
+              // Swiped left -> next email
+              _navigateToNextEmail();
+            } else if (details.primaryVelocity! > 250) {
+              // Swiped right -> previous email
+              _navigateToPrevEmail();
+            }
+          }
+        },
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Subject title
+              Text(
+                _translation != null ? _translation!['translated_subject'] : email.subject,
               style: const TextStyle(
                 color: AppTheme.textPrimary,
                 fontSize: 18,
@@ -771,6 +846,7 @@ class _EmailReaderViewState extends State<EmailReaderView> {
             const SizedBox(height: 40),
           ],
         ),
+      ),
       ),
     );
   }

@@ -181,22 +181,63 @@ class _EmailListViewState extends State<EmailListView> {
                     ...emails.map((email) {
                       return Dismissible(
                         key: Key('email_${email.id}'),
-                        direction: DismissDirection.endToStart,
+                        direction: DismissDirection.horizontal,
                         background: Container(
+                          alignment: Alignment.centerLeft,
+                          padding: const EdgeInsets.only(left: 20),
+                          color: AppTheme.blue.withOpacity(0.85),
+                          child: Row(
+                            children: [
+                              Icon(email.isRead ? LucideIcons.mail : LucideIcons.mailCheck, color: Colors.white, size: 20),
+                              const SizedBox(width: 8),
+                              Text(
+                                email.isRead ? 'Okunmadı Yap' : 'Okundu Yap',
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        ),
+                        secondaryBackground: Container(
                           alignment: Alignment.centerRight,
                           padding: const EdgeInsets.only(right: 20),
-                          color: AppTheme.red.withOpacity(0.8),
-                          child: const Icon(LucideIcons.trash2, color: Colors.white, size: 20),
+                          color: AppTheme.red.withOpacity(0.85),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Text(
+                                'Çöpe Taşı',
+                                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                              ),
+                              SizedBox(width: 8),
+                              Icon(LucideIcons.trash2, color: Colors.white, size: 20),
+                            ],
+                          ),
                         ),
-                        onDismissed: (_) {
-                          emailProvider.deleteEmail(email.id);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('E-posta çöp kutusuna taşındı'),
-                              duration: Duration(seconds: 2),
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
+                        confirmDismiss: (direction) async {
+                          if (direction == DismissDirection.startToEnd) {
+                            // Left-to-right: Toggle read/unread
+                            if (email.isRead) {
+                              await emailProvider.markAsUnread(email.id);
+                            } else {
+                              await emailProvider.markAsRead(email.id);
+                            }
+                            return false; // Don't remove from list
+                          } else {
+                            // Right-to-left: Delete
+                            return true;
+                          }
+                        },
+                        onDismissed: (direction) {
+                          if (direction == DismissDirection.endToStart) {
+                            emailProvider.deleteEmail(email.id);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('E-posta çöp kutusuna taşındı'),
+                                duration: Duration(seconds: 2),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          }
                         },
                         child: EmailItemTile(
                           email: email,

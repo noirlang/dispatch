@@ -123,6 +123,37 @@ class EmailProvider extends ChangeNotifier {
     }
   }
 
+  // 4b. Mark as unread
+  Future<void> markAsUnread(int id) async {
+    final idx = _emails.indexWhere((e) => e.id == id);
+    if (idx != -1 && _emails[idx].isRead) {
+      _emails[idx] = EmailItem(
+        id: _emails[idx].id,
+        from: _emails[idx].from,
+        to: _emails[idx].to,
+        cc: _emails[idx].cc,
+        bcc: _emails[idx].bcc,
+        subject: _emails[idx].subject,
+        body: _emails[idx].body,
+        bodyText: _emails[idx].bodyText,
+        bodyHtml: _emails[idx].bodyHtml,
+        folder: _emails[idx].folder,
+        isRead: false,
+        isFlagged: _emails[idx].isFlagged,
+        isImportantSender: _emails[idx].isImportantSender,
+        createdAt: _emails[idx].createdAt,
+        attachments: _emails[idx].attachments,
+        hasAttachments: _emails[idx].hasAttachments,
+        senderName: _emails[idx].senderName,
+        avatarUrl: _emails[idx].avatarUrl,
+        avatarInitials: _emails[idx].avatarInitials,
+        isKnownCompany: _emails[idx].isKnownCompany,
+        isDispatchUser: _emails[idx].isDispatchUser,
+      );
+      notifyListeners();
+    }
+  }
+
   // 5. Toggle Flag
   Future<void> toggleFlag(int id) async {
     final idx = _emails.indexWhere((e) => e.id == id);

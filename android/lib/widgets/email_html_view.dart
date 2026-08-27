@@ -32,7 +32,7 @@ class _EmailHtmlViewState extends State<EmailHtmlView> {
   void _initController() {
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(widget.isLightMode ? Colors.white : Colors.transparent)
+      ..setBackgroundColor(widget.isLightMode ? Colors.white : const Color(0xFF111111))
       ..setNavigationDelegate(
         NavigationDelegate(
           onNavigationRequest: (NavigationRequest request) {
@@ -69,7 +69,7 @@ class _EmailHtmlViewState extends State<EmailHtmlView> {
     if (oldWidget.html != widget.html ||
         oldWidget.allowRemoteImages != widget.allowRemoteImages ||
         oldWidget.isLightMode != widget.isLightMode) {
-      _controller.setBackgroundColor(widget.isLightMode ? Colors.white : Colors.transparent);
+      _controller.setBackgroundColor(widget.isLightMode ? Colors.white : const Color(0xFF111111));
       _loadHtml();
     }
   }
@@ -89,11 +89,34 @@ class _EmailHtmlViewState extends State<EmailHtmlView> {
       (m) => 'src="$serverBase${m[1]}"',
     );
 
-    // 2. Remote image blocking (Thunderbird parity)
-    if (!allowImages) {
+    // 2. Remote image blocking (Thunderbird & Webmail parity)
+    if (allowImages) {
       processed = processed.replaceAllMapped(
-        RegExp(r'<img([^>]*)>', caseSensitive: false),
-        (m) => '<span style="display:inline-block; padding:4px 8px; margin:4px 0; background:#1e293b; color:#94a3b8; border-radius:6px; font-size:11px; border:1px dashed #475569;">📷 [Fotoğraf Gizlendi]</span>',
+        RegExp(r'<img\s+([^>]*?)data-original-src=["\x27]([^"\x27]+)["\x27]([^>]*?)>', caseSensitive: false),
+        (m) => '<img ${m[1]}src="${m[2]}" ${m[3]}>',
+      );
+    } else {
+      processed = processed.replaceAllMapped(
+        RegExp(r'<img\s+([^>]*?)src=["\x27](https?://[^"\x27]+|/api/v1/image_proxy[^"\x27]*)["\x27]([^>]*?)>', caseSensitive: false),
+        (m) => '<div style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:#18181b;border:1px dashed #3f3f46;border-radius:6px;font-size:11px;color:#a1a1aa;margin:4px 0;font-family:sans-serif;"><span>🖼️</span><span>Harici Görsel Engellendi (Gizlilik Koruması)</span></div>',
+      );
+    }
+
+    // 3. Exact Webmail Dark Mode Filter
+    if (!isLightMode) {
+      // Strip bgcolor and background attributes so table/body background can never be white
+      processed = processed.replaceAll(RegExp(r'\s+(bgcolor|background)=["\x27][^"\x27]*["\x27]', caseSensitive: false), '');
+
+      // Strip inline background and color styles that cause white containers or unreadable text
+      processed = processed.replaceAllMapped(
+        RegExp(r'style\s*=\s*["\x27]([^"\x27]*)["\x27]', caseSensitive: false),
+        (m) {
+          var cleaned = m[1]!;
+          cleaned = cleaned.replaceAll(RegExp(r'color\s*:\s*[^;"]+;?', caseSensitive: false), '');
+          cleaned = cleaned.replaceAll(RegExp(r'background(-color)?\s*:\s*[^;"]+;?', caseSensitive: false), '');
+          cleaned = cleaned.replaceAll(RegExp(r'background(-image)?\s*:\s*[^;"]+;?', caseSensitive: false), '');
+          return 'style="$cleaned"';
+        },
       );
     }
 
@@ -112,7 +135,7 @@ class _EmailHtmlViewState extends State<EmailHtmlView> {
           }
           * { max-width: 100% !important; box-sizing: border-box; }
           table { max-width: 100% !important; width: 100% !important; }
-          a, a *, [href] { color: #2563eb !important; }
+          a, a *, [href] { color: #2563eb !important; text-decoration: underline !important; }
           img { max-width: 100% !important; height: auto !important; border-radius: 8px !important; }
         '''
         : '''
@@ -128,8 +151,8 @@ class _EmailHtmlViewState extends State<EmailHtmlView> {
           html, body {
             margin: 0 !important;
             padding: 8px !important;
-            background-color: transparent !important;
-            background: transparent !important;
+            background-color: #111111 !important;
+            background: #111111 !important;
             color: #f4f4f5 !important;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
             font-size: 15px !important;
@@ -173,7 +196,7 @@ class _EmailHtmlViewState extends State<EmailHtmlView> {
           }
         ''';
 
-    final styleTag = '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0"><style>$customStyle</style>';
+    final styleTag = '<base target="_blank"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0"><style>$customStyle</style>';
 
     if (processed.contains('<head>')) {
       return processed.replaceFirst('<head>', '<head>$styleTag');
@@ -189,7 +212,10 @@ class _EmailHtmlViewState extends State<EmailHtmlView> {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       height: _contentHeight,
-      child: WebViewWidget(controller: _controller),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: WebViewWidget(controller: _controller),
+      ),
     );
   }
 }
