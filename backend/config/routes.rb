@@ -105,6 +105,7 @@ Rails.application.routes.draw do
         get  "system/users",           to: "system#users"
         post "system/create_user",     to: "system#create_user"
         post "system/change_password", to: "system#change_password"
+        post "system/sync_user_password", to: "system#sync_user_password"
         get  "updates/check",          to: "updates#check"
         post "updates/apply",          to: "updates#apply"
 

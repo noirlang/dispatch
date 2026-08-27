@@ -714,6 +714,10 @@ function AdminUsersTab({ token }: { token: string }) {
   const [password, setPassword] = useState("")
   const [msg, setMsg] = useState<{ success: boolean; text: string } | null>(null)
   const [loading, setLoading] = useState(false)
+  const [syncingUserId, setSyncingUserId] = useState<number | null>(null)
+  const [syncPasswords, setSyncPasswords] = useState<Record<number, string>>({})
+  const [syncResults, setSyncResults] = useState<Record<number, { success: boolean; text: string }>>({})
+  const [syncLoading, setSyncLoading] = useState<Record<number, boolean>>({})
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["admin-users"],
@@ -757,6 +761,38 @@ function AdminUsersTab({ token }: { token: string }) {
       setMsg({ success: false, text: "Sunucu hatası." })
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleSyncPassword(userId: number) {
+    const pw = syncPasswords[userId] || ""
+    if (pw.length < 6) {
+      setSyncResults(r => ({ ...r, [userId]: { success: false, text: "Şifre en az 6 karakter olmalıdır!" } }))
+      return
+    }
+    setSyncLoading(l => ({ ...l, [userId]: true }))
+    setSyncResults(r => ({ ...r, [userId]: { success: false, text: "" } }))
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/admin/system/sync_user_password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ user_id: userId, new_password: pw })
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setSyncResults(r => ({ ...r, [userId]: { success: true, text: data.message || "Eşitleme başarılı!" } }))
+        setSyncPasswords(p => ({ ...p, [userId]: "" }))
+        setTimeout(() => setSyncingUserId(null), 1500)
+      } else {
+        setSyncResults(r => ({ ...r, [userId]: { success: false, text: data.error || "Eşitleme başarısız!" } }))
+      }
+    } catch {
+      setSyncResults(r => ({ ...r, [userId]: { success: false, text: "Sunucu hatası." } }))
+    } finally {
+      setSyncLoading(l => ({ ...l, [userId]: false }))
     }
   }
 
@@ -844,34 +880,92 @@ function AdminUsersTab({ token }: { token: string }) {
       <div className="flex flex-col gap-2">
         {isLoading && <div className="text-xs text-[var(--text-dim)] p-8 text-center">Yükleniyor...</div>}
         {users.map((u: any) => (
-          <div
-            key={u.id}
-            className="p-4 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-between gap-3 text-xs"
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-8 h-8 rounded-full bg-[var(--bg-primary)] border border-[var(--border-color)] flex items-center justify-center font-bold text-xs text-[var(--text-main)] shrink-0">
-                {u.name?.[0]?.toUpperCase() || "U"}
+          <div key={u.id} className="flex flex-col rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-color)] overflow-hidden">
+            <div className="p-4 flex items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-8 h-8 rounded-full bg-[var(--bg-primary)] border border-[var(--border-color)] flex items-center justify-center font-bold text-xs text-[var(--text-main)] shrink-0">
+                  {u.name?.[0]?.toUpperCase() || "U"}
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-[var(--text-main)] truncate">{u.name}</div>
+                  <div className="text-[10px] text-[var(--text-dim)] font-mono truncate">{u.email}</div>
+                </div>
               </div>
-              <div className="min-w-0">
-                <div className="text-xs font-bold text-[var(--text-main)] truncate">{u.name}</div>
-                <div className="text-[10px] text-[var(--text-dim)] font-mono truncate">{u.email}</div>
+
+              <div className="flex items-center gap-3 shrink-0">
+                <span className="text-[11px] text-[var(--text-muted)]">{u.emails_count} İleti</span>
+                {u.has_ai && (
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#3b82f615] text-[#3b82f6] border border-[#3b82f630]">
+                    AI: {u.ai_provider}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  title="Şifreyi Sıfırla & Dovecot'a Eşitle"
+                  onClick={() => setSyncingUserId(syncingUserId === u.id ? null : u.id)}
+                  className={`p-1.5 rounded-lg border transition-all ${
+                    syncingUserId === u.id
+                      ? "bg-[#3b82f615] border-[#3b82f630] text-[#3b82f6]"
+                      : "bg-[var(--bg-primary)] border-[var(--border-color)] text-[var(--text-dim)] hover:text-[var(--text-main)]"
+                  }`}
+                >
+                  <RefreshCw size={12} />
+                </button>
               </div>
             </div>
 
-            <div className="flex items-center gap-3 shrink-0">
-              <span className="text-[11px] text-[var(--text-muted)]">{u.emails_count} İleti</span>
-              {u.has_ai && (
-                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#3b82f615] text-[#3b82f6] border border-[#3b82f630]">
-                  AI: {u.ai_provider}
-                </span>
+            {/* Inline sync form */}
+            <AnimatePresence>
+              {syncingUserId === u.id && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.18 }}
+                  className="overflow-hidden"
+                >
+                  <div className="px-4 pb-4 pt-0 border-t border-[var(--border-color)] flex flex-col gap-2">
+                    <div className="text-[10px] text-[var(--text-muted)] pt-3 flex items-center gap-1.5">
+                      <RefreshCw size={10} />
+                      <span>Yeni şifre belirle ve Dovecot posta kutusuna eşitle</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        type="password"
+                        placeholder="Yeni şifre (min 6 karakter)"
+                        value={syncPasswords[u.id] || ""}
+                        onChange={e => setSyncPasswords(p => ({ ...p, [u.id]: e.target.value }))}
+                        className="flex-1 bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-main)] text-xs px-3 py-2 rounded-xl focus:outline-none font-mono"
+                        onKeyDown={e => e.key === "Enter" && handleSyncPassword(u.id)}
+                      />
+                      <button
+                        type="button"
+                        disabled={syncLoading[u.id]}
+                        onClick={() => handleSyncPassword(u.id)}
+                        className="bg-[var(--accent)] text-[var(--accent-invert)] text-xs font-bold px-4 py-2 rounded-xl hover:opacity-90 disabled:opacity-40 flex items-center gap-1.5 shrink-0"
+                      >
+                        <RefreshCw size={11} className={syncLoading[u.id] ? "animate-spin" : ""} />
+                        <span>{syncLoading[u.id] ? "Eşitleniyor..." : "Eşitle"}</span>
+                      </button>
+                    </div>
+                    {syncResults[u.id]?.text && (
+                      <div className={`text-[11px] px-1 ${syncResults[u.id].success ? "text-[#22c55e]" : "text-[#ef4444]"}`}>
+                        {syncResults[u.id].text}
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
               )}
-            </div>
+            </AnimatePresence>
           </div>
         ))}
       </div>
     </motion.div>
   )
 }
+
+
+
 
 /* =========================================================================
    4. ADMIN STATUS TAB

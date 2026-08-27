@@ -101,4 +101,25 @@ class Api::V1::Admin::SystemController < Api::V1::Admin::BaseController
     SystemConfig.set_admin_password(new_pw)
     render json: { message: "Yönetici şifresi başarıyla güncellendi." }
   end
+
+  def sync_user_password
+    user = User.find_by(id: params[:user_id])
+    return render json: { error: "Kullanıcı bulunamadı!" }, status: :not_found unless user
+
+    new_pw = params[:new_password].to_s
+    if new_pw.length < 6
+      return render json: { error: "Yeni şifre en az 6 karakter olmalıdır!" }, status: :unprocessable_entity
+    end
+
+    user.password = new_pw
+    user.password_confirmation = new_pw
+
+    if user.save
+      # Force Dovecot sync with raw password
+      Email::MailboxProvisioner.sync_account(user, new_pw)
+      render json: { message: "#{user.email} şifresi başarıyla güncellendi ve posta kutusuna eşitlendi." }
+    else
+      render json: { error: user.errors.full_messages.join(", ") }, status: :unprocessable_entity
+    end
+  end
 end
