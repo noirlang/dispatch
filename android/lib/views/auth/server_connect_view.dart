@@ -54,50 +54,16 @@ class _ServerConnectViewState extends State<ServerConnectView> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Logo & Title
+                  // Official Dispatch Logo
                   Center(
-                    child: Container(
-                      width: 64,
-                      height: 64,
-                      decoration: BoxDecoration(
-                        color: AppTheme.bgSecondary,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppTheme.borderColor, width: 1.2),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.white.withOpacity(0.05),
-                            blurRadius: 20,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: const Center(
-                        child: Text(
-                          'D',
-                          style: TextStyle(
-                            color: AppTheme.textPrimary,
-                            fontSize: 32,
-                            fontWeight: FontWeight.w900,
-                            fontFamily: 'monospace',
-                          ),
-                        ),
-                      ),
+                    child: Image.asset(
+                      'assets/dispatch.png',
+                      height: 48,
+                      fit: BoxFit.contain,
                     ),
-                  ).animate().fadeIn(duration: 400.ms).scale(begin: const Offset(0.9, 0.9)),
+                  ).animate().fadeIn(duration: 400.ms).scale(begin: const Offset(0.95, 0.95)),
 
-                  const SizedBox(height: 24),
-                  const Text(
-                    'DISPATCH',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 2,
-                    ),
-                  ).animate().fadeIn(delay: 100.ms),
-
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 16),
                   const Text(
                     'Bağlanmak istediğiniz Dispatch sunucu adresini girin.',
                     textAlign: TextAlign.center,
@@ -108,7 +74,7 @@ class _ServerConnectViewState extends State<ServerConnectView> {
                     ),
                   ).animate().fadeIn(delay: 150.ms),
 
-                  const SizedBox(height: 36),
+                  const SizedBox(height: 32),
 
                   // Input Box
                   Container(

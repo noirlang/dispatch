@@ -68,25 +68,10 @@ class _EmailListViewState extends State<EmailListView> {
               )
             : Row(
                 children: [
-                  Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      color: AppTheme.bgTertiary,
-                      borderRadius: BorderRadius.circular(7),
-                      border: Border.all(color: AppTheme.borderColor),
-                    ),
-                    child: const Center(
-                      child: Text(
-                        'D',
-                        style: TextStyle(
-                          color: AppTheme.textPrimary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w900,
-                          fontFamily: 'monospace',
-                        ),
-                      ),
-                    ),
+                  Image.asset(
+                    'assets/dispatch.png',
+                    height: 22,
+                    fit: BoxFit.contain,
                   ),
                   const SizedBox(width: 10),
                   Text(_getFolderTitle(currentFolder)),

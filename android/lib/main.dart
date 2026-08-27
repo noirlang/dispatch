@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
@@ -12,8 +13,17 @@ import 'views/auth/server_connect_view.dart';
 import 'views/auth/auth_view.dart';
 import 'views/main_shell.dart';
 
+class CustomHttpOverrides extends HttpOverrides {
+  @override
+  HttpClient createHttpClient(SecurityContext? context) {
+    return super.createHttpClient(context)
+      ..badCertificateCallback = (X509Certificate cert, String host, int port) => true;
+  }
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  HttpOverrides.global = CustomHttpOverrides();
 
   // Request notification permissions on launch as requested
   await NotificationService.requestPermissionOnLaunch();

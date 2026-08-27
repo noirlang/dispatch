@@ -141,7 +141,18 @@ class _AuthViewState extends State<AuthView> {
                     ),
                   ),
 
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 20),
+
+                  // Brand Logo
+                  Center(
+                    child: Image.asset(
+                      'assets/dispatch.png',
+                      height: 40,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
 
                   // Header title
                   Text(

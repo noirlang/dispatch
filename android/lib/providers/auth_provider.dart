@@ -69,51 +69,67 @@ class AuthProvider extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
 
-    var normalized = url.trim();
-    if (!normalized.startsWith('http://') && !normalized.startsWith('https://')) {
-      normalized = 'https://$normalized';
-    }
-    if (normalized.endsWith('/')) {
-      normalized = normalized.substring(0, normalized.length - 1);
+    var input = url.trim();
+    if (input.endsWith('/')) {
+      input = input.substring(0, input.length - 1);
     }
 
-    try {
-      ApiService.setServerUrl(normalized);
-      final res = await ApiService.get('/auth/register_mode');
-      if (res is Map<String, dynamic>) {
-        _serverStatus = ServerRegistrationStatus.fromJson(res);
-        await CacheService.saveServerStatus(res);
-      }
+    // Prepare URL candidates: if protocol provided, use as-is; otherwise try https then http
+    List<String> candidates = [];
+    if (input.startsWith('http://') || input.startsWith('https://')) {
+      candidates.add(input);
+    } else {
+      candidates.add('https://$input');
+      candidates.add('http://$input');
+    }
 
-      await CacheService.saveServerUrl(normalized);
-      _serverUrl = normalized;
-      _status = AuthStatus.unauthenticated;
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      // Fallback check on health or auth endpoint
+    for (final candidate in candidates) {
       try {
+        ApiService.setServerUrl(candidate);
+        final res = await ApiService.get('/auth/registration_status');
+        if (res is Map<String, dynamic>) {
+          _serverStatus = ServerRegistrationStatus.fromJson(res);
+          await CacheService.saveServerStatus(res);
+        }
+
+        await CacheService.saveServerUrl(candidate);
+        _serverUrl = candidate;
+        _status = AuthStatus.unauthenticated;
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      } catch (e) {
+        // Continue to next candidate if available
+        continue;
+      }
+    }
+
+    // Try fallback endpoint /settings
+    for (final candidate in candidates) {
+      try {
+        ApiService.setServerUrl(candidate);
         await ApiService.get('/settings');
-        await CacheService.saveServerUrl(normalized);
-        _serverUrl = normalized;
+        await CacheService.saveServerUrl(candidate);
+        _serverUrl = candidate;
         _status = AuthStatus.unauthenticated;
         _isLoading = false;
         notifyListeners();
         return true;
       } catch (_) {
-        _errorMessage = 'Sunucuya bağlanılamadı. Lütfen adresi kontrol edin.';
-        _isLoading = false;
-        notifyListeners();
-        return false;
+        continue;
       }
     }
+
+    _errorMessage = 'Sunucuya bağlanılamadı. Lütfen sunucu adresini ve internet bağlantınızı kontrol edin.';
+    _isLoading = false;
+    notifyListeners();
+    return false;
   }
 
   // 2. Check Server Capabilities / Registration Mode
   Future<void> checkServerCapabilities(String url) async {
     try {
-      final res = await ApiService.get('/auth/register_mode');
+      final res = await ApiService.get('/auth/registration_status');
       if (res is Map<String, dynamic>) {
         _serverStatus = ServerRegistrationStatus.fromJson(res);
         await CacheService.saveServerStatus(res);
