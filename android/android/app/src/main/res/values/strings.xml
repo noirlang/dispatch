@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Dispatch</string>
+    <string name="widget_name">Gelen Kutusu</string>
+    <string name="widget_description">Gelen kutunuzdaki son 2 e-postayı gösterir</string>
+</resources>

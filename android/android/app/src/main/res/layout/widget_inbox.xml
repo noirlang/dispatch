@@ -16,9 +16,10 @@
         android:orientation="horizontal">
 
         <ImageView
+            android:id="@+id/widget_logo"
             android:layout_width="18dp"
             android:layout_height="18dp"
-            android:src="@drawable/ic_launcher_foreground" />
+            android:src="@mipmap/ic_launcher" />
 
         <TextView
             android:id="@+id/widget_title"
@@ -50,35 +51,36 @@
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:layout_marginTop="8dp"
-        android:layout_marginBottom="8dp"
+        android:layout_marginTop="6dp"
+        android:layout_marginBottom="6dp"
         android:background="#222222" />
 
     <!-- Email Item 1 -->
     <LinearLayout
         android:id="@+id/widget_mail_1"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
+        android:layout_height="wrap_content"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:visibility="visible">
+        android:paddingTop="2dp"
+        android:paddingBottom="2dp">
 
         <TextView
             android:id="@+id/mail_1_avatar"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
             android:background="@drawable/widget_avatar_bg"
             android:gravity="center"
             android:text="D"
             android:textColor="#FFFFFF"
-            android:textSize="12sp"
+            android:textSize="11sp"
             android:textStyle="bold" />
 
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="10dp"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
             android:orientation="vertical">
 
             <LinearLayout
@@ -93,7 +95,7 @@
                     android:layout_weight="1"
                     android:ellipsize="end"
                     android:maxLines="1"
-                    android:text="Gönderici"
+                    android:text="Dispatch"
                     android:textColor="#FFFFFF"
                     android:textSize="12sp"
                     android:textStyle="bold" />
@@ -113,10 +115,9 @@
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:text="Konu"
+                android:text="Gelen Kutusu"
                 android:textColor="#E0E0E0"
-                android:textSize="11sp"
-                android:textStyle="bold" />
+                android:textSize="11sp" />
 
             <TextView
                 android:id="@+id/mail_1_snippet"
@@ -124,8 +125,8 @@
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:text="İçerik önizlemesi..."
-                android:textColor="#999999"
+                android:text="E-postalarınızı kontrol etmek için dokunun"
+                android:textColor="#888888"
                 android:textSize="10sp" />
         </LinearLayout>
     </LinearLayout>
@@ -142,27 +143,28 @@
     <LinearLayout
         android:id="@+id/widget_mail_2"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
+        android:layout_height="wrap_content"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:visibility="visible">
+        android:paddingTop="2dp"
+        android:paddingBottom="2dp">
 
         <TextView
             android:id="@+id/mail_2_avatar"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
             android:background="@drawable/widget_avatar_bg"
             android:gravity="center"
             android:text="D"
             android:textColor="#FFFFFF"
-            android:textSize="12sp"
+            android:textSize="11sp"
             android:textStyle="bold" />
 
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="10dp"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
             android:orientation="vertical">
 
             <LinearLayout
@@ -177,7 +179,7 @@
                     android:layout_weight="1"
                     android:ellipsize="end"
                     android:maxLines="1"
-                    android:text="Gönderici"
+                    android:text=""
                     android:textColor="#FFFFFF"
                     android:textSize="12sp"
                     android:textStyle="bold" />
@@ -197,10 +199,9 @@
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:text="Konu"
+                android:text=""
                 android:textColor="#E0E0E0"
-                android:textSize="11sp"
-                android:textStyle="bold" />
+                android:textSize="11sp" />
 
             <TextView
                 android:id="@+id/mail_2_snippet"
@@ -208,8 +209,8 @@
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:text="İçerik önizlemesi..."
-                android:textColor="#999999"
+                android:text=""
+                android:textColor="#888888"
                 android:textSize="10sp" />
         </LinearLayout>
     </LinearLayout>
@@ -218,9 +219,9 @@
     <TextView
         android:id="@+id/widget_empty_text"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="2"
+        android:layout_height="wrap_content"
         android:gravity="center"
+        android:padding="8dp"
         android:text="Gelen kutunuzda yeni ileti yok."
         android:textColor="#666666"
         android:textSize="12sp"

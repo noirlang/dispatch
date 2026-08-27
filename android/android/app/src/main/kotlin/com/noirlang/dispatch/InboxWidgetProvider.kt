@@ -11,6 +11,16 @@ import android.widget.RemoteViews
 
 class InboxWidgetProvider : AppWidgetProvider() {
 
+    override fun onReceive(context: Context, intent: Intent) {
+        super.onReceive(context, intent)
+        val action = intent.action
+        if (AppWidgetManager.ACTION_APPWIDGET_UPDATE == action ||
+            AppWidgetManager.ACTION_APPWIDGET_ENABLED == action ||
+            "com.noirlang.dispatch.UPDATE_WIDGET" == action) {
+            updateAllWidgets(context)
+        }
+    }
+
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
         for (widgetId in appWidgetIds) {
             updateAppWidget(context, appWidgetManager, widgetId)
@@ -21,11 +31,13 @@ class InboxWidgetProvider : AppWidgetProvider() {
         private const val PREFS_NAME = "dispatch_widget_data"
 
         fun updateAllWidgets(context: Context) {
-            val appWidgetManager = AppWidgetManager.getInstance(context)
+            val appWidgetManager = AppWidgetManager.getInstance(context) ?: return
             val thisWidget = ComponentName(context, InboxWidgetProvider::class.java)
             val allWidgetIds = appWidgetManager.getAppWidgetIds(thisWidget)
-            for (widgetId in allWidgetIds) {
-                updateAppWidget(context, appWidgetManager, widgetId)
+            if (allWidgetIds != null) {
+                for (widgetId in allWidgetIds) {
+                    updateAppWidget(context, appWidgetManager, widgetId)
+                }
             }
         }
 
@@ -56,7 +68,7 @@ class InboxWidgetProvider : AppWidgetProvider() {
                 views.setViewVisibility(R.id.widget_unread_badge, View.GONE)
             }
 
-            // Header Click Intent (opens App)
+            // Header & Root click intent (opens App)
             val headerIntent = Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             }
@@ -66,11 +78,19 @@ class InboxWidgetProvider : AppWidgetProvider() {
             )
             views.setOnClickPendingIntent(R.id.widget_header, headerPendingIntent)
             views.setOnClickPendingIntent(R.id.widget_empty_text, headerPendingIntent)
+            views.setOnClickPendingIntent(R.id.widget_root, headerPendingIntent)
 
             if (m1Sender.isEmpty()) {
-                // Empty state
-                views.setViewVisibility(R.id.widget_empty_text, View.VISIBLE)
-                views.setViewVisibility(R.id.widget_mail_1, View.GONE)
+                // Show default info placeholder if no emails loaded yet
+                views.setViewVisibility(R.id.widget_empty_text, View.GONE)
+                views.setViewVisibility(R.id.widget_mail_1, View.VISIBLE)
+                views.setTextViewText(R.id.mail_1_avatar, "D")
+                views.setTextViewText(R.id.mail_1_sender, "Dispatch")
+                views.setTextViewText(R.id.mail_1_subject, "Gelen Kutusu")
+                views.setTextViewText(R.id.mail_1_snippet, "E-postaları görüntülemek için dokunun")
+                views.setTextViewText(R.id.mail_1_time, "")
+                views.setOnClickPendingIntent(R.id.widget_mail_1, headerPendingIntent)
+
                 views.setViewVisibility(R.id.widget_divider_2, View.GONE)
                 views.setViewVisibility(R.id.widget_mail_2, View.GONE)
             } else {
@@ -118,7 +138,9 @@ class InboxWidgetProvider : AppWidgetProvider() {
                 }
             }
 
-            appWidgetManager.updateAppWidget(appWidgetId, views)
+            try {
+                appWidgetManager.updateAppWidget(appWidgetId, views)
+            } catch (_: Exception) {}
         }
     }
 }
