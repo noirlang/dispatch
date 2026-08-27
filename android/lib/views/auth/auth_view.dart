@@ -342,6 +342,8 @@ class _AuthViewState extends State<AuthView> {
                             controller: _emailController,
                             keyboardType: TextInputType.emailAddress,
                             autocorrect: false,
+                            enableSuggestions: false,
+                            textCapitalization: TextCapitalization.none,
                             onChanged: (_) => setState(() {}),
                             style: const TextStyle(
                               color: AppTheme.textPrimary,
@@ -389,6 +391,9 @@ class _AuthViewState extends State<AuthView> {
                           TextFormField(
                             controller: _passwordController,
                             obscureText: !_showPassword,
+                            autocorrect: false,
+                            enableSuggestions: false,
+                            textCapitalization: TextCapitalization.none,
                             style: const TextStyle(color: AppTheme.textPrimary, fontSize: 14),
                             decoration: InputDecoration(
                               hintText: '••••••••••••',
@@ -403,8 +408,8 @@ class _AuthViewState extends State<AuthView> {
                               ),
                             ),
                             validator: (val) {
-                              if (val == null || val.trim().length < 6) {
-                                return 'Şifreniz en az 6 karakter olmalıdır';
+                              if (val == null || val.isEmpty) {
+                                return 'Lütfen şifrenizi girin';
                               }
                               return null;
                             },

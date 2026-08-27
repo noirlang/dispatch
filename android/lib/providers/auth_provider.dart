@@ -171,42 +171,62 @@ class AuthProvider extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
 
-    try {
-      final cleanEmail = normalizeEmail(email);
-      final rawUsername = email.trim().toLowerCase().replaceAll(RegExp(r'^@+'), '').split('@').first;
-      final body = {
-        'email': cleanEmail,
-        'username': rawUsername,
-        'password': password,
-      };
-      if (totpCode != null && totpCode.isNotEmpty) {
-        body['totp_code'] = totpCode.trim();
-      }
+    final rawInput = email.trim().toLowerCase().replaceAll(RegExp(r'^@+'), '');
+    final uname = rawInput.split('@').first;
 
-      final res = await ApiService.post('/auth/login', body: body);
-      if (res is Map<String, dynamic> && res['token'] != null) {
-        _token = res['token'];
-        ApiService.setToken(_token);
-        await CacheService.saveAuthToken(_token!);
+    final Set<String> candidates = {
+      rawInput,
+      uname,
+      if (_serverStatus.domain != null && _serverStatus.domain!.isNotEmpty)
+        '$uname@${_serverStatus.domain}',
+      '$uname@$effectiveDomain',
+      '$uname@dispatch.local',
+    };
 
-        if (res['user'] != null) {
-          _user = User.fromJson(res['user']);
-          await CacheService.saveUser(_user!.toJson());
+    String lastError = 'Geçersiz kullanıcı adı veya şifre';
+
+    for (final candidate in candidates) {
+      if (candidate.isEmpty) continue;
+      try {
+        ApiService.setToken(null);
+        final body = {
+          'email': candidate,
+          'username': uname,
+          'password': password,
+        };
+        if (totpCode != null && totpCode.isNotEmpty) {
+          body['totp_code'] = totpCode.trim();
         }
 
-        _status = AuthStatus.authenticated;
-        _isLoading = false;
-        notifyListeners();
-        return true;
-      } else {
-        throw ApiException('Geçersiz sunucu yanıtı.');
+        final res = await ApiService.post('/auth/login', body: body);
+        if (res is Map<String, dynamic> && res['token'] != null) {
+          _token = res['token'];
+          ApiService.setToken(_token);
+          await CacheService.saveAuthToken(_token!);
+
+          if (res['user'] != null) {
+            _user = User.fromJson(res['user']);
+            await CacheService.saveUser(_user!.toJson());
+          }
+
+          _status = AuthStatus.authenticated;
+          _isLoading = false;
+          notifyListeners();
+          return true;
+        }
+      } catch (e) {
+        lastError = e.toString();
+        // If 2FA is required, don't keep looping with wrong candidates
+        if (lastError.contains('2FA') || lastError.contains('TOTP')) {
+          break;
+        }
       }
-    } catch (e) {
-      _errorMessage = e.toString();
-      _isLoading = false;
-      notifyListeners();
-      return false;
     }
+
+    _errorMessage = lastError;
+    _isLoading = false;
+    notifyListeners();
+    return false;
   }
 
   // 4. Register
@@ -222,9 +242,11 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       final cleanEmail = normalizeEmail(email);
+      final rawUname = email.trim().toLowerCase().replaceAll(RegExp(r'^@+'), '').split('@').first;
       final body = {
         'name': name.trim(),
         'email': cleanEmail,
+        'username': rawUname,
         'password': password,
       };
       if (inviteCode != null && inviteCode.isNotEmpty) {
