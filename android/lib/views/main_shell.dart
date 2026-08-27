@@ -5,8 +5,10 @@ import '../providers/email_provider.dart';
 import '../providers/dashboard_provider.dart';
 import '../providers/calendar_provider.dart';
 import '../providers/rss_provider.dart';
+import '../services/widget_service.dart';
 import '../theme/app_theme.dart';
 import 'email/email_list_view.dart';
+import 'email/email_reader_view.dart';
 import 'dashboard/dashboard_view.dart';
 import 'calendar/calendar_view.dart';
 import 'feed/feed_view.dart';
@@ -33,6 +35,22 @@ class _MainShellState extends State<MainShell> {
       context.read<DashboardProvider>().fetchDashboardCards();
       context.read<CalendarProvider>().fetchEvents();
       context.read<RssProvider>().fetchFeedsAndItems();
+
+      // Handle widget email click intent
+      WidgetService.getInitialEmailId().then((emailId) {
+        if (emailId != null && emailId > 0 && mounted) {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => EmailReaderView(emailId: emailId)),
+          );
+        }
+      });
+      WidgetService.setOpenEmailHandler((emailId) {
+        if (mounted) {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => EmailReaderView(emailId: emailId)),
+          );
+        }
+      });
     });
   }
 

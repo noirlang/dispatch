@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/email.dart';
 import '../services/api_service.dart';
 import '../services/cache_service.dart';
+import '../services/widget_service.dart';
 
 class EmailProvider extends ChangeNotifier {
   String _currentFolder = 'inbox';
@@ -29,6 +30,10 @@ class EmailProvider extends ChangeNotifier {
           .map((j) => EmailItem.fromJson(j))
           .toList();
       notifyListeners();
+      if (folder == 'inbox') {
+        final unread = _emails.where((e) => !e.isRead).length;
+        WidgetService.updateInboxWidget(emails: _emails, unreadCount: unread);
+      }
     } else {
       _isLoading = true;
       notifyListeners();
@@ -44,6 +49,12 @@ class EmailProvider extends ChangeNotifier {
 
         // Save fresh data to local cache
         await CacheService.saveEmails(folder, res);
+
+        // Update Android Home Screen Widget
+        if (folder == 'inbox') {
+          final unread = _emails.where((e) => !e.isRead).length;
+          WidgetService.updateInboxWidget(emails: _emails, unreadCount: unread);
+        }
       }
 
       // Check approvals count in background if not already in approvals
